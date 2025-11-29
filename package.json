@@ -10,7 +10,10 @@
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.44",
+    "@ai-sdk/react": "^2.0.104",
     "@clerk/nextjs": "^6.35.5",
+    "@radix-ui/react-scroll-area": "^1.2.10",
+    "@radix-ui/react-slot": "^1.2.4",
     "@supabase/supabase-js": "^2.86.0",
     "ai": "^5.0.104",
     "class-variance-authority": "^0.7.1",
@@ -20,6 +23,7 @@
     "next": "16.0.5",
     "react": "19.2.0",
     "react-dom": "19.2.0",
+    "streamdown": "^1.6.9",
     "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {

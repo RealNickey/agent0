@@ -114,7 +114,10 @@ export function ChatInterface() {
       content = `${inputValue}\n\nFile content:\n${fileContent}`;
     }
 
-    sendMessage(content);
+    sendMessage({
+      role: "user",
+      parts: [{ type: "text", text: content }],
+    });
 
     setInputValue("");
     setAttachedFile(null);

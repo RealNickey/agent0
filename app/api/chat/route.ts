@@ -1,5 +1,5 @@
 import { google } from "@ai-sdk/google";
-import { streamText, createUIMessageStreamResponse } from "ai";
+import { streamText, createUIMessageStreamResponse, convertToModelMessages } from "ai";
 
 export const maxDuration = 30;
 
@@ -19,7 +19,7 @@ export async function POST(req: Request) {
 You help users be more productive by intelligently managing their digital life. 
 Be helpful, concise, and proactive in suggesting ways to optimize their workflow.
 Format your responses with clear structure using markdown when helpful.`,
-    messages,
+    messages: convertToModelMessages(messages),
   });
 
   return createUIMessageStreamResponse({

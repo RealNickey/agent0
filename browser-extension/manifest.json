@@ -25,8 +25,8 @@
   "commands": {
     "capture-screenshot": {
       "suggested_key": {
-        "default": "Ctrl+Shift+S",
-        "mac": "Command+Shift+S"
+        "default": "Ctrl+Shift+X",
+        "mac": "Command+Shift+X"
       },
       "description": "Capture screenshot"
     }

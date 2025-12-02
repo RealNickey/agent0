@@ -56,32 +56,55 @@ async function handleSendToAgent0(request, sendResponse) {
   try {
     const { screenshot, pageUrl, pageTitle, selectedText } = request;
     
-    // Open Agent0 in a new tab with the screenshot data
-    const targetUrl = `${agent0Url}?screenshot=true`;
+    // Prepare data for API
+    const payload = {
+      screenshot,
+      pageUrl,
+      pageTitle,
+      selectedText,
+      timestamp: Date.now()
+    };
     
-    // Store screenshot data temporarily
+    // Store screenshot data temporarily (for popup preview)
     await chrome.storage.local.set({
-      pendingScreenshot: {
-        screenshot,
-        pageUrl,
-        pageTitle,
-        selectedText,
-        timestamp: Date.now()
-      }
+      pendingScreenshot: payload
     });
     
-    // Open or focus Agent0 tab
-    const tabs = await chrome.tabs.query({ url: `${agent0Url}/*` });
+    // Send to Agent0 API endpoint
+    const apiUrl = `${agent0Url}/api/screenshot`;
     
-    if (tabs.length > 0) {
-      // Focus existing tab and reload with screenshot
-      await chrome.tabs.update(tabs[0].id, { active: true, url: targetUrl });
-    } else {
-      // Create new tab
-      await chrome.tabs.create({ url: targetUrl });
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API responded with status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log('Screenshot sent to API successfully:', result);
+      
+      // Open or focus Agent0 tab
+      const tabs = await chrome.tabs.query({ url: `${agent0Url}/*` });
+      
+      if (tabs.length > 0) {
+        // Focus existing tab
+        await chrome.tabs.update(tabs[0].id, { active: true });
+      } else {
+        // Create new tab
+        await chrome.tabs.create({ url: agent0Url });
+      }
+      
+      sendResponse({ success: true, data: result });
+    } catch (apiError) {
+      console.error('API request failed:', apiError);
+      sendResponse({ success: false, error: apiError.message });
     }
-    
-    sendResponse({ success: true });
   } catch (error) {
     console.error('Failed to send to Agent0:', error);
     sendResponse({ success: false, error: error.message });

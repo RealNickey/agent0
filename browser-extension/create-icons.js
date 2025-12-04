@@ -2,23 +2,10 @@
 const fs = require('fs');
 const path = require('path');
 
-// Create a simple 1x1 blue PNG and then we'll use it as template
+// Create a simple icon template
 const createIcon = (size, filename) => {
-  // Simple PNG header for a solid blue square
-  // This is a minimal valid PNG file
-  const blue = '#3B82F6';
-  
-  // For now, create a simple colored square using Canvas (if available)
-  // Otherwise, just copy a placeholder
-  
+  // For now, create a simple colored square using SVG
   console.log(`Creating ${filename} (${size}x${size})...`);
-  
-  // Minimal PNG data for a 1x1 blue pixel
-  const minimalPNG = Buffer.from([
-    0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, // PNG signature
-    0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52, // IHDR chunk
-    0x00, 0x00, 0x00, size, 0x00, 0x00, 0x00, size, 0x08, 0x02, 0x00, 0x00, 0x00,
-  ]);
   
   // Write a simple blue square
   try {

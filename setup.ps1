@@ -7,7 +7,7 @@ Write-Host "====================================`n" -ForegroundColor Cyan
 # Check if in correct directory
 if (-not (Test-Path "package.json")) {
     Write-Host "❌ Error: Run this script from the project root directory" -ForegroundColor Red
-    Write-Host "   cd 'D:\main project\agent0'" -ForegroundColor Yellow
+    Write-Host "   cd '<project-root>'" -ForegroundColor Yellow
     exit 1
 }
 

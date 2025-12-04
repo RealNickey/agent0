@@ -7,12 +7,12 @@
 1. Open Chrome/Edge → chrome://extensions/
 2. Enable "Developer mode" (top-right)
 3. Click "Load unpacked"
-4. Select: D:\main project\agent0\browser-extension
+4. Select: <project-root>/browser-extension
 ```
 
 ### 2. Start Agent0
 ```powershell
-cd "D:\main project\agent0"
+cd "<project-root>"
 npm install
 npm run dev
 ```

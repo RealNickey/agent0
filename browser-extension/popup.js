@@ -77,6 +77,18 @@ saveButton.addEventListener('click', () => {
     return;
   }
   
+  // Validate URL format
+  try {
+    const parsedUrl = new URL(url);
+    if (!parsedUrl.protocol.startsWith('http')) {
+      showStatus('URL must start with http:// or https://', 'error');
+      return;
+    }
+  } catch (e) {
+    showStatus('Please enter a valid URL (e.g., http://localhost:3000)', 'error');
+    return;
+  }
+  
   // Remove trailing slash
   const cleanUrl = url.replace(/\/$/, '');
   

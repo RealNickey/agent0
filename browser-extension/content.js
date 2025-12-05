@@ -203,7 +203,7 @@ async function captureArea(rect) {
     
   } catch (error) {
     console.error('Screenshot failed:', error);
-    alert('Failed to capture screenshot: ' + error.message);
+    showToastNotification('Failed to capture screenshot: ' + error.message, 'error');
   } finally {
     cleanup();
   }
@@ -223,7 +223,7 @@ async function captureFullScreen() {
     
   } catch (error) {
     console.error('Screenshot failed:', error);
-    alert('Failed to capture screenshot: ' + error.message);
+    showToastNotification('Failed to capture screenshot: ' + error.message, 'error');
   } finally {
     cleanup();
   }
@@ -261,4 +261,57 @@ function cleanup() {
   startPoint = null;
   currentRect = null;
   isCapturing = false;
+}
+
+// Toast notification for user-friendly error display
+function showToastNotification(message, type = 'info') {
+  // Remove any existing toast
+  const existingToast = document.getElementById('agent0-toast');
+  if (existingToast) {
+    existingToast.remove();
+  }
+  
+  // Add animation style only once (check if it already exists)
+  if (!document.getElementById('agent0-toast-styles')) {
+    const style = document.createElement('style');
+    style.id = 'agent0-toast-styles';
+    style.textContent = `
+      @keyframes agent0-toast-fade-in {
+        from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+        to { opacity: 1; transform: translateX(-50%) translateY(0); }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+  
+  const toast = document.createElement('div');
+  toast.id = 'agent0-toast';
+  toast.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 2147483647;
+    animation: agent0-toast-fade-in 0.3s ease-out;
+    ${type === 'error' 
+      ? 'background: #fee2e2; color: #991b1b; border: 1px solid #fecaca;' 
+      : 'background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0;'}
+  `;
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  
+  // Auto-remove after 4 seconds
+  setTimeout(() => {
+    if (toast.parentNode) {
+      toast.style.opacity = '0';
+      toast.style.transition = 'opacity 0.3s ease-out';
+      setTimeout(() => toast.remove(), 300);
+    }
+  }, 4000);
 }

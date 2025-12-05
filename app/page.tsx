@@ -9,7 +9,6 @@ import {
   PromptInputSubmit,
   PromptInputAttachments,
   PromptInputAttachment,
-  PromptInputButton,
   PromptInputActionMenu,
   PromptInputActionMenuTrigger,
   PromptInputActionMenuContent,
@@ -20,9 +19,6 @@ import {
 } from "@/components/ai-elements/prompt-input";
 import { Conversation, ConversationContent } from "@/components/ai-elements/conversation";
 import { Message, MessageContent } from "@/components/ai-elements/message";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { ImageIcon, LinkIcon, TypeIcon, XIcon } from "lucide-react";
 
 // Chrome extension types
 interface ChromeStorage {
@@ -51,7 +47,6 @@ interface ScreenshotContext {
 export default function Home() {
   const [screenshotContext, setScreenshotContext] = useState<ScreenshotContext | null>(null);
   const [messages, setMessages] = useState<Array<{ role: "user" | "assistant"; content: string; files?: any[] }>>([]);
-  const screenshotFileId = useRef<string>("screenshot-from-extension");
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-zinc-50 to-zinc-100 font-sans dark:from-black dark:to-zinc-900 p-4">
@@ -167,6 +162,13 @@ function InputWithScreenshot({
 }) {
   const controller = usePromptInputController();
   const hasAddedScreenshot = useRef(false);
+
+  // Reset hasAddedScreenshot flag when screenshot context is cleared
+  useEffect(() => {
+    if (screenshotContext === null) {
+      hasAddedScreenshot.current = false;
+    }
+  }, [screenshotContext]);
 
   // Check for screenshot from browser extension
   useEffect(() => {

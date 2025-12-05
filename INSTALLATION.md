@@ -19,7 +19,7 @@
 
 4. Navigate to your project folder:
    ```
-   D:\main project\agent0\browser-extension
+   <project-root>/browser-extension
    ```
 
 5. Select the `browser-extension` folder and click **"Select Folder"**
@@ -34,7 +34,7 @@
 
 3. Navigate to:
    ```
-   D:\main project\agent0\browser-extension
+   <project-root>/browser-extension
    ```
 
 4. Select the `manifest.json` file
@@ -55,7 +55,7 @@ The extension works without icons, but for a better experience:
 
 1. Open a terminal in your project root:
    ```bash
-   cd D:\main project\agent0
+   cd <project-root>
    ```
 
 2. Install dependencies (if you haven't already):

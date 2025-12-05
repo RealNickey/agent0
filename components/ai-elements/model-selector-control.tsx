@@ -1,5 +1,6 @@
 "use client";
 
+import { useId, useState, useEffect } from "react";
 import {
   ModelSelector,
   ModelSelectorTrigger,
@@ -40,6 +41,27 @@ export function ModelSelectorControl({
   onOpenChange,
 }: ModelSelectorControlProps) {
   const model25Series = models.filter((m) => m.series === "2.5");
+  
+  // Fix hydration mismatch by only rendering the dialog trigger after mount
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Render a placeholder button during SSR to prevent hydration mismatch
+  if (!isMounted) {
+    return (
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-8 gap-2 rounded-full border-dashed px-3 bg-background/50 backdrop-blur-sm"
+      >
+        <ModelSelectorLogo provider={selectedModel.provider} />
+        <span className="text-xs font-medium">{selectedModel.name}</span>
+        <ChevronDownIcon className="size-3 text-muted-foreground" />
+      </Button>
+    );
+  }
 
   return (
     <ModelSelector open={isOpen} onOpenChange={onOpenChange}>

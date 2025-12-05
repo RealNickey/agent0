@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { ChatHeader } from "@/components/chat-header";
 import { PromptInputArea } from "@/components/prompt-input-area";
 import { MessageList } from "@/components/ai-elements/message-list";
-import { AttachmentsPreview, FileAttachment } from "@/components/ai-elements/attachments-preview";
+import { FileAttachment } from "@/components/ai-elements/attachments-preview";
 import { FeatureBadgesRow, FeatureBadge } from "@/components/ai-elements/feature-badges-row";
 import { ChatEmptyState } from "@/components/ai-elements/chat-empty-state";
 import { SuggestionsGrid } from "@/components/ai-elements/chat-suggestions-grid";
@@ -84,17 +84,30 @@ export function ChatUI() {
   }, []);
 
   const handleSubmit = async (value: { text: string; files: any[] }) => {
-    if (!value.text.trim() && value.files.length === 0) return;
+    if (!value.text.trim() && attachments.length === 0) return;
 
     // Build message content parts
-    const parts: any[] = [{ type: "text", text: value.text }];
+    const parts: any[] = [];
+
+    // Add text part if present
+    if (value.text.trim()) {
+      parts.push({ type: "text", text: value.text });
+    }
 
     // Add file attachments as file parts
+    // Extract base64 data from data URLs and include filename
     for (const att of attachments) {
+      // Data URLs are in format: data:mediaType;base64,<data>
+      // We need to extract just the base64 part for the AI SDK
+      const base64Data = att.url.includes(",") 
+        ? att.url.split(",")[1] 
+        : att.url;
+      
       parts.push({
         type: "file",
-        data: att.url,
+        data: base64Data,
         mediaType: att.type,
+        filename: att.name,
       });
     }
 
@@ -163,10 +176,7 @@ export function ChatUI() {
             {/* Empty State */}
             {!isStarted && <ChatEmptyState />}
 
-            {/* Attachments Preview */}
-            <AttachmentsPreview attachments={attachments} onRemove={removeAttachment} />
-
-            {/* Prompt Input */}
+            {/* Prompt Input - with attachments inside */}
             <motion.div layout className="w-full">
               <PromptInputArea
                 value={inputValue}
@@ -176,6 +186,8 @@ export function ChatUI() {
                 enableSearch={enableSearch}
                 onToggleSearch={() => setEnableSearch(!enableSearch)}
                 onFilesSelected={handleFileSelect}
+                attachments={attachments}
+                onRemoveAttachment={removeAttachment}
               />
             </motion.div>
 

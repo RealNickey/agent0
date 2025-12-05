@@ -10,7 +10,8 @@ import {
   PromptInputTools,
   PromptInputSpeechButton,
 } from "@/components/ai-elements/prompt-input";
-import { PaperclipIcon, SearchIcon } from "lucide-react";
+import { AttachmentsPreview, FileAttachment } from "@/components/ai-elements/attachments-preview";
+import { PaperclipIcon, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type PromptInputAreaProps = {
@@ -21,6 +22,8 @@ export type PromptInputAreaProps = {
   enableSearch: boolean;
   onToggleSearch: () => void;
   onFilesSelected: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  attachments?: FileAttachment[];
+  onRemoveAttachment?: (index: number) => void;
 };
 
 export function PromptInputArea({
@@ -31,6 +34,8 @@ export function PromptInputArea({
   enableSearch,
   onToggleSearch,
   onFilesSelected,
+  attachments = [],
+  onRemoveAttachment,
 }: PromptInputAreaProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -39,8 +44,21 @@ export function PromptInputArea({
       onSubmit={onSubmit}
       className="rounded-2xl border shadow-sm bg-background focus-within:ring-1 focus-within:ring-ring transition-all"
     >
+      {/* Attachments Preview - Inside the input container */}
+      {attachments.length > 0 && onRemoveAttachment && (
+        <div className="px-3 pt-3">
+          <AttachmentsPreview 
+            attachments={attachments} 
+            onRemove={onRemoveAttachment} 
+          />
+        </div>
+      )}
+      
       <PromptInputTextarea
-        className="min-h-[50px] max-h-[200px] py-4 text-base sm:text-sm resize-none border-none focus-visible:ring-0 shadow-none"
+        className={cn(
+          "min-h-[50px] max-h-[200px] text-base sm:text-sm resize-none border-none focus-visible:ring-0 shadow-none",
+          attachments.length > 0 ? "pt-3" : "py-4"
+        )}
         placeholder="Send a message..."
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -75,7 +93,7 @@ export function PromptInputArea({
             onClick={onToggleSearch}
             className={cn(enableSearch && "bg-primary/10 text-primary")}
           >
-            <SearchIcon className="size-4" />
+            <Globe className="size-4" />
           </PromptInputButton>
 
           <PromptInputSpeechButton />

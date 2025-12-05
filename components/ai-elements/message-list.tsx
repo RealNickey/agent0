@@ -11,6 +11,8 @@ import {
   MessageActions,
   MessageAction,
   MessageResponse,
+  MessageAttachment,
+  MessageAttachments,
 } from "@/components/ai-elements/message";
 import {
   Reasoning,
@@ -35,7 +37,7 @@ import {
   RefreshCwIcon,
   ThumbsUpIcon,
   ThumbsDownIcon,
-  FileIcon,
+  FileTextIcon,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
@@ -79,21 +81,33 @@ export function MessageList({ messages, isLoading, onRegenerate }: MessageListPr
                         : ""
                     )}
                   >
-                    {message.role === "user" && message.parts && (
-                      <div className="flex flex-wrap gap-2 mb-2">
-                        {message.parts
-                          .filter((part: any) => part.type === "file")
-                          .map((part: any, i: number) => (
-                            <div
-                              key={i}
-                              className="flex items-center gap-1.5 px-2 py-1 bg-background/20 rounded text-xs"
-                            >
-                              <FileIcon className="size-3" />
-                              <span>Attached file</span>
-                            </div>
-                          ))}
-                      </div>
-                    )}
+                    {message.role === "user" && message.parts && (() => {
+                      const fileParts = message.parts.filter((part: any) => part.type === "file");
+                      if (fileParts.length === 0) return null;
+                      
+                      return (
+                        <MessageAttachments className="mb-2">
+                          {fileParts.map((part: any, i: number) => {
+                            // Reconstruct the data URL for display
+                            const dataUrl = part.data?.startsWith("data:") 
+                              ? part.data 
+                              : `data:${part.mediaType};base64,${part.data}`;
+                            
+                            return (
+                              <MessageAttachment
+                                key={i}
+                                data={{
+                                  type: "file",
+                                  mediaType: part.mediaType,
+                                  url: dataUrl,
+                                  filename: part.filename || (part.mediaType?.startsWith("image/") ? "Image" : "File"),
+                                }}
+                              />
+                            );
+                          })}
+                        </MessageAttachments>
+                      );
+                    })()}
 
                     {message.role === "assistant" && reasoning && (
                       <Reasoning

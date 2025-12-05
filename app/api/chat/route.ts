@@ -1,5 +1,5 @@
 import { google, GoogleGenerativeAIProviderOptions } from "@ai-sdk/google";
-import { convertToModelMessages, streamText } from "ai";
+import { streamText, type CoreMessage, type FilePart, type TextPart } from "ai";
 import { z } from "zod";
 
 export const maxDuration = 60;
@@ -11,6 +11,49 @@ const bodySchema = z.object({
   enableUrlContext: z.boolean().optional(),
   enableCodeExecution: z.boolean().optional(),
 });
+
+// Convert UIMessage parts to ModelMessage content
+function convertUIMessagesToModelMessages(messages: any[]): CoreMessage[] {
+  return messages.map((msg) => {
+    if (msg.role === "user") {
+      const content: (TextPart | FilePart)[] = [];
+      
+      if (msg.parts) {
+        for (const part of msg.parts) {
+          if (part.type === "text" && part.text) {
+            content.push({ type: "text", text: part.text });
+          } else if (part.type === "file") {
+            // Handle file parts - convert base64 data to proper format
+            content.push({
+              type: "file",
+              data: part.data, // base64 string
+              mediaType: part.mediaType || part.mimeType || "application/octet-stream",
+            } as FilePart);
+          }
+        }
+      } else if (msg.content) {
+        // Fallback for simple string content
+        content.push({ type: "text", text: msg.content });
+      }
+      
+      return { role: "user" as const, content };
+    } else if (msg.role === "assistant") {
+      // Extract text content from assistant messages
+      let textContent = "";
+      if (msg.parts) {
+        textContent = msg.parts
+          .filter((p: any) => p.type === "text")
+          .map((p: any) => p.text)
+          .join("");
+      } else if (msg.content) {
+        textContent = msg.content;
+      }
+      return { role: "assistant" as const, content: textContent };
+    }
+    
+    return { role: msg.role, content: msg.content || "" };
+  });
+}
 
 export async function POST(req: Request) {
   let parsedBody;
@@ -35,7 +78,7 @@ export async function POST(req: Request) {
     enableCodeExecution = true,
   } = parsedBody;
 
-  const modelMessages = convertToModelMessages(messages);
+  const modelMessages = convertUIMessagesToModelMessages(messages);
 
   const tools: Record<string, any> = {};
 

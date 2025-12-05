@@ -37,3 +37,9 @@ export function getMessageSources(message: any): any[] {
   const sourceParts = message.parts.filter((part: any) => part.type === "source");
   return sourceParts;
 }
+
+// Helper to extract file attachments from message parts
+export function getMessageFiles(message: any): any[] {
+  if (!message.parts) return [];
+  return message.parts.filter((part: any) => part.type === "file");
+}

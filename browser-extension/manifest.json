@@ -31,6 +31,13 @@
       "description": "Capture screenshot"
     }
   },
+  // The "icons" property is intentionally omitted because this extension does not require custom icons.
+  // If you wish to add icons, uncomment and provide paths as shown below:
+  // "icons": {
+  //   "16": "icons/icon16.png",
+  //   "48": "icons/icon48.png",
+  //   "128": "icons/icon128.png"
+  // },
   "action": {
     "default_popup": "popup.html"
   }

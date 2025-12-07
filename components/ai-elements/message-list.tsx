@@ -1,10 +1,12 @@
 "use client";
 
+import { useRef, useEffect, useState } from "react";
 import {
   Conversation,
   ConversationContent,
   ConversationScrollButton,
 } from "@/components/ai-elements/conversation";
+import { ScrollProgress } from "@/components/ui/scroll-progress";
 import {
   Message,
   MessageContent,
@@ -54,9 +56,37 @@ export type MessageListProps = {
 };
 
 export function MessageList({ messages, isLoading, onRegenerate }: MessageListProps) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    // Find the scroll container after mount - StickToBottom renders a div with overflow-y-auto
+    if (wrapperRef.current) {
+      // The scrollable element is the first child of StickToBottom (the div with overflow)
+      const scrollEl = wrapperRef.current.querySelector('[style*="overflow"]') as HTMLDivElement 
+        || wrapperRef.current.firstElementChild as HTMLDivElement;
+      if (scrollEl) {
+        (scrollContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = scrollEl;
+        setMounted(true);
+      }
+    }
+  }, []);
+
   return (
-    <Conversation className="h-full">
-      <ConversationContent className="max-w-3xl mx-auto w-full py-10 px-4 lg:px-0 gap-8">
+    <div ref={wrapperRef} className="relative h-full">
+      {/* Scroll Progress Indicator */}
+      <div className="pointer-events-none absolute left-0 top-0 z-50 w-full">
+        <div className="absolute left-0 top-0 h-1 w-full bg-muted/30" />
+        {mounted && (
+          <ScrollProgress
+            containerRef={scrollContainerRef}
+            className="absolute top-0 bg-primary"
+          />
+        )}
+      </div>
+      <Conversation className="h-full">
+        <ConversationContent className="max-w-3xl mx-auto w-full py-10 px-4 lg:px-0 gap-8">
         <AnimatePresence initial={false}>
           {messages.map((message) => {
             const textContent = getMessageTextContent(message);
@@ -67,6 +97,7 @@ export function MessageList({ messages, isLoading, onRegenerate }: MessageListPr
             return (
               <motion.div
                 key={message.id}
+                id={`message-${message.id}`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, ease: "easeOut" }}
@@ -203,5 +234,6 @@ export function MessageList({ messages, isLoading, onRegenerate }: MessageListPr
       </ConversationContent>
       <ConversationScrollButton />
     </Conversation>
+    </div>
   );
 }

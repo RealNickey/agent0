@@ -14,6 +14,7 @@ import { FeatureBadgesRow, FeatureBadge } from "@/components/ai-elements/feature
 import { ChatEmptyState } from "@/components/ai-elements/chat-empty-state";
 import { SuggestionsGrid } from "@/components/ai-elements/chat-suggestions-grid";
 import { Model } from "@/components/ai-elements/model-selector-control";
+import { TableOfContents } from "@/components/table-of-contents";
 
 // Gemini models with their capabilities
 const models: Model[] = [
@@ -143,6 +144,8 @@ export function ChatUI() {
 
       {/* Main Content Area */}
       <div className="flex-1 overflow-hidden relative flex flex-col">
+        <TableOfContents messages={messages} />
+        
         {/* Conversation Area */}
         <div className={cn("flex-1 overflow-hidden relative", !isStarted && "hidden")}>
           <MessageList messages={messages} isLoading={isLoading} onRegenerate={regenerate} />

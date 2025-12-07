@@ -63,6 +63,7 @@ import {
   type FormEvent,
   type FormEventHandler,
   Fragment,
+  forwardRef,
   type HTMLAttributes,
   type KeyboardEventHandler,
   type PropsWithChildren,
@@ -459,10 +460,12 @@ export type PromptInputProps = Omit<
     message: PromptInputMessage,
     event: FormEvent<HTMLFormElement>
   ) => void | Promise<void>;
+  inputGroupClassName?: string;
 };
 
 export const PromptInput = ({
   className,
+  inputGroupClassName,
   accept,
   multiple,
   globalDrop,
@@ -786,7 +789,9 @@ export const PromptInput = ({
         ref={formRef}
         {...props}
       >
-        <InputGroup className="overflow-hidden">{children}</InputGroup>
+        <InputGroup className={cn("overflow-hidden", inputGroupClassName)}>
+          {children}
+        </InputGroup>
       </form>
     </>
   );
@@ -813,12 +818,15 @@ export type PromptInputTextareaProps = ComponentProps<
   typeof InputGroupTextarea
 >;
 
-export const PromptInputTextarea = ({
+export const PromptInputTextarea = forwardRef<
+  HTMLTextAreaElement,
+  PromptInputTextareaProps
+>(({
   onChange,
   className,
   placeholder = "What would you like to know?",
   ...props
-}: PromptInputTextareaProps) => {
+}, ref) => {
   const controller = useOptionalPromptInputController();
   const attachments = usePromptInputAttachments();
   const [isComposing, setIsComposing] = useState(false);
@@ -897,6 +905,7 @@ export const PromptInputTextarea = ({
 
   return (
     <InputGroupTextarea
+      ref={ref}
       className={cn("field-sizing-content max-h-48 min-h-16", className)}
       name="message"
       onCompositionEnd={() => setIsComposing(false)}
@@ -908,7 +917,8 @@ export const PromptInputTextarea = ({
       {...controlledProps}
     />
   );
-};
+});
+PromptInputTextarea.displayName = "PromptInputTextarea";
 
 export type PromptInputHeaderProps = Omit<
   ComponentProps<typeof InputGroupAddon>,

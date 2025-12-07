@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useChat } from "@ai-sdk/react";
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
@@ -33,24 +33,64 @@ const defaultSuggestions = [
   "Summarize a PDF document",
 ];
 
+const STORAGE_KEYS = {
+  MODEL: "agent0-selected-model",
+  MESSAGES: "agent0-chat-messages",
+};
+
 export function ChatUI() {
-  const [selectedModel, setSelectedModel] = useState(models[0]);
+  const [selectedModel, setSelectedModel] = useState<Model>(models[0]);
   const [isModelOpen, setIsModelOpen] = useState(false);
   const [enableSearch, setEnableSearch] = useState(false);
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);
   const [inputValue, setInputValue] = useState("");
+  const [isLoaded, setIsLoaded] = useState(false);
 
   const {
     messages,
     sendMessage,
     status,
     regenerate,
+    setMessages,
   } = useChat({
     id: "gemini-chat",
     onFinish: () => {
       setAttachments([]);
     },
   });
+
+  // Load state from local storage on mount
+  useEffect(() => {
+    const savedModelId = localStorage.getItem(STORAGE_KEYS.MODEL);
+    if (savedModelId) {
+      const model = models.find((m) => m.id === savedModelId);
+      if (model) setSelectedModel(model);
+    }
+
+    const savedMessages = localStorage.getItem(STORAGE_KEYS.MESSAGES);
+    if (savedMessages) {
+      try {
+        setMessages(JSON.parse(savedMessages));
+      } catch (e) {
+        console.error("Failed to parse saved messages", e);
+      }
+    }
+    setIsLoaded(true);
+  }, [setMessages]);
+
+  // Save model to local storage when it changes
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem(STORAGE_KEYS.MODEL, selectedModel.id);
+    }
+  }, [selectedModel, isLoaded]);
+
+  // Save messages to local storage when they change
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(messages));
+    }
+  }, [messages, isLoaded]);
 
   const isLoading = status === "streaming" || status === "submitted";
 
@@ -122,6 +162,9 @@ export function ChatUI() {
     setInputValue(suggestion);
     if (suggestion.includes("Search")) setEnableSearch(true);
   }, []);
+
+  // Prevent hydration mismatch by not rendering until loaded
+  if (!isLoaded) return null;
 
   const isStarted = messages.length > 0;
   

@@ -1,0 +1,9 @@
+/* Content styles for Agent0 Screenshot Extension */
+
+#agent0-screenshot-overlay {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+#agent0-screenshot-overlay * {
+  box-sizing: border-box;
+}

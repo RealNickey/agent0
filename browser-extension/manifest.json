@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "Agent0 Screenshot Capture",
+  "version": "1.0.0",
+  "description": "Capture screenshots and send them to Agent0 AI assistant",
+  "permissions": [
+    "activeTab",
+    "tabs",
+    "storage"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "commands": {
+    "capture-screenshot": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+S",
+        "mac": "Command+Shift+S"
+      },
+      "description": "Capture screenshot"
+    }
+  },
+  // The "icons" property is intentionally omitted because this extension does not require custom icons.
+  // If you wish to add icons, uncomment and provide paths as shown below:
+  // "icons": {
+  //   "16": "icons/icon16.png",
+  //   "48": "icons/icon48.png",
+  //   "128": "icons/icon128.png"
+  // },
+  "action": {
+    "default_popup": "popup.html"
+  }
+}

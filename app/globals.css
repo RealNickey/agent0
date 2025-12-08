@@ -150,22 +150,7 @@
   overflow: hidden;
 }
 
-.bg-grid::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background-image: 
-    linear-gradient(90deg, transparent 0%, transparent calc(50% - 1px), rgba(59, 130, 246, 0.5) 50%, transparent calc(50% + 1px), transparent 100%),
-    linear-gradient(0deg, transparent 0%, transparent calc(50% - 1px), rgba(59, 130, 246, 0.5) 50%, transparent calc(50% + 1px), transparent 100%);
-  background-size: 40px 40px;
-  animation: gridLightTrail 15s linear infinite;
-  pointer-events: none;
-  opacity: 0;
-}
-
+.bg-grid::before,
 .bg-grid::after {
   content: '';
   position: absolute;
@@ -173,15 +158,34 @@
   left: -50%;
   width: 200%;
   height: 200%;
+  background-size: 40px 40px;
+  pointer-events: none;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+.bg-grid::before {
+  background-image: 
+    linear-gradient(90deg, transparent 0%, transparent calc(50% - 1px), rgba(59, 130, 246, 0.5) 50%, transparent calc(50% + 1px), transparent 100%),
+    linear-gradient(0deg, transparent 0%, transparent calc(50% - 1px), rgba(59, 130, 246, 0.5) 50%, transparent calc(50% + 1px), transparent 100%);
+  animation: gridLightTrail 15s linear infinite;
+}
+
+.bg-grid::after {
   background-image: 
     linear-gradient(90deg, transparent 0%, transparent calc(50% - 1px), rgba(59, 130, 246, 0.6) 50%, transparent calc(50% + 1px), transparent 100%),
     linear-gradient(0deg, transparent 0%, transparent calc(50% - 1px), rgba(59, 130, 246, 0.6) 50%, transparent calc(50% + 1px), transparent 100%);
-  background-size: 40px 40px;
   animation: gridLightTrail 12s linear infinite;
   animation-delay: 7s;
-  pointer-events: none;
-  opacity: 0;
   filter: blur(2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bg-grid::before,
+  .bg-grid::after {
+    animation: none;
+    display: none;
+  }
 }
 
 @keyframes gridLightTrail {

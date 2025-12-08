@@ -64,12 +64,12 @@ export function TableOfContents({ messages }: TableOfContentsProps) {
     <motion.div
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
-      className="hidden xl:flex fixed right-8 top-1/2 -translate-y-1/2 w-64 flex-col gap-2 p-4 z-50"
+      className="hidden md:flex fixed right-4 md:right-6 lg:right-8 top-1/2 -translate-y-1/2 w-48 md:w-52 lg:w-56 xl:w-64 flex-col gap-2 p-2 md:p-3 lg:p-4 z-50"
     >
-      <div className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider pl-4">
+      <div className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider pl-3 md:pl-4">
         Contents
       </div>
-      <div className="relative flex flex-col gap-1 max-h-[60vh] overflow-y-auto pr-2 scrollbar-hide" ref={tocScrollRef}>
+      <div className="relative flex flex-col gap-1 max-h-[50vh] md:max-h-[60vh] overflow-y-auto pr-2 scrollbar-hide" ref={tocScrollRef}>
         {/* Vertical line */}
         <div className="absolute left-0 top-0 bottom-0 w-px bg-border" />
 
@@ -90,7 +90,7 @@ export function TableOfContents({ messages }: TableOfContentsProps) {
               id={`toc-button-${m.id}`}
               onClick={() => scrollToMessage(m.id)}
               className={cn(
-                "group relative flex items-center py-1.5 pl-4 text-sm text-left transition-colors w-full",
+                "group relative flex items-center py-1.5 pl-3 md:pl-4 text-xs md:text-sm text-left transition-colors w-full",
                 isActive
                   ? "text-foreground font-medium"
                   : "text-muted-foreground hover:text-foreground"

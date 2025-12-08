@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport } from "ai";
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 
@@ -54,6 +55,15 @@ export function ChatUI() {
     setMessages,
   } = useChat({
     id: "gemini-chat",
+    transport: new DefaultChatTransport({
+      api: "/api/chat",
+      body: () => ({
+        model: selectedModel.id,
+        enableSearch,
+        enableUrlContext: true,
+        enableCodeExecution: true,
+      }),
+    }),
     onFinish: () => {
       setAttachments([]);
     },
@@ -125,32 +135,26 @@ export function ChatUI() {
   }, []);
 
   const handleSubmit = async (value: { text: string; files: any[] }) => {
-    if (!value.text.trim() && value.files.length === 0) return;
+    if (!value.text.trim() && attachments.length === 0) return;
 
-    // Build message content parts
-    const parts: any[] = [{ type: "text", text: value.text }];
-
-    // Add file attachments as file parts
-    for (const att of attachments) {
-      parts.push({
-        type: "file",
-        data: att.url,
-        mediaType: att.type,
-      });
-    }
+    // Convert attachments to File objects for the new API
+    const files = attachments.map((att) => {
+      // Convert data URL to Blob then to File
+      const base64Data = att.url.split(",")[1];
+      const byteCharacters = atob(base64Data);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: att.type });
+      return new File([blob], att.name, { type: att.type });
+    });
 
     sendMessage(
+      { text: value.text },
       {
-        role: "user",
-        parts,
-      },
-      {
-        body: {
-          model: selectedModel.id,
-          enableSearch,
-          enableUrlContext: true,
-          enableCodeExecution: true,
-        },
+        experimental_attachments: files,
       }
     );
 

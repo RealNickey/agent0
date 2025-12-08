@@ -137,26 +137,18 @@ export function ChatUI() {
   const handleSubmit = async (value: { text: string; files: any[] }) => {
     if (!value.text.trim() && attachments.length === 0) return;
 
-    // Convert attachments to File objects for the new API
-    const files = attachments.map((att) => {
-      // Convert data URL to Blob then to File
-      const base64Data = att.url.split(",")[1];
-      const byteCharacters = atob(base64Data);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: att.type });
-      return new File([blob], att.name, { type: att.type });
-    });
+    // Convert attachments to FileUIPart format
+    const files = attachments.map((att) => ({
+      type: "file" as const,
+      mediaType: att.type,
+      filename: att.name,
+      url: att.url,
+    }));
 
-    sendMessage(
-      { text: value.text },
-      {
-        experimental_attachments: files,
-      }
-    );
+    sendMessage({
+      text: value.text,
+      files: files.length > 0 ? files : undefined,
+    });
 
     setInputValue("");
     setAttachments([]);

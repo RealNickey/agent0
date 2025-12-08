@@ -38,6 +38,7 @@ export async function POST(req: Request) {
   // Convert UIMessages to CoreMessages using the built-in converter
   const coreMessages = convertToModelMessages(messages as UIMessage[]);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const tools: Record<string, any> = {};
 
   if (enableSearch) {

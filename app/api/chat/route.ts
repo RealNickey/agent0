@@ -71,7 +71,7 @@ export async function POST(req: Request) {
   try {
     modelMessages = convertToModelMessages(uiMessages);
   } catch (error) {
-    console.error("[Chat API] convertToModelMessages failed:", error);
+    console.error("convertToModelMessages failed", error);
     return new Response(
       JSON.stringify({
         error: "Invalid messages",

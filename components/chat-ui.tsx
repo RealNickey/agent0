@@ -239,20 +239,19 @@ export function ChatUI() {
     if (!value.text.trim() && attachments.length === 0) return;
 
     // Build parts array for the message
-    const parts: Array<{ type: "text"; text: string } | { type: "file"; url: string; mediaType: string; filename?: string }> = [];
+    const parts: Array<{ type: "text"; text: string } | { type: "file"; url: string; mediaType: string }> = [];
     
     // Add text part
     if (value.text.trim()) {
       parts.push({ type: "text", text: value.text });
     }
 
-    // Add file parts from attachments (using url for FileUIPart with filename)
+    // Add file parts from attachments (using url for FileUIPart)
     for (const att of attachments) {
       parts.push({
         type: "file",
         url: att.url,
         mediaType: att.type,
-        filename: att.name,
       });
     }
 

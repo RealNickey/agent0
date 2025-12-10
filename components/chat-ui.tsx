@@ -176,6 +176,13 @@ export function ChatUI() {
     setAttachments((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
+  const handleNewChat = useCallback(() => {
+    setMessages([]);
+    setAttachments([]);
+    setInputValue("");
+    localStorage.removeItem(STORAGE_KEYS.MESSAGES);
+  }, [setMessages]);
+
   const handleSubmit = async (value: { text: string; files: any[] }) => {
     if (!value.text.trim() && value.files.length === 0) return;
 
@@ -235,6 +242,7 @@ export function ChatUI() {
         onSelectModel={setSelectedModel}
         isModelOpen={isModelOpen}
         onModelOpenChange={setIsModelOpen}
+        onNewChat={handleNewChat}
       />
 
       {/* Main Content Area */}

@@ -38,6 +38,8 @@ import {
   ThumbsUpIcon,
   ThumbsDownIcon,
   FileIcon,
+  StopCircleIcon,
+  AlertCircleIcon,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
@@ -48,14 +50,18 @@ import {
   getMessageSources,
   getToolTitle,
 } from "@/lib/chat-message-utils";
+import type { MyUIMessage } from "@/types/chat";
 
 export type MessageListProps = {
-  messages: any[];
+  messages: MyUIMessage[];
   isLoading: boolean;
   onRegenerate: () => void;
+  onStop?: () => void;
+  canStop?: boolean;
+  error?: Error | undefined;
 };
 
-export function MessageList({ messages, isLoading, onRegenerate }: MessageListProps) {
+export function MessageList({ messages, isLoading, onRegenerate, onStop, canStop, error }: MessageListProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -221,13 +227,44 @@ export function MessageList({ messages, isLoading, onRegenerate }: MessageListPr
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
               <Message from="assistant">
                 <MessageContent className="w-fit">
-                  <div className="flex items-center gap-1 h-6">
-                    <span className="size-1.5 rounded-full bg-foreground/40 animate-bounce [animation-delay:-0.3s]" />
-                    <span className="size-1.5 rounded-full bg-foreground/40 animate-bounce [animation-delay:-0.15s]" />
-                    <span className="size-1.5 rounded-full bg-foreground/40 animate-bounce" />
+                  <div className="flex items-center gap-2 h-6">
+                    <div className="flex items-center gap-1">
+                      <span className="size-1.5 rounded-full bg-foreground/40 animate-bounce [animation-delay:-0.3s]" />
+                      <span className="size-1.5 rounded-full bg-foreground/40 animate-bounce [animation-delay:-0.15s]" />
+                      <span className="size-1.5 rounded-full bg-foreground/40 animate-bounce" />
+                    </div>
+                    {canStop && onStop && (
+                      <button
+                        onClick={onStop}
+                        className="ml-2 p-1 rounded-md hover:bg-muted transition-colors"
+                        title="Stop generating"
+                      >
+                        <StopCircleIcon className="size-4 text-muted-foreground hover:text-foreground" />
+                      </button>
+                    )}
                   </div>
                 </MessageContent>
               </Message>
+            </motion.div>
+          )}
+          {/* Error Display */}
+          {error && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }} 
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-start gap-3 p-4 rounded-lg bg-destructive/10 border border-destructive/20"
+            >
+              <AlertCircleIcon className="size-5 text-destructive shrink-0 mt-0.5" />
+              <div className="flex-1 space-y-2">
+                <p className="text-sm text-destructive font-medium">Something went wrong</p>
+                <p className="text-sm text-muted-foreground">{error.message || "An error occurred while generating the response."}</p>
+                <button
+                  onClick={() => onRegenerate()}
+                  className="text-sm text-primary hover:underline"
+                >
+                  Try again
+                </button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>

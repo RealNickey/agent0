@@ -40,17 +40,17 @@ Components in `components/ai-elements/` are sourced from the AI SDK component re
 ### Message Structure
 Messages use a `parts` array structure (not simple `content` string):
 ```tsx
-// User message with attachments
+// User message with attachments (AI SDK 5.0)
 { role: "user", parts: [
   { type: "text", text: "..." },
-  { type: "file", data: "data:...", mediaType: "image/png" }
+  { type: "file", url: "data:...", mediaType: "image/png", filename: "image.png" }
 ]}
 
 // Assistant message with reasoning + tools + sources
 { role: "assistant", parts: [
   { type: "reasoning", text: "..." },
   { type: "tool-invocation", toolInvocation: {...} },
-  { type: "source", source: { url, title } },
+  { type: "source-url", url: "...", title: "..." },
   { type: "text", text: "..." }
 ]}
 ```

@@ -1,117 +1,44 @@
 import { google, GoogleGenerativeAIProviderOptions } from "@ai-sdk/google";
-import { streamText, type CoreMessage, type ImagePart, type FilePart, type TextPart } from "ai";
+import { streamText, convertToModelMessages } from "ai";
 import { z } from "zod";
+import type { MyUIMessage } from "@/types/chat";
 
 export const maxDuration = 60;
 
 const bodySchema = z.object({
-  messages: z.array(z.any()),
+  messages: z.array(z.any()), // Will be validated as UIMessage[] at runtime
   model: z.string(),
   enableSearch: z.boolean().optional(),
   enableUrlContext: z.boolean().optional(),
   enableCodeExecution: z.boolean().optional(),
 });
 
-type RawMessagePart = {
-  type?: string;
-  text?: string;
-  data?: string;
-  url?: string;
-  mediaType?: string;
-  mimeType?: string;
-  fileName?: string;
-  filename?: string;
-};
-
-type RawMessage = {
-  role?: string;
-  parts?: RawMessagePart[];
-  content?: RawMessagePart[] | string;
-};
-
-const inferMimeType = (part: RawMessagePart): string => {
-  if (part.mimeType) return part.mimeType;
-  if (part.mediaType) return part.mediaType;
-  const data = part.data ?? part.url;
-  if (typeof data === "string" && data.startsWith("data:")) {
-    const match = data.match(/^data:([^;]+);/);
-    if (match?.[1]) return match[1];
-  }
-  return "application/octet-stream";
-};
-
-const convertPartToCoreFormat = (part: RawMessagePart): TextPart | ImagePart | FilePart | null => {
-  if (!part || !part.type) return null;
-
-  if (part.type === "text") {
-    return { type: "text", text: part.text || "" };
+// Custom error handler for user-friendly error messages
+function getErrorMessage(error: unknown): string {
+  if (error == null) {
+    return "An unknown error occurred";
   }
 
-  if (part.type === "file") {
-    const data = part.data ?? part.url;
-    if (!data) return null;
-
-    const mimeType = inferMimeType(part);
-
-    // For images, use type: "image"
-    if (mimeType.startsWith("image/")) {
-      return {
-        type: "image",
-        image: data,
-        mimeType,
-      } as ImagePart;
-    }
-
-    // For PDFs and other files, use type: "file"
-    return {
-      type: "file",
-      data,
-      mimeType,
-      mediaType: mimeType,
-    } as FilePart;
+  if (typeof error === "string") {
+    return error;
   }
 
-  return null;
-};
-
-const convertToCoreMessages = (messages: RawMessage[]): CoreMessage[] => {
-  return messages.map((message): CoreMessage => {
-    const role = message.role as "user" | "assistant" | "system";
-    const rawContent = Array.isArray(message.parts)
-      ? message.parts
-      : message.content;
-
-    // Handle string content
-    if (typeof rawContent === "string") {
-      return { role, content: rawContent };
+  if (error instanceof Error) {
+    // Check for specific error types
+    if (error.message.includes("rate limit")) {
+      return "Rate limit exceeded. Please try again in a moment.";
     }
-
-    // Handle array content
-    if (Array.isArray(rawContent)) {
-      const parts = rawContent
-        .map(convertPartToCoreFormat)
-        .filter((p): p is NonNullable<typeof p> => p !== null);
-
-      // If only text parts, simplify to string for system messages
-      if (role === "system") {
-        const textContent = parts
-          .filter((p): p is TextPart => p.type === "text")
-          .map((p) => p.text)
-          .join("\n");
-        return { role: "system", content: textContent };
-      }
-
-      // For user/assistant with single text, can use string
-      if (parts.length === 1 && parts[0].type === "text") {
-        return { role, content: parts[0].text };
-      }
-
-      return { role, content: parts } as CoreMessage;
+    if (error.message.includes("context length")) {
+      return "The conversation is too long. Please start a new chat.";
     }
+    if (error.message.includes("API key")) {
+      return "API configuration error. Please contact support.";
+    }
+    return error.message;
+  }
 
-    return { role, content: "" };
-  });
-};
+  return JSON.stringify(error);
+}
 
 export async function POST(req: Request) {
   let parsedBody;
@@ -136,11 +63,15 @@ export async function POST(req: Request) {
     enableCodeExecution = true,
   } = parsedBody;
 
-  let coreMessages: CoreMessage[];
+  // Type-cast messages to MyUIMessage[] for type safety
+  const uiMessages = messages as MyUIMessage[];
+
+  // Convert UI messages to model messages using the AI SDK helper
+  let modelMessages;
   try {
-    coreMessages = convertToCoreMessages(messages);
+    modelMessages = convertToModelMessages(uiMessages);
   } catch (error) {
-    console.error("convertToCoreMessages failed", error);
+    console.error("[Chat API] convertToModelMessages failed:", error);
     return new Response(
       JSON.stringify({
         error: "Invalid messages",
@@ -186,7 +117,7 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: google(model),
-    messages: coreMessages,
+    messages: modelMessages,
     tools: hasTools ? tools : undefined,
     toolChoice: hasTools ? "auto" : "none",
     providerOptions,
@@ -198,5 +129,32 @@ export async function POST(req: Request) {
   return result.toUIMessageStreamResponse({
     sendReasoning: true,
     sendSources: true,
+    originalMessages: uiMessages,
+    onError: getErrorMessage,
+    messageMetadata: ({ part }) => {
+      // Send metadata when streaming starts
+      if (part.type === "start") {
+        return {
+          createdAt: Date.now(),
+          model: model,
+        };
+      }
+
+      // Send additional metadata when streaming completes
+      if (part.type === "finish" && part.totalUsage) {
+        return {
+          totalTokens: part.totalUsage.totalTokens,
+          totalUsage: {
+            inputTokens: part.totalUsage.inputTokens,
+            outputTokens: part.totalUsage.outputTokens,
+            totalTokens: part.totalUsage.totalTokens,
+            reasoningTokens: part.totalUsage.reasoningTokens,
+            cachedInputTokens: part.totalUsage.cachedInputTokens,
+          },
+        };
+      }
+
+      return undefined;
+    },
   });
 }

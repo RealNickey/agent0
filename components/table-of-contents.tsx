@@ -4,9 +4,10 @@ import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { motion } from "motion/react";
 import { getMessageTextContent } from "@/lib/chat-message-utils";
+import type { MyUIMessage } from "@/types/chat";
 
 interface TableOfContentsProps {
-  messages: any[];
+  messages: MyUIMessage[];
 }
 
 export function TableOfContents({ messages }: TableOfContentsProps) {
@@ -74,11 +75,8 @@ export function TableOfContents({ messages }: TableOfContentsProps) {
         <div className="absolute left-0 top-0 bottom-0 w-px bg-border" />
 
         {userMessages.map((m) => {
-          let text = m.content;
-          // Try to get text from parts if content is empty or if parts exist
-          if ((!text || text === "") && (m as any).parts) {
-             text = getMessageTextContent(m);
-          }
+          // Get text from parts (using the typed helper)
+          const text = getMessageTextContent(m);
           
           // Truncate text to 4-5 words
           const truncatedText = text.split(/\s+/).slice(0, 5).join(" ") + (text.split(/\s+/).length > 5 ? "..." : "");

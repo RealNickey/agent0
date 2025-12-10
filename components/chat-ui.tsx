@@ -92,6 +92,58 @@ export function ChatUI() {
     }
   }, [messages, isLoaded]);
 
+  // Listen for screenshots from browser extension
+  useEffect(() => {
+    const handleScreenshotMessage = (event: MessageEvent) => {
+      // Verify message origin and type
+      if (event.data?.type === 'AGENT0_SCREENSHOT') {
+        const { screenshot, pageUrl, pageTitle, selectedText } = event.data.data;
+        
+        // Extract filename from pageTitle or URL
+        const filename = `${pageTitle || 'Screenshot'}.png`;
+        
+        // Create attachment from screenshot
+        const screenshotAttachment: FileAttachment = {
+          name: filename,
+          type: 'image/png',
+          size: screenshot.length,
+          url: screenshot,
+        };
+        
+        // Add to attachments
+        setAttachments((prev) => [...prev, screenshotAttachment]);
+        
+        // Optionally, pre-fill input with context
+        if (selectedText) {
+          setInputValue((prev) => {
+            const context = `[Screenshot from: ${pageTitle}]\n${selectedText}\n\n${prev}`;
+            return context;
+          });
+        } else if (pageUrl) {
+          setInputValue((prev) => {
+            const context = `[Screenshot from: ${pageTitle || pageUrl}]\n\n${prev}`;
+            return context;
+          });
+        }
+        
+        // Focus the input
+        setTimeout(() => {
+          const textarea = document.querySelector('textarea[placeholder="Send a message..."]') as HTMLTextAreaElement;
+          textarea?.focus();
+        }, 100);
+        
+        console.log('Screenshot received and attached:', {
+          pageTitle,
+          pageUrl,
+          hasSelectedText: !!selectedText
+        });
+      }
+    };
+    
+    window.addEventListener('message', handleScreenshotMessage);
+    return () => window.removeEventListener('message', handleScreenshotMessage);
+  }, []);
+
   const isLoading = status === "streaming" || status === "submitted";
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {

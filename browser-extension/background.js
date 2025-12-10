@@ -19,9 +19,63 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
 // Listen for keyboard shortcut
 chrome.commands.onCommand.addListener((command) => {
   if (command === 'capture-screenshot') {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0]?.id) {
-        chrome.tabs.sendMessage(tabs[0].id, { action: 'startCapture' });
+    chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
+      const tab = tabs[0];
+      if (!tab?.id) return;
+      
+      // Check if URL is restricted
+      const restrictedProtocols = ['chrome://', 'chrome-extension://', 'edge://', 'about:', 'view-source:'];
+      const isRestricted = restrictedProtocols.some(protocol => tab.url?.startsWith(protocol));
+      
+      if (isRestricted) {
+        // Show notification that this page can't be captured
+        chrome.notifications.create({
+          type: 'basic',
+          iconUrl: 'icons/icon48.png',
+          title: 'Cannot Capture This Page',
+          message: 'Screenshots are not allowed on browser system pages. Please try on a regular webpage.',
+          priority: 2
+        });
+        return;
+      }
+      
+      try {
+        // Try to send message to content script
+        await chrome.tabs.sendMessage(tab.id, { action: 'startCapture' });
+      } catch (error) {
+        // Content script not loaded - inject it manually
+        console.log('Content script not found, injecting...');
+        try {
+          // Inject content script
+          await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            files: ['content.js']
+          });
+          
+          // Inject content CSS
+          await chrome.scripting.insertCSS({
+            target: { tabId: tab.id },
+            files: ['content.css']
+          });
+          
+          // Wait a bit for script to initialize
+          setTimeout(async () => {
+            try {
+              await chrome.tabs.sendMessage(tab.id, { action: 'startCapture' });
+            } catch (retryError) {
+              console.error('Failed to start capture after injection:', retryError);
+            }
+          }, 100);
+        } catch (injectError) {
+          console.error('Failed to inject content script:', injectError);
+          chrome.notifications.create({
+            type: 'basic',
+            iconUrl: 'icons/icon48.png',
+            title: 'Screenshot Capture Failed',
+            message: 'Unable to capture this page. Try refreshing or use a different page.',
+            priority: 1
+          });
+        }
       }
     });
   }
@@ -70,7 +124,7 @@ async function handleSendToAgent0(request, sendResponse) {
       pendingScreenshot: payload
     });
     
-    // Send to Agent0 API endpoint
+    // Send to Agent0 API endpoint (optional - for logging/storage)
     const apiUrl = `${agent0Url}/api/screenshot`;
     
     try {
@@ -89,16 +143,40 @@ async function handleSendToAgent0(request, sendResponse) {
       const result = await response.json();
       console.log('Screenshot sent to API successfully:', result);
       
-      // Open or focus Agent0 tab
+      // Open or focus Agent0 tab with screenshot indicator
       const tabs = await chrome.tabs.query({ url: `${agent0Url}/*` });
       
+      let targetTab;
       if (tabs.length > 0) {
         // Focus existing tab
-        await chrome.tabs.update(tabs[0].id, { active: true });
+        targetTab = tabs[0];
+        await chrome.tabs.update(targetTab.id, { active: true });
       } else {
-        // Create new tab
-        await chrome.tabs.create({ url: agent0Url });
+        // Create new tab with query param to indicate screenshot is coming
+        targetTab = await chrome.tabs.create({ 
+          url: `${agent0Url}?screenshot=pending` 
+        });
       }
+      
+      // Wait a bit for the page to load, then send screenshot via postMessage
+      setTimeout(async () => {
+        try {
+          // Send screenshot data to the page via executeScript
+          await chrome.scripting.executeScript({
+            target: { tabId: targetTab.id },
+            func: (screenshotData) => {
+              window.postMessage({
+                type: 'AGENT0_SCREENSHOT',
+                data: screenshotData
+              }, '*');
+            },
+            args: [payload]
+          });
+          console.log('Screenshot data sent to Agent0 page');
+        } catch (scriptError) {
+          console.error('Failed to send screenshot to page:', scriptError);
+        }
+      }, 500);
       
       sendResponse({ success: true, data: result });
     } catch (apiError) {

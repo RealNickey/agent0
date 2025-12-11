@@ -1,4 +1,18 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Agent0 - AI Chat Application
+
+A Next.js chat application powered by Google Gemini models with the Vercel AI SDK, featuring **Generative UI** capabilities.
+
+## Features
+
+- 🤖 **Multiple Gemini Models**: Support for Gemini 2.5 Pro, Flash, and Flash Lite
+- 🧠 **Thinking Mode**: Enhanced reasoning with Gemini 2.5+ models
+- 🔍 **Google Search Integration**: Real-time web search capabilities
+- 🌐 **URL Context**: Extract and analyze content from URLs
+- ⚡ **Code Execution**: Run Python code in real-time
+- 🌦️ **Weather Tool**: Beautiful weather cards with generative UI (see [docs/WEATHER_TOOL.md](docs/WEATHER_TOOL.md))
+- 📎 **File Attachments**: Upload images, PDFs, and documents
+- 💬 **Real-time Streaming**: Stream responses as they're generated
+- 🎨 **Dark Mode**: Beautiful dark theme with OKLCH colors
 
 ## Getting Started
 
@@ -16,9 +30,38 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Environment Variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Create a `.env.local` file with:
+
+```bash
+# Required: Google AI API Key
+GOOGLE_GENERATIVE_AI_API_KEY=your_api_key_here
+
+# Optional: Clerk Authentication
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
+CLERK_SECRET_KEY=
+
+# Optional: Supabase
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+```
+
+Get your Google AI API key from [Google AI Studio](https://aistudio.google.com/apikey).
+
+## Generative UI Example
+
+The weather tool demonstrates **generative UI** - the AI doesn't just return text, it generates rich UI components:
+
+**Try asking:** "What's the weather in San Francisco?"
+
+Instead of plain JSON, you'll see a beautiful weather card with:
+- Dynamic color gradients based on conditions
+- Large, readable temperature display
+- Weather icons and detailed metrics
+- Wind speed, humidity, and precipitation data
+
+See [docs/WEATHER_TOOL.md](docs/WEATHER_TOOL.md) for implementation details.
 
 ## Learn More
 

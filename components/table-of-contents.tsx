@@ -47,7 +47,11 @@ export function TableOfContents({ messages }: TableOfContentsProps) {
   const scrollToMessage = (id: string) => {
     const element = document.getElementById(`message-${id}`);
     if (element) {
-      element.scrollIntoView({ behavior: "smooth", block: "start" });
+      element.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "nearest",
+      });
       setActiveId(id);
       // Scroll TOC to bring the button into view
       const button = document.getElementById(`toc-button-${id}`);

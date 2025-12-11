@@ -56,7 +56,6 @@ export function ChatUI() {
     sendMessage,
     status,
     error,
-    stop,
     regenerate,
     setMessages,
   } = useChat<MyUIMessage>({
@@ -191,7 +190,6 @@ export function ChatUI() {
   }, []);
 
   const isLoading = status === "streaming" || status === "submitted";
-  const canStop = status === "streaming" || status === "submitted";
 
   // File selection handler - now using native FileList
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -279,11 +277,6 @@ export function ChatUI() {
     }
   };
 
-  // Handle stop streaming
-  const handleStop = useCallback(() => {
-    stop();
-  }, [stop]);
-
   // Handle regenerate/reload
   const handleRegenerate = useCallback(() => {
     regenerate();
@@ -327,8 +320,7 @@ export function ChatUI() {
             messages={messages} 
             isLoading={isLoading} 
             onRegenerate={handleRegenerate}
-            onStop={handleStop}
-            canStop={canStop}
+            status={status}
             error={error}
           />
         </div>

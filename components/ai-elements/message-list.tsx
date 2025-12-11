@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useState } from "react";
+import type { UseChatHelpers } from "@ai-sdk/react";
 import {
   Conversation,
   ConversationContent,
@@ -38,7 +39,6 @@ import {
   ThumbsUpIcon,
   ThumbsDownIcon,
   FileIcon,
-  StopCircleIcon,
   AlertCircleIcon,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
@@ -51,20 +51,24 @@ import {
   getToolTitle,
 } from "@/lib/chat-message-utils";
 import type { MyUIMessage } from "@/types/chat";
+import { Shimmer } from "@/components/ai-elements/shimmer";
+
+type ChatStatus = UseChatHelpers<MyUIMessage>["status"];
 
 export type MessageListProps = {
   messages: MyUIMessage[];
   isLoading: boolean;
+  status: ChatStatus;
   onRegenerate: () => void;
-  onStop?: () => void;
-  canStop?: boolean;
   error?: Error | undefined;
 };
 
-export function MessageList({ messages, isLoading, onRegenerate, onStop, canStop, error }: MessageListProps) {
+export function MessageList({ messages, isLoading, status, onRegenerate, error }: MessageListProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState(false);
+  const lastMessage = messages[messages.length - 1];
+  const showSendingPlaceholder = status === "submitted" && lastMessage?.role === "user";
 
   useEffect(() => {
     // Find the scroll container after mount - StickToBottom renders a div with overflow-y-auto
@@ -99,6 +103,19 @@ export function MessageList({ messages, isLoading, onRegenerate, onStop, canStop
             const reasoning = getMessageReasoning(message);
             const toolInvocations = getToolInvocations(message);
             const sources = getMessageSources(message);
+            const isLastMessage = lastMessage?.id === message.id;
+            const hasAssistantContent =
+              message.role !== "assistant"
+                ? true
+                : Boolean(textContent && textContent.trim()) ||
+                  Boolean(reasoning && reasoning.trim()) ||
+                  toolInvocations.length > 0 ||
+                  sources.length > 0;
+            const shouldShowThinkingPlaceholder =
+              message.role === "assistant" &&
+              isLastMessage &&
+              status === "streaming" &&
+              !hasAssistantContent;
 
             return (
               <motion.div
@@ -194,7 +211,11 @@ export function MessageList({ messages, isLoading, onRegenerate, onStop, canStop
                     )}
 
                     {message.role === "assistant" ? (
-                      <MessageResponse>{textContent}</MessageResponse>
+                      hasAssistantContent ? (
+                        <MessageResponse>{textContent}</MessageResponse>
+                      ) : shouldShowThinkingPlaceholder ? (
+                        <ThinkingIndicator />
+                      ) : null
                     ) : (
                       <div className="whitespace-pre-wrap">{textContent}</div>
                     )}
@@ -223,26 +244,17 @@ export function MessageList({ messages, isLoading, onRegenerate, onStop, canStop
               </motion.div>
             );
           })}
-          {isLoading && messages[messages.length - 1]?.role === "user" && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+          {showSendingPlaceholder && (
+            <motion.div
+              key="sending-state"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
               <Message from="assistant">
                 <MessageContent className="w-fit">
-                  <div className="flex items-center gap-2 h-6">
-                    <div className="flex items-center gap-1">
-                      <span className="size-1.5 rounded-full bg-foreground/40 animate-bounce [animation-delay:-0.3s]" />
-                      <span className="size-1.5 rounded-full bg-foreground/40 animate-bounce [animation-delay:-0.15s]" />
-                      <span className="size-1.5 rounded-full bg-foreground/40 animate-bounce" />
-                    </div>
-                    {canStop && onStop && (
-                      <button
-                        onClick={onStop}
-                        className="ml-2 p-1 rounded-md hover:bg-muted transition-colors"
-                        title="Stop generating"
-                      >
-                        <StopCircleIcon className="size-4 text-muted-foreground hover:text-foreground" />
-                      </button>
-                    )}
-                  </div>
+                  <Shimmer className="text-sm font-medium text-muted-foreground">
+                    {"Sending..."}
+                  </Shimmer>
                 </MessageContent>
               </Message>
             </motion.div>
@@ -274,3 +286,14 @@ export function MessageList({ messages, isLoading, onRegenerate, onStop, canStop
     </div>
   );
 }
+
+const ThinkingIndicator = () => (
+  <motion.span
+    aria-live="polite"
+    className="text-sm font-medium text-muted-foreground"
+    animate={{ opacity: [0.5, 1, 0.5] }}
+    transition={{ duration: 1.2, repeat: Number.POSITIVE_INFINITY }}
+  >
+    Thinking...
+  </motion.span>
+);

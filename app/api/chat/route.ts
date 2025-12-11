@@ -1,6 +1,7 @@
 import { google, GoogleGenerativeAIProviderOptions } from "@ai-sdk/google";
 import { streamText, type CoreMessage, type ImagePart, type FilePart, type TextPart } from "ai";
 import { z } from "zod";
+import { weatherTool } from "@/lib/weather-tool";
 
 export const maxDuration = 60;
 
@@ -10,6 +11,7 @@ const bodySchema = z.object({
   enableSearch: z.boolean().optional(),
   enableUrlContext: z.boolean().optional(),
   enableCodeExecution: z.boolean().optional(),
+  enableWeather: z.boolean().optional(),
 });
 
 type RawMessagePart = {
@@ -134,6 +136,7 @@ export async function POST(req: Request) {
     enableSearch = false,
     enableUrlContext = true,
     enableCodeExecution = true,
+    enableWeather = true,
   } = parsedBody;
 
   let coreMessages: CoreMessage[];
@@ -163,6 +166,10 @@ export async function POST(req: Request) {
 
   if (enableCodeExecution) {
     tools.code_execution = google.tools.codeExecution({});
+  }
+
+  if (enableWeather) {
+    tools.weather = weatherTool;
   }
 
   const hasTools = Object.keys(tools).length > 0;

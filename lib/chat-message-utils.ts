@@ -4,6 +4,7 @@ export function getToolTitle(toolName: string): string {
     google_search: "Google Search",
     url_context: "URL Context",
     code_execution: "Code Execution",
+    weather: "Weather",
   };
   return titles[toolName] || toolName;
 }

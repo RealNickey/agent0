@@ -32,6 +32,7 @@ import {
   ToolInput,
   ToolOutput,
 } from "@/components/ai-elements/tool";
+import { WeatherCard } from "@/components/ai-elements/weather-card";
 import {
   CopyIcon,
   RefreshCwIcon,
@@ -148,28 +149,40 @@ export function MessageList({ messages, isLoading, onRegenerate }: MessageListPr
                           result: t.result,
                         };
                       });
-                      return normalizedToolInvocations.map((toolInvocation: any) => (
-                        <Tool key={toolInvocation.toolCallId} defaultOpen={false}>
-                          <ToolHeader
-                            title={getToolTitle(toolInvocation.toolName || "")}
-                            type="tool-invocation"
-                            state={
-                              toolInvocation.state === "result"
-                                ? "output-available"
-                                : "input-available"
-                            }
-                          />
-                          <ToolContent>
-                            <ToolInput input={toolInvocation.args} />
-                            {toolInvocation.state === "result" && (
-                              <ToolOutput
-                                output={toolInvocation.result}
-                                errorText={undefined}
-                              />
-                            )}
-                          </ToolContent>
-                        </Tool>
-                      ));
+                      return normalizedToolInvocations.map((toolInvocation: any) => {
+                        // Special rendering for weather tool with generative UI
+                        if (toolInvocation.toolName === "weather" && toolInvocation.state === "result" && !toolInvocation.result?.error) {
+                          return (
+                            <div key={toolInvocation.toolCallId} className="my-4">
+                              <WeatherCard data={toolInvocation.result} />
+                            </div>
+                          );
+                        }
+
+                        // Default tool rendering for all other tools
+                        return (
+                          <Tool key={toolInvocation.toolCallId} defaultOpen={false}>
+                            <ToolHeader
+                              title={getToolTitle(toolInvocation.toolName || "")}
+                              type="tool-invocation"
+                              state={
+                                toolInvocation.state === "result"
+                                  ? "output-available"
+                                  : "input-available"
+                              }
+                            />
+                            <ToolContent>
+                              <ToolInput input={toolInvocation.args} />
+                              {toolInvocation.state === "result" && (
+                                <ToolOutput
+                                  output={toolInvocation.result}
+                                  errorText={undefined}
+                                />
+                              )}
+                            </ToolContent>
+                          </Tool>
+                        );
+                      });
                     })()}
 
                     {message.role === "assistant" && sources.length > 0 && (

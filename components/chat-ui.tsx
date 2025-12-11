@@ -27,10 +27,10 @@ const models: Model[] = [
 ];
 
 const defaultSuggestions = [
+  "What's the weather in San Francisco?",
   "Search for latest AI news",
   "Calculate the 50th Fibonacci number",
   "Explain this URL: https://vercel.com",
-  "Summarize a PDF document",
 ];
 
 const STORAGE_KEYS = {
@@ -209,6 +209,7 @@ export function ChatUI() {
           enableSearch,
           enableUrlContext: true,
           enableCodeExecution: true,
+          enableWeather: true,
         },
       }
     );
@@ -231,6 +232,7 @@ export function ChatUI() {
     { label: "Google Search", enabled: enableSearch, color: "blue" },
     { label: "URL Context", enabled: true, color: "green" },
     { label: "Code Execution", enabled: true, color: "purple" },
+    { label: "Weather", enabled: true, color: "cyan" },
   ];
 
   return (

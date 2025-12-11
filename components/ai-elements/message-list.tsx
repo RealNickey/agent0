@@ -48,6 +48,7 @@ import {
   getToolInvocations,
   getMessageSources,
   getToolTitle,
+  isWeatherToolSuccess,
 } from "@/lib/chat-message-utils";
 
 export type MessageListProps = {
@@ -151,7 +152,7 @@ export function MessageList({ messages, isLoading, onRegenerate }: MessageListPr
                       });
                       return normalizedToolInvocations.map((toolInvocation: any) => {
                         // Special rendering for weather tool with generative UI
-                        if (toolInvocation.toolName === "weather" && toolInvocation.state === "result" && !toolInvocation.result?.error) {
+                        if (isWeatherToolSuccess(toolInvocation)) {
                           return (
                             <div key={toolInvocation.toolCallId} className="my-4">
                               <WeatherCard data={toolInvocation.result} />

@@ -10,7 +10,9 @@ export const weatherTool = tool({
       .string()
       .describe("The city name or location to get weather for (e.g., 'San Francisco', 'London', 'Tokyo')"),
   }),
-  // @ts-ignore - AI SDK tool typing issue
+  // TODO: AI SDK v5 tool() has complex type inference that requires explicit typing
+  // The execute function is correctly typed but TypeScript struggles with the inference
+  // @ts-expect-error - TypeScript cannot infer execute return type from tool definition
   execute: async (args: { location: string }) => {
     const { location } = args;
     try {

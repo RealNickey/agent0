@@ -38,3 +38,12 @@ export function getMessageSources(message: any): any[] {
   const sourceParts = message.parts.filter((part: any) => part.type === "source");
   return sourceParts;
 }
+
+// Helper to check if a tool invocation is a successful weather result
+export function isWeatherToolSuccess(toolInvocation: any): boolean {
+  return (
+    toolInvocation.toolName === "weather" &&
+    toolInvocation.state === "result" &&
+    !toolInvocation.result?.error
+  );
+}

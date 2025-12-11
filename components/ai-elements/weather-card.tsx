@@ -179,20 +179,18 @@ export function WeatherCard({ data, className, ...props }: WeatherCardProps) {
           </div>
         </div>
 
-        {/* Precipitation */}
-        {current.precipitation > 0 && (
-          <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-full bg-cyan-500/10">
-              <CloudRainIcon className="size-5 text-cyan-500" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Precipitation</p>
-              <p className="font-semibold text-sm">
-                {current.precipitation} {units.precipitation}
-              </p>
-            </div>
+        {/* Precipitation - always shown for consistent grid layout */}
+        <div className="flex items-center gap-3">
+          <div className="flex size-10 items-center justify-center rounded-full bg-cyan-500/10">
+            <CloudRainIcon className="size-5 text-cyan-500" />
           </div>
-        )}
+          <div>
+            <p className="text-xs text-muted-foreground">Precipitation</p>
+            <p className="font-semibold text-sm">
+              {current.precipitation} {units.precipitation}
+            </p>
+          </div>
+        </div>
 
         {/* Temperature detail */}
         <div className="flex items-center gap-3">

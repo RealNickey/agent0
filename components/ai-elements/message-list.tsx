@@ -138,33 +138,56 @@ export function MessageList({ messages, isLoading, onRegenerate }: MessageListPr
                     )}
 
                     {message.role === "assistant" && (() => {
-                      const normalizedToolInvocations = toolInvocations.map((ti: any) => {
-                        const t = ti.toolInvocation || ti;
-                        return {
-                          toolCallId: t.toolCallId,
-                          toolName: t.toolName,
-                          state: t.state,
-                          args: t.args,
-                          result: t.result,
-                        };
-                      });
+                      const normalizedToolInvocations = toolInvocations
+                        .map((ti: any) => {
+                          // Legacy shape (registry UI components) sometimes wrap the invocation
+                          // in a `toolInvocation` property.
+                          const t = ti?.toolInvocation ?? ti;
+
+                          const toolCallId = t?.toolCallId ?? t?.toolCallID ?? t?.id;
+                          const toolName = t?.toolName;
+
+                          // AI SDK ToolUIPart uses `input`/`output` and a state like
+                          // 'input-available' | 'output-available' | 'output-error'.
+                          const input = t?.input ?? t?.args;
+                          const output = t?.output ?? t?.result;
+                          const errorText = t?.errorText;
+
+                          // Normalize common state values.
+                          const rawState: string | undefined = t?.state;
+                          const state =
+                            rawState === "result"
+                              ? "output-available"
+                              : rawState === "call"
+                                ? "input-available"
+                                : rawState ?? (output != null ? "output-available" : "input-available");
+
+                          return {
+                            toolCallId,
+                            toolName,
+                            type: "tool-invocation",
+                            state,
+                            input,
+                            output,
+                            errorText,
+                          };
+                        })
+                        .filter((t: any) => t.toolCallId);
+
                       return normalizedToolInvocations.map((toolInvocation: any) => (
                         <Tool key={toolInvocation.toolCallId} defaultOpen={false}>
                           <ToolHeader
                             title={getToolTitle(toolInvocation.toolName || "")}
-                            type="tool-invocation"
-                            state={
-                              toolInvocation.state === "result"
-                                ? "output-available"
-                                : "input-available"
-                            }
+                            type={toolInvocation.type}
+                            state={toolInvocation.state as any}
                           />
                           <ToolContent>
-                            <ToolInput input={toolInvocation.args} />
-                            {toolInvocation.state === "result" && (
+                            <ToolInput input={toolInvocation.input} />
+                            {(toolInvocation.state === "output-available" ||
+                              toolInvocation.state === "output-error") && (
                               <ToolOutput
-                                output={toolInvocation.result}
-                                errorText={undefined}
+                                output={toolInvocation.output}
+                                errorText={toolInvocation.errorText}
                               />
                             )}
                           </ToolContent>

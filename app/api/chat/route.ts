@@ -1,5 +1,5 @@
 import { google, GoogleGenerativeAIProviderOptions } from "@ai-sdk/google";
-import { streamText, tool, type CoreMessage, type ImagePart, type FilePart, type TextPart } from "ai";
+import { streamText, tool, stepCountIs, type CoreMessage, type ImagePart, type FilePart, type TextPart } from "ai";
 import { z } from "zod";
 import { toolRegistry } from "@/lib/tool-registry";
 
@@ -186,14 +186,22 @@ export async function POST(req: Request) {
           // AI SDK expects 'inputSchema', not 'parameters'
           inputSchema: registeredTool.parameters,
           execute: async (args: any) => {
+            console.log(`[Chat API] ⚙️ Executing tool "${customTool.id}"...`);
+            console.log(`[Chat API] 📥 Input args:`, JSON.stringify(args, null, 2));
+            
             try {
-              console.log(`[Chat API] Executing tool "${customTool.id}" with args:`, args);
               const result = await registeredTool.execute(args);
-              console.log(`[Chat API] Tool "${customTool.id}" result:`, result);
+              console.log(`[Chat API] ✅ Tool "${customTool.id}" completed successfully`);
+              console.log(`[Chat API] 📤 Output result:`, JSON.stringify(result, null, 2));
               return result;
             } catch (error) {
-              console.error(`Custom tool ${customTool.id} execution error:`, error);
-              return { error: error instanceof Error ? error.message : 'Tool execution failed' };
+              console.error(`[Chat API] ❌ Tool "${customTool.id}" execution error:`, error);
+              const errorResult = { 
+                error: true, 
+                message: error instanceof Error ? error.message : 'Tool execution failed' 
+              };
+              console.log(`[Chat API] 📤 Error result:`, JSON.stringify(errorResult, null, 2));
+              return errorResult;
             }
           },
         });
@@ -245,9 +253,38 @@ export async function POST(req: Request) {
     messages: coreMessages,
     tools: hasTools ? tools : undefined,
     toolChoice: hasTools ? "auto" : "none",
+    // Enable multi-step execution so tools can be called and results processed
+    stopWhen: hasTools ? stepCountIs(5) : undefined,
     providerOptions,
     onError: (error) => {
       console.error("Stream error:", error);
+    },
+    onStepFinish: ({ text, toolCalls, toolResults, finishReason }) => {
+      console.log('[Chat API] 📍 Step finished:', { 
+        finishReason,
+        hasText: !!text?.length,
+        textPreview: text?.substring(0, 100),
+        toolCallsCount: toolCalls.length,
+        toolResultsCount: toolResults.length,
+      });
+      
+      if (toolCalls.length > 0) {
+        console.log('[Chat API] 🔧 Tool calls:', toolCalls.map(tc => ({
+          name: tc.toolName,
+          id: tc.toolCallId,
+          input: (tc as any).input ?? (tc as any).args
+        })));
+      }
+      
+      if (toolResults.length > 0) {
+        console.log('[Chat API] 📦 Tool results:', toolResults.map(tr => ({
+          name: tr.toolName,
+          id: tr.toolCallId,
+          output: typeof (tr as any).output === 'object'
+            ? JSON.stringify((tr as any).output).substring(0, 200)
+            : (tr as any).output
+        })));
+      }
     },
   });
 

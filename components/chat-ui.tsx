@@ -38,12 +38,14 @@ const defaultSuggestions = [
 const STORAGE_KEYS = {
   MODEL: "agent0-selected-model",
   MESSAGES: "agent0-chat-messages",
+  THINKING: "agent0-enable-thinking",
 };
 
 export function ChatUI() {
   const [selectedModel, setSelectedModel] = useState<Model>(models[0]);
   const [isModelOpen, setIsModelOpen] = useState(false);
   const [enableSearch, setEnableSearch] = useState(false);
+  const [enableThinking, setEnableThinking] = useState(true);
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoaded, setIsLoaded] = useState(false);
@@ -85,6 +87,11 @@ export function ChatUI() {
         if (model) setSelectedModel(model);
       }
 
+      const savedThinking = localStorage.getItem(STORAGE_KEYS.THINKING);
+      if (savedThinking != null) {
+        setEnableThinking(savedThinking === "true");
+      }
+
       const savedMessages = localStorage.getItem(STORAGE_KEYS.MESSAGES);
       if (savedMessages) {
         try {
@@ -114,6 +121,24 @@ export function ChatUI() {
       }
     }
   }, [selectedModel, isLoaded]);
+
+  // Save thinking preference to local storage
+  useEffect(() => {
+    if (isLoaded) {
+      try {
+        localStorage.setItem(STORAGE_KEYS.THINKING, String(enableThinking));
+      } catch (e) {
+        console.error("Failed to save thinking to localStorage", e);
+      }
+    }
+  }, [enableThinking, isLoaded]);
+
+  // If model doesn't support thinking, force thinking off
+  useEffect(() => {
+    if (!selectedModel.supportsThinking && enableThinking) {
+      setEnableThinking(false);
+    }
+  }, [selectedModel, enableThinking]);
 
   // Save messages to local storage when they change
   useEffect(() => {
@@ -263,6 +288,7 @@ export function ChatUI() {
         body: {
           model: selectedModel.id,
           enableSearch,
+          enableThinking: selectedModel.supportsThinking ? enableThinking : false,
           enableUrlContext: true,
           enableCodeExecution: true,
         },
@@ -279,8 +305,16 @@ export function ChatUI() {
 
   // Handle regenerate/reload
   const handleRegenerate = useCallback(() => {
-    regenerate();
-  }, [regenerate]);
+    regenerate({
+      body: {
+        model: selectedModel.id,
+        enableSearch,
+        enableThinking: selectedModel.supportsThinking ? enableThinking : false,
+        enableUrlContext: true,
+        enableCodeExecution: true,
+      },
+    });
+  }, [regenerate, selectedModel, enableSearch, enableThinking]);
 
   const handleSuggestionClick = useCallback((suggestion: string) => {
     setInputValue(suggestion);
@@ -294,6 +328,9 @@ export function ChatUI() {
   
   const featureBadges: FeatureBadge[] = [
     { label: "Google Search", enabled: enableSearch, color: "blue" },
+    ...(selectedModel.supportsThinking
+      ? [{ label: "Thinking", enabled: enableThinking, color: "amber" as const }]
+      : []),
     { label: "URL Context", enabled: true, color: "green" },
     { label: "Code Execution", enabled: true, color: "purple" },
   ];
@@ -352,6 +389,12 @@ export function ChatUI() {
                 isLoading={isLoading}
                 enableSearch={enableSearch}
                 onToggleSearch={() => setEnableSearch(!enableSearch)}
+                enableThinking={enableThinking}
+                thinkingSupported={selectedModel.supportsThinking}
+                onToggleThinking={() => {
+                  if (!selectedModel.supportsThinking) return;
+                  setEnableThinking((prev) => !prev);
+                }}
                 onFilesSelected={handleFileSelect}
               />
             </motion.div>

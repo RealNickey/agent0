@@ -9,6 +9,7 @@ const bodySchema = z.object({
   messages: z.array(z.any()), // Will be validated as UIMessage[] at runtime
   model: z.string(),
   enableSearch: z.boolean().optional(),
+  enableThinking: z.boolean().optional(),
   enableUrlContext: z.boolean().optional(),
   enableCodeExecution: z.boolean().optional(),
 });
@@ -59,6 +60,7 @@ export async function POST(req: Request) {
     messages,
     model,
     enableSearch = false,
+    enableThinking = true,
     enableUrlContext = true,
     enableCodeExecution = true,
   } = parsedBody;
@@ -100,18 +102,20 @@ export async function POST(req: Request) {
 
   const providerOptions: { google: GoogleGenerativeAIProviderOptions } = {
     google: {
-      ...(model.includes("2.5") && {
-        thinkingConfig: {
-          thinkingBudget: 4096,
-          includeThoughts: true,
-        },
-      }),
-      ...(model.includes("gemini-3") && {
-        thinkingConfig: {
-          thinkingLevel: "high",
-          includeThoughts: true,
-        },
-      }),
+      ...(enableThinking &&
+        model.includes("2.5") && {
+          thinkingConfig: {
+            thinkingBudget: 4096,
+            includeThoughts: true,
+          },
+        }),
+      ...(enableThinking &&
+        model.includes("gemini-3") && {
+          thinkingConfig: {
+            thinkingLevel: "high",
+            includeThoughts: true,
+          },
+        }),
     },
   };
 
@@ -127,7 +131,7 @@ export async function POST(req: Request) {
   });
 
   return result.toUIMessageStreamResponse({
-    sendReasoning: true,
+    sendReasoning: enableThinking,
     sendSources: true,
     originalMessages: uiMessages,
     onError: getErrorMessage,

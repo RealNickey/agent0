@@ -8,7 +8,7 @@ import {
   PromptInputButton,
   PromptInputSpeechButton,
 } from "@/components/ai-elements/prompt-input";
-import { PaperclipIcon, SearchIcon } from "lucide-react";
+import { BrainIcon, PaperclipIcon, SearchIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ButtonGroup, ButtonGroupSeparator } from "@/components/ui/button-group";
 
@@ -19,6 +19,9 @@ export type PromptInputAreaProps = {
   isLoading: boolean;
   enableSearch: boolean;
   onToggleSearch: () => void;
+  enableThinking: boolean;
+  onToggleThinking: () => void;
+  thinkingSupported?: boolean;
   onFilesSelected: (e: React.ChangeEvent<HTMLInputElement>) => void;
 };
 
@@ -29,6 +32,9 @@ export function PromptInputArea({
   isLoading,
   enableSearch,
   onToggleSearch,
+  enableThinking,
+  onToggleThinking,
+  thinkingSupported = true,
   onFilesSelected,
 }: PromptInputAreaProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -78,6 +84,27 @@ export function PromptInputArea({
           className={cn("rounded-none border-none shadow-none h-10 w-10 p-0 flex items-center justify-center shrink-0", enableSearch && "bg-primary/10 text-primary")}
         >
           <SearchIcon className="size-4" />
+        </PromptInputButton>
+
+        <ButtonGroupSeparator className="h-6 mb-2 self-end!" />
+
+        {/* Thinking Toggle */}
+        <PromptInputButton
+          tooltip={
+            !thinkingSupported
+              ? "Thinking is not supported by this model"
+              : enableThinking
+                ? "Disable Thinking"
+                : "Enable Thinking"
+          }
+          onClick={onToggleThinking}
+          disabled={!thinkingSupported}
+          className={cn(
+            "rounded-none border-none shadow-none h-10 w-10 p-0 flex items-center justify-center shrink-0",
+            enableThinking && thinkingSupported && "bg-primary/10 text-primary"
+          )}
+        >
+          <BrainIcon className="size-4" />
         </PromptInputButton>
 
         <ButtonGroupSeparator className="h-6 mb-2 self-end!" />

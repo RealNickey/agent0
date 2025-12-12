@@ -15,6 +15,7 @@ import { ChatEmptyState } from "@/components/ai-elements/chat-empty-state";
 import { SuggestionsGrid } from "@/components/ai-elements/chat-suggestions-grid";
 import { Model } from "@/components/ai-elements/model-selector-control";
 import { TableOfContents } from "@/components/table-of-contents";
+import type { SerializableToolExtension } from "@/lib/tool-registry";
 
 // Gemini models with their capabilities
 const models: Model[] = [
@@ -36,6 +37,7 @@ const defaultSuggestions = [
 const STORAGE_KEYS = {
   MODEL: "agent0-selected-model",
   MESSAGES: "agent0-chat-messages",
+  INSTALLED_TOOLS: "agent0-installed-tools",
 };
 
 export function ChatUI() {
@@ -45,6 +47,11 @@ export function ChatUI() {
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoaded, setIsLoaded] = useState(false);
+  
+  // Tool management state
+  const [availableTools, setAvailableTools] = useState<SerializableToolExtension[]>([]);
+  const [installedToolIds, setInstalledToolIds] = useState<string[]>([]);
+  const [selectedTools, setSelectedTools] = useState<SerializableToolExtension[]>([]);
 
   const {
     messages,
@@ -56,6 +63,7 @@ export function ChatUI() {
     id: "gemini-chat",
     onFinish: () => {
       setAttachments([]);
+      setSelectedTools([]); // Clear selected tools after message is sent
     },
   });
 
@@ -75,8 +83,30 @@ export function ChatUI() {
         console.error("Failed to parse saved messages", e);
       }
     }
+    
+    // Load installed tool IDs
+    const savedInstalledTools = localStorage.getItem(STORAGE_KEYS.INSTALLED_TOOLS);
+    if (savedInstalledTools) {
+      try {
+        setInstalledToolIds(JSON.parse(savedInstalledTools));
+      } catch (e) {
+        console.error("Failed to parse installed tools", e);
+      }
+    }
+    
     setIsLoaded(true);
   }, [setMessages]);
+  
+  // Fetch available tools from API
+  useEffect(() => {
+    fetch('/api/tools/available')
+      .then((res) => res.json())
+      .then((tools) => setAvailableTools(tools))
+      .catch((err) => console.error('Failed to fetch available tools:', err));
+  }, []);
+  
+  // Get installed tools filtered by installed IDs
+  const installedTools = availableTools.filter((tool) => installedToolIds.includes(tool.id));
 
   // Save model to local storage when it changes
   useEffect(() => {
@@ -183,7 +213,7 @@ export function ChatUI() {
     localStorage.removeItem(STORAGE_KEYS.MESSAGES);
   }, [setMessages]);
 
-  const handleSubmit = async (value: { text: string; files: any[] }) => {
+  const handleSubmit = async (value: { text: string; files: any[]; selectedTools?: SerializableToolExtension[] }) => {
     if (!value.text.trim() && value.files.length === 0) return;
 
     // Build message content parts
@@ -197,6 +227,11 @@ export function ChatUI() {
         mediaType: att.type,
       });
     }
+    
+    // Collect tools to send - either from parameter or state
+    const toolsToSend = value.selectedTools || selectedTools;
+    
+    console.log('[ChatUI] Sending message with tools:', toolsToSend.map(t => t.id));
 
     sendMessage(
       {
@@ -209,13 +244,34 @@ export function ChatUI() {
           enableSearch,
           enableUrlContext: true,
           enableCodeExecution: true,
+          customTools: toolsToSend.map((tool) => ({
+            id: tool.id,
+            name: tool.name,
+            description: tool.description,
+            icon: tool.icon,
+            parameters: tool.parameters,
+          })),
         },
       }
     );
 
     setInputValue("");
     setAttachments([]);
+    setSelectedTools([]);
   };
+  
+  // Tool selection handlers
+  const handleToolSelect = useCallback((tool: SerializableToolExtension) => {
+    setSelectedTools((prev) => {
+      // Don't add if already selected
+      if (prev.some((t) => t.id === tool.id)) return prev;
+      return [...prev, tool];
+    });
+  }, []);
+  
+  const handleToolRemove = useCallback((toolId: string) => {
+    setSelectedTools((prev) => prev.filter((t) => t.id !== toolId));
+  }, []);
 
   const handleSuggestionClick = useCallback((suggestion: string) => {
     setInputValue(suggestion);
@@ -227,11 +283,18 @@ export function ChatUI() {
 
   const isStarted = messages.length > 0;
   
-  const featureBadges: FeatureBadge[] = [
-    { label: "Google Search", enabled: enableSearch, color: "blue" },
-    { label: "URL Context", enabled: true, color: "green" },
-    { label: "Code Execution", enabled: true, color: "purple" },
-  ];
+  // When custom tools are selected, Google's built-in tools are disabled
+  const hasCustomTools = selectedTools.length > 0;
+  
+  const featureBadges: FeatureBadge[] = hasCustomTools
+    ? [
+        { label: `${selectedTools.length} Custom Tool${selectedTools.length > 1 ? 's' : ''}`, enabled: true, color: "orange" },
+      ]
+    : [
+        { label: "Google Search", enabled: enableSearch, color: "blue" },
+        { label: "URL Context", enabled: true, color: "green" },
+        { label: "Code Execution", enabled: true, color: "purple" },
+      ];
 
   return (
     <div className="flex h-screen w-full flex-col bg-background text-foreground bg-grid">
@@ -282,6 +345,10 @@ export function ChatUI() {
                 enableSearch={enableSearch}
                 onToggleSearch={() => setEnableSearch(!enableSearch)}
                 onFilesSelected={handleFileSelect}
+                availableTools={installedTools}
+                selectedTools={selectedTools}
+                onToolSelect={handleToolSelect}
+                onToolRemove={handleToolRemove}
               />
             </motion.div>
 

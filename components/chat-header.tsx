@@ -1,9 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { UserButton, SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
-import { TreePine } from "lucide-react";
+import { TreePine, WrenchIcon } from "lucide-react";
 import { ModelSelectorControl, Model } from "@/components/ai-elements/model-selector-control";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export type ChatHeaderProps = {
   models: Model[];
@@ -50,6 +52,20 @@ export function ChatHeader({
       />
 
       <div className="flex items-center gap-2">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Link href="/marketplace">
+                <Button variant="ghost" size="icon" className="size-8">
+                  <WrenchIcon className="size-4" />
+                </Button>
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Tool Marketplace</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         <SignedIn>
           <UserButton />
         </SignedIn>

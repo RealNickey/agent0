@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 export type FeatureBadge = {
   label: string;
   enabled: boolean;
-  color: "blue" | "green" | "purple";
+  color: "blue" | "green" | "purple" | "orange" | "yellow";
 };
 
 export type FeatureBadgesRowProps = {
@@ -28,6 +28,8 @@ export function FeatureBadgesRow({ badges }: FeatureBadgesRowProps) {
             badge.color === "blue" && "bg-blue-500/10 text-blue-600",
             badge.color === "green" && "bg-green-500/10 text-green-600",
             badge.color === "purple" && "bg-purple-500/10 text-purple-600",
+            badge.color === "orange" && "bg-orange-500/10 text-orange-600",
+            badge.color === "yellow" && "bg-yellow-500/10 text-yellow-600",
             !badge.enabled && "opacity-50"
           )}
         >

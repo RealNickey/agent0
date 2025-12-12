@@ -1,8 +1,21 @@
 import { google, GoogleGenerativeAIProviderOptions } from "@ai-sdk/google";
-import { streamText, type CoreMessage, type ImagePart, type FilePart, type TextPart } from "ai";
+import { streamText, tool, type CoreMessage, type ImagePart, type FilePart, type TextPart } from "ai";
 import { z } from "zod";
+import { toolRegistry } from "@/lib/tool-registry";
+
+// Import tools to ensure they are registered
+import "@/lib/tools";
 
 export const maxDuration = 60;
+
+// Schema for custom tool definitions passed from frontend
+const customToolSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string(),
+  icon: z.string().optional(),
+  parameters: z.record(z.any()).optional(),
+});
 
 const bodySchema = z.object({
   messages: z.array(z.any()),
@@ -10,6 +23,7 @@ const bodySchema = z.object({
   enableSearch: z.boolean().optional(),
   enableUrlContext: z.boolean().optional(),
   enableCodeExecution: z.boolean().optional(),
+  customTools: z.array(customToolSchema).optional(),
 });
 
 type RawMessagePart = {
@@ -134,6 +148,7 @@ export async function POST(req: Request) {
     enableSearch = false,
     enableUrlContext = true,
     enableCodeExecution = true,
+    customTools = [],
   } = parsedBody;
 
   let coreMessages: CoreMessage[];
@@ -152,20 +167,61 @@ export async function POST(req: Request) {
   }
 
   const tools: Record<string, any> = {};
+  const hasCustomTools = customTools.length > 0;
 
-  if (enableSearch) {
-    tools.google_search = google.tools.googleSearch({});
-  }
+  // Google Gemini doesn't support mixing provider-defined tools with custom function tools
+  // If custom tools are selected, use only custom tools
+  // Otherwise, use Google's provider-defined tools
+  
+  console.log('[Chat API] Custom tools received:', customTools.length, customTools.map(t => t.id));
+  
+  if (hasCustomTools) {
+    // Add custom tools from the registry using AI SDK tool() helper
+    for (const customTool of customTools) {
+      const registeredTool = toolRegistry.get(customTool.id);
+      console.log(`[Chat API] Looking up tool "${customTool.id}":`, registeredTool ? 'found' : 'not found');
+      if (registeredTool) {
+        tools[customTool.id] = tool({
+          description: registeredTool.description,
+          // AI SDK expects 'inputSchema', not 'parameters'
+          inputSchema: registeredTool.parameters,
+          execute: async (args: any) => {
+            try {
+              console.log(`[Chat API] Executing tool "${customTool.id}" with args:`, args);
+              const result = await registeredTool.execute(args);
+              console.log(`[Chat API] Tool "${customTool.id}" result:`, result);
+              return result;
+            } catch (error) {
+              console.error(`Custom tool ${customTool.id} execution error:`, error);
+              return { error: error instanceof Error ? error.message : 'Tool execution failed' };
+            }
+          },
+        });
+      }
+    }
+    console.log('[Chat API] Registered custom tools:', Object.keys(tools));
+  } else {
+    // Use Google's provider-defined tools when no custom tools are selected
+    if (enableSearch) {
+      tools.google_search = google.tools.googleSearch({});
+    }
 
-  if (enableUrlContext) {
-    tools.url_context = google.tools.urlContext({});
-  }
+    if (enableUrlContext) {
+      tools.url_context = google.tools.urlContext({});
+    }
 
-  if (enableCodeExecution) {
-    tools.code_execution = google.tools.codeExecution({});
+    if (enableCodeExecution) {
+      tools.code_execution = google.tools.codeExecution({});
+    }
   }
 
   const hasTools = Object.keys(tools).length > 0;
+
+  console.log('[Chat API] Final tools config:', {
+    hasTools,
+    toolNames: Object.keys(tools),
+    toolChoice: hasTools ? "auto" : "none"
+  });
 
   const providerOptions: { google: GoogleGenerativeAIProviderOptions } = {
     google: {

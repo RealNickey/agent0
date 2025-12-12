@@ -1,11 +1,25 @@
 // Helper function to get human-readable tool names
 export function getToolTitle(toolName: string): string {
   const titles: Record<string, string> = {
+    // Built-in Google tools
     google_search: "Google Search",
     url_context: "URL Context",
     code_execution: "Code Execution",
+    // Custom tools - these will be looked up by their ID
+    weather: "🌤️ Weather",
+    calculator: "🧮 Calculator",
+    random: "🎲 Random Generator",
   };
-  return titles[toolName] || toolName;
+  
+  // Return the mapped title or format the tool name nicely
+  if (titles[toolName]) {
+    return titles[toolName];
+  }
+  
+  // Format unknown tool names: snake_case or kebab-case to Title Case
+  return toolName
+    .replace(/[-_]/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 // Helper to extract text content from message parts

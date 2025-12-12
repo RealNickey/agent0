@@ -1,3 +1,5 @@
+import type { MyUIMessage, UIMessagePart } from "@/types/chat";
+
 // Helper function to get human-readable tool names
 export function getToolTitle(toolName: string): string {
   const titles: Record<string, string> = {
@@ -8,32 +10,51 @@ export function getToolTitle(toolName: string): string {
   return titles[toolName] || toolName;
 }
 
+// Type guard for text parts
+function isTextPart(part: UIMessagePart): part is Extract<UIMessagePart, { type: "text" }> {
+  return part.type === "text";
+}
+
+// Type guard for reasoning parts
+function isReasoningPart(part: UIMessagePart): part is Extract<UIMessagePart, { type: "reasoning" }> {
+  return part.type === "reasoning";
+}
+
+// Type guard for tool invocation parts
+function isToolInvocationPart(part: UIMessagePart): boolean {
+  return part.type === "tool-invocation";
+}
+
+// Type guard for source parts
+function isSourcePart(part: UIMessagePart): boolean {
+  return part.type === "source-url" || part.type === "source-document";
+}
+
 // Helper to extract text content from message parts
-export function getMessageTextContent(message: any): string {
+export function getMessageTextContent(message: MyUIMessage): string {
   if (!message.parts) return "";
   return message.parts
-    .filter((part: any) => part.type === "text")
-    .map((part: any) => part.text)
+    .filter(isTextPart)
+    .map((part) => part.text)
     .join("");
 }
 
 // Helper to extract reasoning from message parts
-export function getMessageReasoning(message: any): string | null {
+export function getMessageReasoning(message: MyUIMessage): string | null {
   if (!message.parts) return null;
-  const reasoningParts = message.parts.filter((part: any) => part.type === "reasoning");
+  const reasoningParts = message.parts.filter(isReasoningPart);
   if (reasoningParts.length === 0) return null;
-  return reasoningParts.map((part: any) => part.text).join("");
+  return reasoningParts.map((part) => part.text).join("");
 }
 
 // Helper to extract tool invocations from message parts
-export function getToolInvocations(message: any): any[] {
+export function getToolInvocations(message: MyUIMessage): UIMessagePart[] {
   if (!message.parts) return [];
-  return message.parts.filter((part: any) => part.type === "tool-invocation");
+  return message.parts.filter(isToolInvocationPart);
 }
 
 // Helper to extract sources from message parts
-export function getMessageSources(message: any): any[] {
+export function getMessageSources(message: MyUIMessage): UIMessagePart[] {
   if (!message.parts) return [];
-  const sourceParts = message.parts.filter((part: any) => part.type === "source");
-  return sourceParts;
+  return message.parts.filter(isSourcePart);
 }

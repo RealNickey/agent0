@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useState } from "react";
+import type { UseChatHelpers } from "@ai-sdk/react";
 import {
   Conversation,
   ConversationContent,
@@ -38,6 +39,7 @@ import {
   ThumbsUpIcon,
   ThumbsDownIcon,
   FileIcon,
+  AlertCircleIcon,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
@@ -48,17 +50,25 @@ import {
   getMessageSources,
   getToolTitle,
 } from "@/lib/chat-message-utils";
+import type { MyUIMessage } from "@/types/chat";
+import { Shimmer } from "@/components/ai-elements/shimmer";
+
+type ChatStatus = UseChatHelpers<MyUIMessage>["status"];
 
 export type MessageListProps = {
-  messages: any[];
+  messages: MyUIMessage[];
   isLoading: boolean;
+  status: ChatStatus;
   onRegenerate: () => void;
+  error?: Error | undefined;
 };
 
-export function MessageList({ messages, isLoading, onRegenerate }: MessageListProps) {
+export function MessageList({ messages, isLoading, status, onRegenerate, error }: MessageListProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState(false);
+  const lastMessage = messages[messages.length - 1];
+  const showSendingPlaceholder = status === "submitted" && lastMessage?.role === "user";
 
   useEffect(() => {
     // Find the scroll container after mount - StickToBottom renders a div with overflow-y-auto
@@ -93,6 +103,19 @@ export function MessageList({ messages, isLoading, onRegenerate }: MessageListPr
             const reasoning = getMessageReasoning(message);
             const toolInvocations = getToolInvocations(message);
             const sources = getMessageSources(message);
+            const isLastMessage = lastMessage?.id === message.id;
+            const hasAssistantContent =
+              message.role !== "assistant"
+                ? true
+                : Boolean(textContent && textContent.trim()) ||
+                  Boolean(reasoning && reasoning.trim()) ||
+                  toolInvocations.length > 0 ||
+                  sources.length > 0;
+            const shouldShowThinkingPlaceholder =
+              message.role === "assistant" &&
+              isLastMessage &&
+              status === "streaming" &&
+              !hasAssistantContent;
 
             return (
               <motion.div
@@ -188,7 +211,11 @@ export function MessageList({ messages, isLoading, onRegenerate }: MessageListPr
                     )}
 
                     {message.role === "assistant" ? (
-                      <MessageResponse>{textContent}</MessageResponse>
+                      hasAssistantContent ? (
+                        <MessageResponse>{textContent}</MessageResponse>
+                      ) : shouldShowThinkingPlaceholder ? (
+                        <ThinkingIndicator />
+                      ) : null
                     ) : (
                       <div className="whitespace-pre-wrap">{textContent}</div>
                     )}
@@ -217,17 +244,39 @@ export function MessageList({ messages, isLoading, onRegenerate }: MessageListPr
               </motion.div>
             );
           })}
-          {isLoading && messages[messages.length - 1]?.role === "user" && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+          {showSendingPlaceholder && (
+            <motion.div
+              key="sending-state"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
               <Message from="assistant">
                 <MessageContent className="w-fit">
-                  <div className="flex items-center gap-1 h-6">
-                    <span className="size-1.5 rounded-full bg-foreground/40 animate-bounce [animation-delay:-0.3s]" />
-                    <span className="size-1.5 rounded-full bg-foreground/40 animate-bounce [animation-delay:-0.15s]" />
-                    <span className="size-1.5 rounded-full bg-foreground/40 animate-bounce" />
-                  </div>
+                  <Shimmer className="text-sm font-medium text-muted-foreground">
+                    {"Sending..."}
+                  </Shimmer>
                 </MessageContent>
               </Message>
+            </motion.div>
+          )}
+          {/* Error Display */}
+          {error && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }} 
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-start gap-3 p-4 rounded-lg bg-destructive/10 border border-destructive/20"
+            >
+              <AlertCircleIcon className="size-5 text-destructive shrink-0 mt-0.5" />
+              <div className="flex-1 space-y-2">
+                <p className="text-sm text-destructive font-medium">Something went wrong</p>
+                <p className="text-sm text-muted-foreground">{error.message || "An error occurred while generating the response."}</p>
+                <button
+                  onClick={() => onRegenerate()}
+                  className="text-sm text-primary hover:underline"
+                >
+                  Try again
+                </button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -237,3 +286,14 @@ export function MessageList({ messages, isLoading, onRegenerate }: MessageListPr
     </div>
   );
 }
+
+const ThinkingIndicator = () => (
+  <motion.span
+    aria-live="polite"
+    className="text-sm font-medium text-muted-foreground"
+    animate={{ opacity: [0.5, 1, 0.5] }}
+    transition={{ duration: 1.2, repeat: Number.POSITIVE_INFINITY }}
+  >
+    Thinking...
+  </motion.span>
+);

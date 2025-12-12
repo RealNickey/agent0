@@ -3,11 +3,13 @@
 import { motion } from "motion/react";
 import { FileIcon, XIcon } from "lucide-react";
 
+// Use a type that's compatible with the AI SDK's FileUIPart
+// but includes additional properties needed for preview (size)
 export type FileAttachment = {
   name: string;
-  type: string;
-  size: number;
-  url: string;
+  type: string;      // Maps to mediaType in FileUIPart
+  size: number;      // Used for preview info
+  url: string;       // Maps to url in FileUIPart
 };
 
 export type AttachmentsPreviewProps = {

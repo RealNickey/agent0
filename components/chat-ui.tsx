@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport } from "ai";
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
+import type { MyUIMessage } from "@/types/chat";
 
 // Components
 import { ChatHeader } from "@/components/chat-header";
@@ -36,44 +38,74 @@ const defaultSuggestions = [
 const STORAGE_KEYS = {
   MODEL: "agent0-selected-model",
   MESSAGES: "agent0-chat-messages",
+  THINKING: "agent0-enable-thinking",
 };
 
 export function ChatUI() {
   const [selectedModel, setSelectedModel] = useState<Model>(models[0]);
   const [isModelOpen, setIsModelOpen] = useState(false);
   const [enableSearch, setEnableSearch] = useState(false);
+  const [enableThinking, setEnableThinking] = useState(true);
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoaded, setIsLoaded] = useState(false);
+  
+  // File input ref for native FileList handling
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
     messages,
     sendMessage,
     status,
+    error,
     regenerate,
     setMessages,
-  } = useChat({
+  } = useChat<MyUIMessage>({
     id: "gemini-chat",
+    transport: new DefaultChatTransport({
+      api: "/api/chat",
+    }),
+    experimental_throttle: 50, // Throttle UI updates for better performance
     onFinish: () => {
       setAttachments([]);
+      // Clear the file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    },
+    onError: (error) => {
+      console.error("Chat error:", error);
     },
   });
 
   // Load state from local storage on mount
   useEffect(() => {
-    const savedModelId = localStorage.getItem(STORAGE_KEYS.MODEL);
-    if (savedModelId) {
-      const model = models.find((m) => m.id === savedModelId);
-      if (model) setSelectedModel(model);
-    }
-
-    const savedMessages = localStorage.getItem(STORAGE_KEYS.MESSAGES);
-    if (savedMessages) {
-      try {
-        setMessages(JSON.parse(savedMessages));
-      } catch (e) {
-        console.error("Failed to parse saved messages", e);
+    try {
+      const savedModelId = localStorage.getItem(STORAGE_KEYS.MODEL);
+      if (savedModelId) {
+        const model = models.find((m) => m.id === savedModelId);
+        if (model) setSelectedModel(model);
       }
+
+      const savedThinking = localStorage.getItem(STORAGE_KEYS.THINKING);
+      if (savedThinking != null) {
+        setEnableThinking(savedThinking === "true");
+      }
+
+      const savedMessages = localStorage.getItem(STORAGE_KEYS.MESSAGES);
+      if (savedMessages) {
+        try {
+          const parsed = JSON.parse(savedMessages);
+          if (Array.isArray(parsed)) {
+            setMessages(parsed);
+          }
+        } catch (e) {
+          console.error("Failed to parse saved messages", e);
+          localStorage.removeItem(STORAGE_KEYS.MESSAGES);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to load from localStorage", e);
     }
     setIsLoaded(true);
   }, [setMessages]);
@@ -81,14 +113,52 @@ export function ChatUI() {
   // Save model to local storage when it changes
   useEffect(() => {
     if (isLoaded) {
-      localStorage.setItem(STORAGE_KEYS.MODEL, selectedModel.id);
+      try {
+        localStorage.setItem(STORAGE_KEYS.MODEL, selectedModel.id);
+      } catch (e) {
+        // Handle quota exceeded or other localStorage errors
+        console.error("Failed to save model to localStorage", e);
+      }
     }
   }, [selectedModel, isLoaded]);
+
+  // Save thinking preference to local storage
+  useEffect(() => {
+    if (isLoaded) {
+      try {
+        localStorage.setItem(STORAGE_KEYS.THINKING, String(enableThinking));
+      } catch (e) {
+        console.error("Failed to save thinking to localStorage", e);
+      }
+    }
+  }, [enableThinking, isLoaded]);
+
+  // If model doesn't support thinking, force thinking off
+  useEffect(() => {
+    if (!selectedModel.supportsThinking && enableThinking) {
+      setEnableThinking(false);
+    }
+  }, [selectedModel, enableThinking]);
 
   // Save messages to local storage when they change
   useEffect(() => {
     if (isLoaded) {
-      localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(messages));
+      try {
+        const serialized = JSON.stringify(messages);
+        localStorage.setItem(STORAGE_KEYS.MESSAGES, serialized);
+      } catch (e) {
+        // Handle quota exceeded - try to clear old messages
+        if (e instanceof DOMException && e.name === "QuotaExceededError") {
+          console.warn("localStorage quota exceeded, clearing old messages");
+          try {
+            localStorage.removeItem(STORAGE_KEYS.MESSAGES);
+          } catch {
+            // Ignore errors when clearing
+          }
+        } else {
+          console.error("Failed to save messages to localStorage", e);
+        }
+      }
     }
   }, [messages, isLoaded]);
 
@@ -146,10 +216,12 @@ export function ChatUI() {
 
   const isLoading = status === "streaming" || status === "submitted";
 
+  // File selection handler - now using native FileList
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
 
+    // Convert FileList to FileAttachment array for preview
     const filePromises = Array.from(files).map((file) => {
       return new Promise<FileAttachment>((resolve) => {
         const reader = new FileReader();
@@ -168,8 +240,6 @@ export function ChatUI() {
     Promise.all(filePromises).then((newAttachments) => {
       setAttachments((prev) => [...prev, ...newAttachments]);
     });
-
-    e.target.value = "";
   }, []);
 
   const removeAttachment = useCallback((index: number) => {
@@ -181,23 +251,34 @@ export function ChatUI() {
     setAttachments([]);
     setInputValue("");
     localStorage.removeItem(STORAGE_KEYS.MESSAGES);
+    // Clear the file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   }, [setMessages]);
 
+  // Simplified handleSubmit using AI SDK's new API
   const handleSubmit = async (value: { text: string; files: any[] }) => {
-    if (!value.text.trim() && value.files.length === 0) return;
+    if (!value.text.trim() && attachments.length === 0) return;
 
-    // Build message content parts
-    const parts: any[] = [{ type: "text", text: value.text }];
+    // Build parts array for the message
+    const parts: Array<{ type: "text"; text: string } | { type: "file"; url: string; mediaType: string }> = [];
+    
+    // Add text part
+    if (value.text.trim()) {
+      parts.push({ type: "text", text: value.text });
+    }
 
-    // Add file attachments as file parts
+    // Add file parts from attachments (using url for FileUIPart)
     for (const att of attachments) {
       parts.push({
         type: "file",
-        data: att.url,
+        url: att.url,
         mediaType: att.type,
       });
     }
 
+    // Use parts-based message for multi-modal content
     sendMessage(
       {
         role: "user",
@@ -207,6 +288,7 @@ export function ChatUI() {
         body: {
           model: selectedModel.id,
           enableSearch,
+          enableThinking: selectedModel.supportsThinking ? enableThinking : false,
           enableUrlContext: true,
           enableCodeExecution: true,
         },
@@ -215,7 +297,24 @@ export function ChatUI() {
 
     setInputValue("");
     setAttachments([]);
+    // Clear the file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
+
+  // Handle regenerate/reload
+  const handleRegenerate = useCallback(() => {
+    regenerate({
+      body: {
+        model: selectedModel.id,
+        enableSearch,
+        enableThinking: selectedModel.supportsThinking ? enableThinking : false,
+        enableUrlContext: true,
+        enableCodeExecution: true,
+      },
+    });
+  }, [regenerate, selectedModel, enableSearch, enableThinking]);
 
   const handleSuggestionClick = useCallback((suggestion: string) => {
     setInputValue(suggestion);
@@ -229,6 +328,9 @@ export function ChatUI() {
   
   const featureBadges: FeatureBadge[] = [
     { label: "Google Search", enabled: enableSearch, color: "blue" },
+    ...(selectedModel.supportsThinking
+      ? [{ label: "Thinking", enabled: enableThinking, color: "amber" as const }]
+      : []),
     { label: "URL Context", enabled: true, color: "green" },
     { label: "Code Execution", enabled: true, color: "purple" },
   ];
@@ -251,7 +353,13 @@ export function ChatUI() {
         
         {/* Conversation Area */}
         <div className={cn("flex-1 overflow-hidden relative", !isStarted && "hidden")}>
-          <MessageList messages={messages} isLoading={isLoading} onRegenerate={regenerate} />
+          <MessageList 
+            messages={messages} 
+            isLoading={isLoading} 
+            onRegenerate={handleRegenerate}
+            status={status}
+            error={error}
+          />
         </div>
 
         {/* Input Area Container */}
@@ -281,6 +389,12 @@ export function ChatUI() {
                 isLoading={isLoading}
                 enableSearch={enableSearch}
                 onToggleSearch={() => setEnableSearch(!enableSearch)}
+                enableThinking={enableThinking}
+                thinkingSupported={selectedModel.supportsThinking}
+                onToggleThinking={() => {
+                  if (!selectedModel.supportsThinking) return;
+                  setEnableThinking((prev) => !prev);
+                }}
                 onFilesSelected={handleFileSelect}
               />
             </motion.div>

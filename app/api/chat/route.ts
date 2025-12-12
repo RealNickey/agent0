@@ -1,7 +1,8 @@
 import { google, GoogleGenerativeAIProviderOptions } from "@ai-sdk/google";
-import { streamText, convertToModelMessages } from "ai";
+import { streamText, convertToModelMessages, stepCountIs } from "ai";
 import { z } from "zod";
 import type { MyUIMessage } from "@/types/chat";
+import { tools as weatherTools } from "@/ai/tools";
 
 export const maxDuration = 60;
 
@@ -12,6 +13,7 @@ const bodySchema = z.object({
   enableThinking: z.boolean().optional(),
   enableUrlContext: z.boolean().optional(),
   enableCodeExecution: z.boolean().optional(),
+  enableWeather: z.boolean().optional(),
 });
 
 // Custom error handler for user-friendly error messages
@@ -63,6 +65,7 @@ export async function POST(req: Request) {
     enableThinking = true,
     enableUrlContext = true,
     enableCodeExecution = true,
+    enableWeather = false,
   } = parsedBody;
 
   // Type-cast messages to MyUIMessage[] for type safety
@@ -84,18 +87,30 @@ export async function POST(req: Request) {
     );
   }
 
-  const tools: Record<string, any> = {};
+  // When weather is enabled, use ONLY function tools (weather)
+  // to avoid mixing with provider-defined tools
+  let tools: Record<string, any> = {};
+  let useProviderTools = false;
 
-  if (enableSearch) {
-    tools.google_search = google.tools.googleSearch({});
-  }
+  if (enableWeather) {
+    // Use only the weather function tool
+    tools = { ...weatherTools };
+  } else {
+    // Use Google provider tools
+    if (enableSearch) {
+      tools.google_search = google.tools.googleSearch({});
+      useProviderTools = true;
+    }
 
-  if (enableUrlContext) {
-    tools.url_context = google.tools.urlContext({});
-  }
+    if (enableUrlContext) {
+      tools.url_context = google.tools.urlContext({});
+      useProviderTools = true;
+    }
 
-  if (enableCodeExecution) {
-    tools.code_execution = google.tools.codeExecution({});
+    if (enableCodeExecution) {
+      tools.code_execution = google.tools.codeExecution({});
+      useProviderTools = true;
+    }
   }
 
   const hasTools = Object.keys(tools).length > 0;
@@ -125,6 +140,8 @@ export async function POST(req: Request) {
     tools: hasTools ? tools : undefined,
     toolChoice: hasTools ? "auto" : "none",
     providerOptions,
+    // Use stopWhen for multi-step tool calls (e.g., weather lookup + response)
+    ...(enableWeather && { stopWhen: stepCountIs(5) }),
     onError: (error) => {
       console.error("Stream error:", error);
     },

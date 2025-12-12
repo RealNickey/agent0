@@ -52,6 +52,7 @@ import {
 } from "@/lib/chat-message-utils";
 import type { MyUIMessage } from "@/types/chat";
 import { Shimmer } from "@/components/ai-elements/shimmer";
+import { Weather, WeatherLoading } from "@/components/weather";
 
 type ChatStatus = UseChatHelpers<MyUIMessage>["status"];
 
@@ -163,36 +164,87 @@ export function MessageList({ messages, isLoading, status, onRegenerate, error }
                     {message.role === "assistant" && (() => {
                       const normalizedToolInvocations = toolInvocations.map((ti: any) => {
                         const t = ti.toolInvocation || ti;
+                        
+                        // Extract tool name - handle both old and new AI SDK formats
+                        // Old format: t.toolName exists
+                        // New AI SDK 5.0 format: tool name is in type like "tool-displayWeather"
+                        let toolName = t.toolName;
+                        if (!toolName && t.type && t.type.startsWith("tool-")) {
+                          toolName = t.type.replace("tool-", "");
+                        }
+                        
+                        // Normalize state - handle different state formats
+                        // New format: "input-available", "output-available", "output-error"
+                        // Old format: "call", "result"
+                        let state = t.state;
+                        if (state === "output-available") state = "result";
+                        
                         return {
-                          toolCallId: t.toolCallId,
-                          toolName: t.toolName,
-                          state: t.state,
-                          args: t.args,
-                          result: t.result,
+                          toolCallId: t.toolCallId || `tool-${Date.now()}-${Math.random()}`,
+                          toolName: toolName,
+                          state: state,
+                          args: t.args || t.input,
+                          result: t.result || t.output,
                         };
                       });
-                      return normalizedToolInvocations.map((toolInvocation: any) => (
-                        <Tool key={toolInvocation.toolCallId} defaultOpen={false}>
-                          <ToolHeader
-                            title={getToolTitle(toolInvocation.toolName || "")}
-                            type="tool-invocation"
-                            state={
-                              toolInvocation.state === "result"
-                                ? "output-available"
-                                : "input-available"
-                            }
-                          />
-                          <ToolContent>
-                            <ToolInput input={toolInvocation.args} />
-                            {toolInvocation.state === "result" && (
-                              <ToolOutput
-                                output={toolInvocation.result}
-                                errorText={undefined}
+                      return normalizedToolInvocations.map((toolInvocation: any) => {
+                        // Special rendering for Weather tool - wrapped in Tool UI
+                        if (toolInvocation.toolName === "displayWeather") {
+                          const isCompleted = toolInvocation.state === "result";
+                          const hasError = toolInvocation.result?.error === true;
+                          
+                          return (
+                            <Tool key={toolInvocation.toolCallId} defaultOpen={true}>
+                              <ToolHeader
+                                title="Weather Information"
+                                type={"tool-displayWeather" as any}
+                                state={
+                                  hasError
+                                    ? "output-error"
+                                    : isCompleted
+                                    ? "output-available"
+                                    : "input-available"
+                                }
                               />
-                            )}
-                          </ToolContent>
-                        </Tool>
-                      ));
+                              <ToolContent>
+                                <ToolInput input={toolInvocation.args} />
+                                {isCompleted ? (
+                                  <div className="p-4">
+                                    <Weather {...toolInvocation.result} />
+                                  </div>
+                                ) : (
+                                  <div className="p-4">
+                                    <WeatherLoading location={toolInvocation.args?.location} />
+                                  </div>
+                                )}
+                              </ToolContent>
+                            </Tool>
+                          );
+                        }
+                        // Default tool rendering
+                        return (
+                          <Tool key={toolInvocation.toolCallId} defaultOpen={false}>
+                            <ToolHeader
+                              title={getToolTitle(toolInvocation.toolName || "")}
+                              type="tool-invocation"
+                              state={
+                                toolInvocation.state === "result"
+                                  ? "output-available"
+                                  : "input-available"
+                              }
+                            />
+                            <ToolContent>
+                              <ToolInput input={toolInvocation.args} />
+                              {toolInvocation.state === "result" && (
+                                <ToolOutput
+                                  output={toolInvocation.result}
+                                  errorText={undefined}
+                                />
+                              )}
+                            </ToolContent>
+                          </Tool>
+                        );
+                      });
                     })()}
 
                     {message.role === "assistant" && sources.length > 0 && (

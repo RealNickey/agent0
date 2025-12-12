@@ -46,6 +46,7 @@ export function ChatUI() {
   const [isModelOpen, setIsModelOpen] = useState(false);
   const [enableSearch, setEnableSearch] = useState(false);
   const [enableThinking, setEnableThinking] = useState(true);
+  const [enableWeather, setEnableWeather] = useState(false);
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoaded, setIsLoaded] = useState(false);
@@ -287,10 +288,11 @@ export function ChatUI() {
       {
         body: {
           model: selectedModel.id,
-          enableSearch,
+          enableSearch: enableWeather ? false : enableSearch, // Disable search when weather is on
           enableThinking: selectedModel.supportsThinking ? enableThinking : false,
-          enableUrlContext: true,
-          enableCodeExecution: true,
+          enableUrlContext: enableWeather ? false : true, // Disable URL context when weather is on
+          enableCodeExecution: enableWeather ? false : true, // Disable code execution when weather is on
+          enableWeather,
         },
       }
     );
@@ -308,13 +310,14 @@ export function ChatUI() {
     regenerate({
       body: {
         model: selectedModel.id,
-        enableSearch,
+        enableSearch: enableWeather ? false : enableSearch,
         enableThinking: selectedModel.supportsThinking ? enableThinking : false,
-        enableUrlContext: true,
-        enableCodeExecution: true,
+        enableUrlContext: enableWeather ? false : true,
+        enableCodeExecution: enableWeather ? false : true,
+        enableWeather,
       },
     });
-  }, [regenerate, selectedModel, enableSearch, enableThinking]);
+  }, [regenerate, selectedModel, enableSearch, enableThinking, enableWeather]);
 
   const handleSuggestionClick = useCallback((suggestion: string) => {
     setInputValue(suggestion);
@@ -327,12 +330,13 @@ export function ChatUI() {
   const isStarted = messages.length > 0;
   
   const featureBadges: FeatureBadge[] = [
-    { label: "Google Search", enabled: enableSearch, color: "blue" },
+    { label: "Google Search", enabled: enableSearch && !enableWeather, color: "blue" },
     ...(selectedModel.supportsThinking
       ? [{ label: "Thinking", enabled: enableThinking, color: "amber" as const }]
       : []),
-    { label: "URL Context", enabled: true, color: "green" },
-    { label: "Code Execution", enabled: true, color: "purple" },
+    { label: "URL Context", enabled: !enableWeather, color: "green" },
+    { label: "Code Execution", enabled: !enableWeather, color: "purple" },
+    { label: "Weather", enabled: enableWeather, color: "cyan" as const },
   ];
 
   return (
@@ -395,6 +399,8 @@ export function ChatUI() {
                   if (!selectedModel.supportsThinking) return;
                   setEnableThinking((prev) => !prev);
                 }}
+                enableWeather={enableWeather}
+                onToggleWeather={() => setEnableWeather(!enableWeather)}
                 onFilesSelected={handleFileSelect}
               />
             </motion.div>

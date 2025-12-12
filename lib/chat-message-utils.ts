@@ -6,6 +6,7 @@ export function getToolTitle(toolName: string): string {
     google_search: "Google Search",
     url_context: "URL Context",
     code_execution: "Code Execution",
+    displayWeather: "Weather",
   };
   return titles[toolName] || toolName;
 }
@@ -20,9 +21,11 @@ function isReasoningPart(part: UIMessagePart): part is Extract<UIMessagePart, { 
   return part.type === "reasoning";
 }
 
-// Type guard for tool invocation parts
+// Type guard for tool invocation parts - handles both old and new AI SDK formats
+// Old format: part.type === "tool-invocation"
+// New AI SDK 5.0 format: part.type === "tool-{toolName}" (e.g., "tool-displayWeather")
 function isToolInvocationPart(part: UIMessagePart): boolean {
-  return part.type === "tool-invocation";
+  return part.type === "tool-invocation" || part.type.startsWith("tool-");
 }
 
 // Type guard for source parts

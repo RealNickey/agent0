@@ -8,7 +8,7 @@ import {
   PromptInputButton,
   PromptInputSpeechButton,
 } from "@/components/ai-elements/prompt-input";
-import { BrainIcon, PaperclipIcon, SearchIcon } from "lucide-react";
+import { BrainIcon, CloudSunIcon, PaperclipIcon, SearchIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ButtonGroup, ButtonGroupSeparator } from "@/components/ui/button-group";
 
@@ -22,6 +22,8 @@ export type PromptInputAreaProps = {
   enableThinking: boolean;
   onToggleThinking: () => void;
   thinkingSupported?: boolean;
+  enableWeather: boolean;
+  onToggleWeather: () => void;
   onFilesSelected: (e: React.ChangeEvent<HTMLInputElement>) => void;
 };
 
@@ -35,6 +37,8 @@ export function PromptInputArea({
   enableThinking,
   onToggleThinking,
   thinkingSupported = true,
+  enableWeather,
+  onToggleWeather,
   onFilesSelected,
 }: PromptInputAreaProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -79,11 +83,23 @@ export function PromptInputArea({
 
         {/* Google Search Toggle */}
         <PromptInputButton
-          tooltip={enableSearch ? "Disable Google Search" : "Enable Google Search"}
+          tooltip={enableWeather ? "Disable Weather mode to use Search" : enableSearch ? "Disable Google Search" : "Enable Google Search"}
           onClick={onToggleSearch}
-          className={cn("rounded-none border-none shadow-none h-10 w-10 p-0 flex items-center justify-center shrink-0", enableSearch && "bg-primary/10 text-primary")}
+          disabled={enableWeather}
+          className={cn("rounded-none border-none shadow-none h-10 w-10 p-0 flex items-center justify-center shrink-0", enableSearch && !enableWeather && "bg-primary/10 text-primary")}
         >
           <SearchIcon className="size-4" />
+        </PromptInputButton>
+
+        <ButtonGroupSeparator className="h-6 mb-2 self-end!" />
+
+        {/* Weather Toggle */}
+        <PromptInputButton
+          tooltip={enableWeather ? "Disable Weather Mode" : "Enable Weather Mode (disables other tools)"}
+          onClick={onToggleWeather}
+          className={cn("rounded-none border-none shadow-none h-10 w-10 p-0 flex items-center justify-center shrink-0", enableWeather && "bg-cyan-500/20 text-cyan-600")}
+        >
+          <CloudSunIcon className="size-4" />
         </PromptInputButton>
 
         <ButtonGroupSeparator className="h-6 mb-2 self-end!" />

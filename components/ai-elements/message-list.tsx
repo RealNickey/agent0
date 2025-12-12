@@ -32,6 +32,7 @@ import {
   ToolInput,
   ToolOutput,
 } from "@/components/ai-elements/tool";
+import { Weather } from "@/components/weather";
 import {
   CopyIcon,
   RefreshCwIcon,
@@ -137,7 +138,30 @@ export function MessageList({ messages, isLoading, onRegenerate }: MessageListPr
                       </Reasoning>
                     )}
 
-                    {message.role === "assistant" && (() => {
+                    {/* Render AI SDK 5.0 typed tool parts (tool-${toolName}) */}
+                    {message.role === "assistant" && message.parts && message.parts.map((part: any, index: number) => {
+                      // Check for typed tool parts: tool-displayWeather
+                      if (part.type === 'tool-displayWeather') {
+                        switch (part.state) {
+                          case 'input-available':
+                            return <div key={index} className="my-4 p-4 bg-muted/50 rounded-lg">Loading weather...</div>;
+                          case 'output-available':
+                            return (
+                              <div key={index} className="my-4">
+                                <Weather {...part.output} />
+                              </div>
+                            );
+                          case 'output-error':
+                            return <div key={index} className="my-4 p-4 bg-destructive/10 text-destructive rounded-lg">Error: {part.errorText}</div>;
+                          default:
+                            return null;
+                        }
+                      }
+                      return null;
+                    })}
+
+                    {/* Fallback: Render legacy tool-invocation parts */}
+                    {message.role === "assistant" && toolInvocations.length > 0 && (() => {
                       const normalizedToolInvocations = toolInvocations
                         .map((ti: any) => {
                           // Legacy shape (registry UI components) sometimes wrap the invocation
@@ -172,9 +196,13 @@ export function MessageList({ messages, isLoading, onRegenerate }: MessageListPr
                             errorText,
                           };
                         })
-                        .filter((t: any) => t.toolCallId);
+                        .filter((t: any) => t.toolCallId)
+                        // Filter out displayWeather to avoid duplicate rendering (handled above)
+                        .filter((t: any) => t.toolName !== 'displayWeather');
 
-                      return normalizedToolInvocations.map((toolInvocation: any) => (
+                      return normalizedToolInvocations.map((toolInvocation: any) => {
+                        
+                        return (
                         <Tool key={toolInvocation.toolCallId} defaultOpen={false}>
                           <ToolHeader
                             title={getToolTitle(toolInvocation.toolName || "")}
@@ -192,7 +220,7 @@ export function MessageList({ messages, isLoading, onRegenerate }: MessageListPr
                             )}
                           </ToolContent>
                         </Tool>
-                      ));
+                      )});
                     })()}
 
                     {message.role === "assistant" && sources.length > 0 && (

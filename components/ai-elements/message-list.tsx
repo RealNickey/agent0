@@ -194,31 +194,38 @@ export function MessageList({ messages, isLoading, status, onRegenerate, error }
                           const hasError = toolInvocation.result?.error === true;
                           
                           return (
-                            <Tool key={toolInvocation.toolCallId} defaultOpen={true}>
-                              <ToolHeader
-                                title="Weather Information"
-                                type={"tool-displayWeather" as any}
-                                state={
-                                  hasError
-                                    ? "output-error"
-                                    : isCompleted
-                                    ? "output-available"
-                                    : "input-available"
-                                }
-                              />
-                              <ToolContent>
-                                <ToolInput input={toolInvocation.args} />
+                            <div key={toolInvocation.toolCallId} className="flex flex-col gap-2 w-full">
+                              <Tool defaultOpen={false}>
+                                <ToolHeader
+                                  title="Weather Information"
+                                  type={"tool-displayWeather" as any}
+                                  state={
+                                    hasError
+                                      ? "output-error"
+                                      : isCompleted
+                                      ? "output-available"
+                                      : "input-available"
+                                  }
+                                />
+                                <ToolContent>
+                                  <ToolInput input={toolInvocation.args} />
+                                </ToolContent>
+                              </Tool>
+                              
+                              {/* Weather UI rendered outside the Tool component */}
+                              <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.2 }}
+                                className="w-full"
+                              >
                                 {isCompleted ? (
-                                  <div className="p-4">
-                                    <Weather {...toolInvocation.result} />
-                                  </div>
+                                  <Weather {...toolInvocation.result} />
                                 ) : (
-                                  <div className="p-4">
-                                    <WeatherLoading location={toolInvocation.args?.location} />
-                                  </div>
+                                  <WeatherLoading location={toolInvocation.args?.location} />
                                 )}
-                              </ToolContent>
-                            </Tool>
+                              </motion.div>
+                            </div>
                           );
                         }
                         // Default tool rendering

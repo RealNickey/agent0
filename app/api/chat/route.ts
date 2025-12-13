@@ -13,7 +13,7 @@ const bodySchema = z.object({
   enableThinking: z.boolean().optional(),
   enableUrlContext: z.boolean().optional(),
   enableCodeExecution: z.boolean().optional(),
-  enableWeather: z.boolean().optional(),
+  mentionedTools: z.array(z.string()).optional(),
 });
 
 // Custom error handler for user-friendly error messages
@@ -65,7 +65,7 @@ export async function POST(req: Request) {
     enableThinking = true,
     enableUrlContext = true,
     enableCodeExecution = true,
-    enableWeather = false,
+    mentionedTools = [],
   } = parsedBody;
 
   // Type-cast messages to MyUIMessage[] for type safety
@@ -87,16 +87,26 @@ export async function POST(req: Request) {
     );
   }
 
-  // When weather is enabled, use ONLY function tools (weather)
-  // to avoid mixing with provider-defined tools
+  // Build tools object based on mentioned tools and enabled features
   let tools: Record<string, any> = {};
   let useProviderTools = false;
+  const hasCustomTools = mentionedTools.length > 0;
 
-  if (enableWeather) {
-    // Use only the weather function tool
-    tools = { ...weatherTools };
+  // Add @mentioned custom tools (like weather)
+  // When custom tools are mentioned, ONLY use those tools (disable provider tools)
+  if (hasCustomTools) {
+    for (const toolName of mentionedTools) {
+      const lowerToolName = toolName.toLowerCase();
+      
+      // Map mentioned tool names to actual tool implementations
+      if (lowerToolName === "weather") {
+        tools.displayWeather = weatherTools.displayWeather;
+      }
+      // Add more tool mappings here as needed
+    }
   } else {
-    // Use Google provider tools
+    // Only add Google provider tools when NO custom tools are mentioned
+    // This prevents mixing function tools with provider-defined tools
     if (enableSearch) {
       tools.google_search = google.tools.googleSearch({});
       useProviderTools = true;
@@ -140,8 +150,8 @@ export async function POST(req: Request) {
     tools: hasTools ? tools : undefined,
     toolChoice: hasTools ? "auto" : "none",
     providerOptions,
-    // Use stopWhen for multi-step tool calls (e.g., weather lookup + response)
-    ...(enableWeather && { stopWhen: stepCountIs(5) }),
+    // Use stopWhen for multi-step tool calls when custom tools are mentioned
+    ...(mentionedTools.length > 0 && { stopWhen: stepCountIs(5) }),
     onError: (error) => {
       console.error("Stream error:", error);
     },

@@ -35,9 +35,9 @@ export function ExtensionContextBridge() {
       const pageTitle = typeof data.pageTitle === "string" ? data.pageTitle.trim() : "";
       const pageUrl = typeof data.pageUrl === "string" ? data.pageUrl.trim() : "";
 
-      const context = pageUrl
-        ? `[Context from: ${pageTitle || pageUrl}]\n${pageUrl}\n\n${selectedText}\n\n`
-        : `[Context]\n\n${selectedText}\n\n`;
+      // Insert only the selected text (no page title/URL headers)
+      // so the chatbox contains just the user-selected context.
+      const context = `${selectedText}\n\n`;
 
       const textarea = document.querySelector('textarea[placeholder="Send a message..."]') as
         | HTMLTextAreaElement

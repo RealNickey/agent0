@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Agent0 Screenshot Settings</title>
+  <title>Agent0</title>
   <style>
     * {
       margin: 0;
@@ -17,8 +17,8 @@
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: 14px;
       line-height: 1.5;
-      color: #1f2937;
-      background: #ffffff;
+      color: #e5e7eb;
+      background: #0b0f14;
     }
 
     .header {
@@ -29,12 +29,12 @@
       font-size: 18px;
       font-weight: 600;
       margin-bottom: 4px;
-      color: #111827;
+      color: #f3f4f6;
     }
 
     .subtitle {
       font-size: 12px;
-      color: #6b7280;
+      color: #9ca3af;
     }
 
     .section {
@@ -91,18 +91,18 @@
     }
 
     .button-secondary {
-      background: #f3f4f6;
-      color: #374151;
+      background: #111827;
+      color: #e5e7eb;
       margin-top: 8px;
     }
 
     .button-secondary:hover {
-      background: #e5e7eb;
+      background: #0f1720;
     }
 
     .shortcut-info {
-      background: #f9fafb;
-      border: 1px solid #e5e7eb;
+      background: #0f1720;
+      border: 1px solid #223041;
       border-radius: 6px;
       padding: 12px;
       margin-bottom: 16px;
@@ -111,12 +111,13 @@
     .shortcut-key {
       display: inline-block;
       padding: 2px 6px;
-      background: #ffffff;
-      border: 1px solid #d1d5db;
+      background: #0b0f14;
+      border: 1px solid #223041;
       border-radius: 4px;
       font-family: monospace;
       font-size: 12px;
       font-weight: 600;
+      color: #e5e7eb;
     }
 
     .status {
@@ -129,14 +130,14 @@
     }
 
     .status.success {
-      background: #d1fae5;
-      color: #065f46;
+      background: rgba(16, 185, 129, 0.15);
+      color: #a7f3d0;
       display: block;
     }
 
     .status.error {
-      background: #fee2e2;
-      color: #991b1b;
+      background: rgba(239, 68, 68, 0.15);
+      color: #fecaca;
       display: block;
     }
 
@@ -159,13 +160,13 @@
     .preview-title {
       font-weight: 500;
       font-size: 13px;
-      color: #374151;
+      color: #d1d5db;
     }
 
     .clear-button {
       background: none;
       border: none;
-      color: #6b7280;
+      color: #9ca3af;
       cursor: pointer;
       font-size: 12px;
       padding: 4px 8px;
@@ -174,15 +175,15 @@
     }
 
     .clear-button:hover {
-      background: #f3f4f6;
-      color: #374151;
+      background: rgba(148, 163, 184, 0.12);
+      color: #e5e7eb;
     }
 
     .screenshot-container {
-      border: 1px solid #e5e7eb;
+      border: 1px solid #223041;
       border-radius: 6px;
       overflow: hidden;
-      background: #f9fafb;
+      background: #0f1720;
     }
 
     .screenshot-image {
@@ -194,10 +195,10 @@
 
     .screenshot-info {
       padding: 8px;
-      background: #ffffff;
-      border-top: 1px solid #e5e7eb;
+      background: #0b0f14;
+      border-top: 1px solid #223041;
       font-size: 11px;
-      color: #6b7280;
+      color: #9ca3af;
     }
 
     .screenshot-info .info-item {
@@ -210,14 +211,14 @@
     }
 
     .screenshot-info strong {
-      color: #374151;
+      color: #e5e7eb;
     }
   </style>
 </head>
 <body>
   <div class="header">
-    <h1>Agent0 Screenshot</h1>
-    <p class="subtitle">Capture and send screenshots to your AI assistant</p>
+    <h1>Agent0</h1>
+    <p class="subtitle">Send context to your assistant</p>
   </div>
 
   <div class="shortcut-info">
@@ -231,48 +232,31 @@
   <!-- Screenshot Preview -->
   <div id="screenshot-preview" class="screenshot-preview">
     <div class="preview-header">
-      <span class="preview-title">📸 Last Screenshot</span>
+      <span class="preview-title">Last Image</span>
       <button id="clear-screenshot" class="clear-button">Clear</button>
     </div>
     <div class="screenshot-container">
       <img id="screenshot-image" class="screenshot-image" alt="Screenshot preview">
-      <div class="screenshot-info">
-        <div class="info-item"><strong>Page:</strong> <span id="screenshot-title"></span></div>
-        <div class="info-item"><strong>URL:</strong> <span id="screenshot-url"></span></div>
-        <div class="info-item"><strong>Time:</strong> <span id="screenshot-time"></span></div>
-      </div>
     </div>
   </div>
 
   <!-- Selection Preview -->
   <div id="selection-preview" class="screenshot-preview">
     <div class="preview-header">
-      <span class="preview-title">📝 Last Selection</span>
+      <span class="preview-title">Last Selection</span>
       <button id="clear-selection" class="clear-button">Clear</button>
     </div>
     <div class="screenshot-container">
       <div class="screenshot-info">
-        <div class="info-item"><strong>Page:</strong> <span id="selection-title"></span></div>
-        <div class="info-item"><strong>URL:</strong> <span id="selection-url"></span></div>
-        <div class="info-item"><strong>Text:</strong> <span id="selection-text"></span></div>
-        <div class="info-item"><strong>Time:</strong> <span id="selection-time"></span></div>
+        <div class="info-item"><span id="selection-text"></span></div>
       </div>
     </div>
   </div>
 
   <div class="section">
-    <label for="agent0-url">Agent0 URL</label>
-    <input 
-      type="text" 
-      id="agent0-url" 
-      placeholder="http://localhost:3000"
-      value="http://localhost:3000"
-    >
-    <p class="help-text">Enter the URL where Agent0 is running</p>
+    <!-- Agent0 URL configuration removed (security/minimal UI) -->
   </div>
-
-  <button id="save-button" class="button">Save Settings</button>
-  <button id="capture-button" class="button button-secondary">📸 Capture Screenshot</button>
+  <button id="capture-button" class="button button-secondary">Capture</button>
 
   <script src="popup.js"></script>
 </body>

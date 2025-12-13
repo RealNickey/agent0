@@ -1,24 +1,11 @@
-// Background service worker for Agent0 Screenshot Extension
+// Background service worker for Agent0 Extension
 
-let agent0Url = 'http://localhost:3000';
+// Fixed Agent0 URL (popup configuration removed)
+const agent0Url = 'http://localhost:3000';
 
 const CONTEXT_MENU_IDS = {
   SEND_SELECTION: 'agent0-send-selection',
 };
-
-// Load saved URL from storage
-chrome.storage.sync.get(['agent0Url'], (result) => {
-  if (result.agent0Url) {
-    agent0Url = result.agent0Url;
-  }
-});
-
-// Listen for URL changes from popup
-chrome.storage.onChanged.addListener((changes, namespace) => {
-  if (namespace === 'sync' && changes.agent0Url) {
-    agent0Url = changes.agent0Url.newValue;
-  }
-});
 
 // Listen for keyboard shortcut
 chrome.commands.onCommand.addListener((command) => {
@@ -37,7 +24,7 @@ chrome.commands.onCommand.addListener((command) => {
           type: 'basic',
           iconUrl: 'icons/icon48.png',
           title: 'Cannot Capture This Page',
-          message: 'Screenshots are not allowed on browser system pages. Please try on a regular webpage.',
+          message: 'Capture is not allowed on browser system pages. Please try on a regular webpage.',
           priority: 2
         });
         return;
@@ -75,7 +62,7 @@ chrome.commands.onCommand.addListener((command) => {
           chrome.notifications.create({
             type: 'basic',
             iconUrl: 'icons/icon48.png',
-            title: 'Screenshot Capture Failed',
+            title: 'Capture Failed',
             message: 'Unable to capture this page. Try refreshing or use a different page.',
             priority: 1
           });
@@ -122,9 +109,33 @@ function toSafeString(value) {
   return String(value);
 }
 
+function sanitizeContextText(text) {
+  const raw = toSafeString(text);
+  if (!raw.trim()) return '';
+
+  // Strip common email/message metadata lines (helps avoid leaking headers like From/To/Date/Time).
+  const headerLine = /^\s*(from|to|cc|bcc|date|sent|time|subject|reply-to)\s*:\s*/i;
+
+  const sanitizedLines = raw
+    .split(/\r?\n/)
+    .filter((line) => !headerLine.test(line));
+
+  let sanitized = sanitizedLines.join('\n');
+
+  // Redact email addresses (basic, intentionally conservative)
+  sanitized = sanitized.replace(
+    /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi,
+    '[redacted-email]'
+  );
+
+  // Collapse excessive whitespace
+  sanitized = sanitized.replace(/\n{3,}/g, '\n\n').trim();
+  return sanitized;
+}
+
 async function handleSendSelectedText(info, tab) {
   try {
-    const selectedText = toSafeString(info.selectionText).trim();
+    const selectedText = sanitizeContextText(info.selectionText);
     if (!selectedText) return;
 
     const pageUrl = toSafeString(tab?.url);
@@ -203,7 +214,7 @@ async function handleSendToAgent0(request, sendResponse) {
       screenshot,
       pageUrl,
       pageTitle,
-      selectedText,
+      selectedText: selectedText ? sanitizeContextText(selectedText) : null,
       timestamp: Date.now()
     };
     

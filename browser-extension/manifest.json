@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Agent0 Screenshot Capture",
+  "name": "Agent0 Companion",
   "version": "1.0.0",
-  "description": "Capture screenshots and send them to Agent0 AI assistant",
+  "description": "Send selected text and captured images to Agent0",
   "permissions": [
     "activeTab",
     "tabs",
@@ -31,7 +31,7 @@
         "default": "Ctrl+Shift+S",
         "mac": "Command+Shift+S"
       },
-      "description": "Capture screenshot"
+      "description": "Capture image"
     }
   },
   "action": {

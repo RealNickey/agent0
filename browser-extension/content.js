@@ -202,8 +202,8 @@ async function captureArea(rect) {
     await sendToAgent0(croppedDataUrl);
     
   } catch (error) {
-    console.error('Screenshot failed:', error);
-    showToastNotification('Failed to capture screenshot: ' + error.message, 'error');
+    console.error('Capture failed:', error);
+    showToastNotification('Failed to capture: ' + error.message, 'error');
   } finally {
     cleanup();
   }
@@ -222,8 +222,8 @@ async function captureFullScreen() {
     await sendToAgent0(response.dataUrl);
     
   } catch (error) {
-    console.error('Screenshot failed:', error);
-    showToastNotification('Failed to capture screenshot: ' + error.message, 'error');
+    console.error('Capture failed:', error);
+    showToastNotification('Failed to capture: ' + error.message, 'error');
   } finally {
     cleanup();
   }

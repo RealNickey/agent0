@@ -54,17 +54,18 @@ export async function highlightCode(
   language: BundledLanguage,
   showLineNumbers = false
 ) {
+  const safeCode = code ?? "";
   const transformers: ShikiTransformer[] = showLineNumbers
     ? [lineNumberTransformer]
     : [];
 
   return await Promise.all([
-    codeToHtml(code, {
+    codeToHtml(safeCode, {
       lang: language,
       theme: "one-light",
       transformers,
     }),
-    codeToHtml(code, {
+    codeToHtml(safeCode, {
       lang: language,
       theme: "one-dark-pro",
       transformers,

@@ -1,20 +1,11 @@
-// Background service worker for Agent0 Screenshot Extension
+// Background service worker for Agent0 Extension
 
-let agent0Url = 'http://localhost:3000';
+// Fixed Agent0 URL (popup configuration removed)
+const agent0Url = 'http://localhost:3000';
 
-// Load saved URL from storage
-chrome.storage.sync.get(['agent0Url'], (result) => {
-  if (result.agent0Url) {
-    agent0Url = result.agent0Url;
-  }
-});
-
-// Listen for URL changes from popup
-chrome.storage.onChanged.addListener((changes, namespace) => {
-  if (namespace === 'sync' && changes.agent0Url) {
-    agent0Url = changes.agent0Url.newValue;
-  }
-});
+const CONTEXT_MENU_IDS = {
+  SEND_SELECTION: 'agent0-send-selection',
+};
 
 // Listen for keyboard shortcut
 chrome.commands.onCommand.addListener((command) => {
@@ -33,7 +24,7 @@ chrome.commands.onCommand.addListener((command) => {
           type: 'basic',
           iconUrl: 'icons/icon48.png',
           title: 'Cannot Capture This Page',
-          message: 'Screenshots are not allowed on browser system pages. Please try on a regular webpage.',
+          message: 'Capture is not allowed on browser system pages. Please try on a regular webpage.',
           priority: 2
         });
         return;
@@ -71,13 +62,33 @@ chrome.commands.onCommand.addListener((command) => {
           chrome.notifications.create({
             type: 'basic',
             iconUrl: 'icons/icon48.png',
-            title: 'Screenshot Capture Failed',
+            title: 'Capture Failed',
             message: 'Unable to capture this page. Try refreshing or use a different page.',
             priority: 1
           });
         }
       }
     });
+  }
+});
+
+// Create context menu on install
+chrome.runtime.onInstalled.addListener(() => {
+  try {
+    chrome.contextMenus.create({
+      id: CONTEXT_MENU_IDS.SEND_SELECTION,
+      title: 'Send it to Agent0',
+      contexts: ['selection'],
+    });
+  } catch (error) {
+    console.error('Failed to create context menu:', error);
+  }
+});
+
+// Handle context menu clicks
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId === CONTEXT_MENU_IDS.SEND_SELECTION) {
+    handleSendSelectedText(info, tab);
   }
 });
 
@@ -91,6 +102,94 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 });
+
+function toSafeString(value) {
+  if (typeof value === 'string') return value;
+  if (value == null) return '';
+  return String(value);
+}
+
+function sanitizeContextText(text) {
+  const raw = toSafeString(text);
+  if (!raw.trim()) return '';
+
+  // Strip common email/message metadata lines (helps avoid leaking headers like From/To/Date/Time).
+  const headerLine = /^\s*(from|to|cc|bcc|date|sent|time|subject|reply-to)\s*:\s*/i;
+
+  const sanitizedLines = raw
+    .split(/\r?\n/)
+    .filter((line) => !headerLine.test(line));
+
+  let sanitized = sanitizedLines.join('\n');
+
+  // Redact email addresses (basic, intentionally conservative)
+  sanitized = sanitized.replace(
+    /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi,
+    '[redacted-email]'
+  );
+
+  // Collapse excessive whitespace
+  sanitized = sanitized.replace(/\n{3,}/g, '\n\n').trim();
+  return sanitized;
+}
+
+async function handleSendSelectedText(info, tab) {
+  try {
+    const selectedText = sanitizeContextText(info.selectionText);
+    if (!selectedText) return;
+
+    const pageUrl = toSafeString(tab?.url);
+    const pageTitle = toSafeString(tab?.title) || pageUrl || 'Selection';
+
+    const payload = {
+      selectedText,
+      pageUrl: pageUrl || null,
+      pageTitle: pageTitle || null,
+      timestamp: Date.now(),
+    };
+
+    // Store last selection (for popup preview)
+    await chrome.storage.local.set({
+      pendingSelection: payload,
+    });
+
+    // Open or focus Agent0
+    const tabs = await chrome.tabs.query({ url: `${agent0Url}/*` });
+
+    let targetTab;
+    if (tabs.length > 0) {
+      targetTab = tabs[0];
+      await chrome.tabs.update(targetTab.id, { active: true });
+    } else {
+      targetTab = await chrome.tabs.create({
+        url: `${agent0Url}?context=pending`,
+      });
+    }
+
+    // Send payload to Agent0 page
+    setTimeout(async () => {
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: targetTab.id },
+          func: (selectionData) => {
+            window.postMessage(
+              {
+                type: 'AGENT0_CONTEXT_TEXT',
+                data: selectionData,
+              },
+              '*'
+            );
+          },
+          args: [payload],
+        });
+      } catch (scriptError) {
+        console.error('Failed to send selection to page:', scriptError);
+      }
+    }, 300);
+  } catch (error) {
+    console.error('Failed to send selected text to Agent0:', error);
+  }
+}
 
 async function handleCaptureVisibleTab(request, sender, sendResponse) {
   try {
@@ -115,7 +214,7 @@ async function handleSendToAgent0(request, sendResponse) {
       screenshot,
       pageUrl,
       pageTitle,
-      selectedText,
+      selectedText: selectedText ? sanitizeContextText(selectedText) : null,
       timestamp: Date.now()
     };
     

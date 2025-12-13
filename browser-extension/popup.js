@@ -1,102 +1,87 @@
-// Popup script for Agent0 Screenshot Extension
+// Popup script for Agent0 Extension
 
-const urlInput = document.getElementById('agent0-url');
-const saveButton = document.getElementById('save-button');
 const captureButton = document.getElementById('capture-button');
 const statusDiv = document.getElementById('status');
 const screenshotPreview = document.getElementById('screenshot-preview');
 const screenshotImage = document.getElementById('screenshot-image');
-const screenshotTitle = document.getElementById('screenshot-title');
-const screenshotUrl = document.getElementById('screenshot-url');
-const screenshotTime = document.getElementById('screenshot-time');
 const clearButton = document.getElementById('clear-screenshot');
 
-// Load saved settings
-chrome.storage.sync.get(['agent0Url'], (result) => {
-  if (result.agent0Url) {
-    urlInput.value = result.agent0Url;
-  }
-});
+const selectionPreview = document.getElementById('selection-preview');
+const selectionText = document.getElementById('selection-text');
+const clearSelectionButton = document.getElementById('clear-selection');
 
-// Load and display last screenshot if available
-function loadLastScreenshot() {
-  chrome.storage.local.get(['pendingScreenshot'], (result) => {
-    if (result.pendingScreenshot) {
-      const data = result.pendingScreenshot;
-      
-      // Check if screenshot is still recent (within 5 minutes)
-      const isRecent = Date.now() - data.timestamp < 5 * 60 * 1000;
-      
-      if (isRecent) {
-        screenshotImage.src = data.screenshot;
-        screenshotTitle.textContent = data.pageTitle || 'Untitled';
-        screenshotUrl.textContent = data.pageUrl || '';
-        
-        const timeAgo = getTimeAgo(data.timestamp);
-        screenshotTime.textContent = timeAgo;
-        
-        screenshotPreview.classList.add('visible');
-      } else {
-        // Clear old screenshot
-        chrome.storage.local.remove(['pendingScreenshot']);
-      }
-    }
-  });
+const POPUP_TTL_MS = 60 * 1000; // short period (privacy-first)
+const AUTO_HIDE_MS = 8 * 1000;  // keep visible briefly while popup is open
+
+function hidePreviews() {
+  screenshotPreview.classList.remove('visible');
+  selectionPreview.classList.remove('visible');
 }
 
-// Format timestamp as "X seconds/minutes ago"
-function getTimeAgo(timestamp) {
-  const seconds = Math.floor((Date.now() - timestamp) / 1000);
-  
-  if (seconds < 60) {
-    return `${seconds} second${seconds !== 1 ? 's' : ''} ago`;
-  }
-  
-  const minutes = Math.floor(seconds / 60);
-  return `${minutes} minute${minutes !== 1 ? 's' : ''} ago`;
+function showLastItemOnce() {
+  hidePreviews();
+
+  chrome.storage.local.get(['pendingScreenshot', 'pendingSelection'], (result) => {
+    const screenshot = result.pendingScreenshot;
+    const selection = result.pendingSelection;
+
+    const now = Date.now();
+
+    const screenshotTs = screenshot?.timestamp ?? 0;
+    const selectionTs = selection?.timestamp ?? 0;
+
+    // Filter out expired items
+    const screenshotValid = screenshot && typeof screenshotTs === 'number' && now - screenshotTs < POPUP_TTL_MS;
+    const selectionValid = selection && typeof selectionTs === 'number' && now - selectionTs < POPUP_TTL_MS;
+
+    if (!screenshotValid && !selectionValid) {
+      // Cleanup anything stale
+      chrome.storage.local.remove(['pendingScreenshot', 'pendingSelection']);
+      return;
+    }
+
+    // Choose the newest item so only one appears
+    const showScreenshot = screenshotValid && (!selectionValid || screenshotTs >= selectionTs);
+
+    if (showScreenshot) {
+      screenshotImage.src = screenshot.screenshot;
+      screenshotPreview.classList.add('visible');
+    } else {
+      const trimmed = (selection.selectedText || '').toString().trim();
+      selectionText.textContent = trimmed.length > 240 ? `${trimmed.slice(0, 240)}…` : trimmed;
+      selectionPreview.classList.add('visible');
+    }
+
+    // One-time display: clear immediately so it won't appear again
+    chrome.storage.local.remove(['pendingScreenshot', 'pendingSelection']);
+
+    // Hide after a short time while popup remains open
+    setTimeout(() => {
+      hidePreviews();
+    }, AUTO_HIDE_MS);
+  });
 }
 
 // Clear screenshot
 clearButton.addEventListener('click', () => {
   chrome.storage.local.remove(['pendingScreenshot'], () => {
     screenshotPreview.classList.remove('visible');
-    showStatus('Screenshot cleared', 'success');
+    showStatus('Cleared', 'success');
+    setTimeout(() => hideStatus(), 2000);
+  });
+});
+
+// Clear selection
+clearSelectionButton.addEventListener('click', () => {
+  chrome.storage.local.remove(['pendingSelection'], () => {
+    selectionPreview.classList.remove('visible');
+    showStatus('Selection cleared', 'success');
     setTimeout(() => hideStatus(), 2000);
   });
 });
 
 // Load screenshot on popup open
-loadLastScreenshot();
-
-// Save settings
-saveButton.addEventListener('click', () => {
-  const url = urlInput.value.trim();
-  
-  if (!url) {
-    showStatus('Please enter a valid URL', 'error');
-    return;
-  }
-  
-  // Validate URL format
-  try {
-    const parsedUrl = new URL(url);
-    if (!parsedUrl.protocol.startsWith('http')) {
-      showStatus('URL must start with http:// or https://', 'error');
-      return;
-    }
-  } catch (e) {
-    showStatus('Please enter a valid URL (e.g., http://localhost:3000)', 'error');
-    return;
-  }
-  
-  // Remove trailing slash
-  const cleanUrl = url.replace(/\/$/, '');
-  
-  chrome.storage.sync.set({ agent0Url: cleanUrl }, () => {
-    showStatus('Settings saved successfully!', 'success');
-    setTimeout(() => hideStatus(), 2000);
-  });
-});
+showLastItemOnce();
 
 // Capture screenshot
 captureButton.addEventListener('click', () => {
@@ -119,9 +104,3 @@ function hideStatus() {
   statusDiv.className = 'status';
 }
 
-// Enter key to save
-urlInput.addEventListener('keypress', (e) => {
-  if (e.key === 'Enter') {
-    saveButton.click();
-  }
-});

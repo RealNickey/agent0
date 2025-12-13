@@ -11,6 +11,13 @@ const screenshotUrl = document.getElementById('screenshot-url');
 const screenshotTime = document.getElementById('screenshot-time');
 const clearButton = document.getElementById('clear-screenshot');
 
+const selectionPreview = document.getElementById('selection-preview');
+const selectionTitle = document.getElementById('selection-title');
+const selectionUrl = document.getElementById('selection-url');
+const selectionText = document.getElementById('selection-text');
+const selectionTime = document.getElementById('selection-time');
+const clearSelectionButton = document.getElementById('clear-selection');
+
 // Load saved settings
 chrome.storage.sync.get(['agent0Url'], (result) => {
   if (result.agent0Url) {
@@ -44,6 +51,30 @@ function loadLastScreenshot() {
   });
 }
 
+// Load and display last selection if available
+function loadLastSelection() {
+  chrome.storage.local.get(['pendingSelection'], (result) => {
+    if (result.pendingSelection) {
+      const data = result.pendingSelection;
+
+      const isRecent = Date.now() - data.timestamp < 5 * 60 * 1000;
+      if (isRecent) {
+        selectionTitle.textContent = data.pageTitle || 'Untitled';
+        selectionUrl.textContent = data.pageUrl || '';
+
+        const trimmed = (data.selectedText || '').toString().trim();
+        // Keep popup compact
+        selectionText.textContent = trimmed.length > 240 ? `${trimmed.slice(0, 240)}…` : trimmed;
+
+        selectionTime.textContent = getTimeAgo(data.timestamp);
+        selectionPreview.classList.add('visible');
+      } else {
+        chrome.storage.local.remove(['pendingSelection']);
+      }
+    }
+  });
+}
+
 // Format timestamp as "X seconds/minutes ago"
 function getTimeAgo(timestamp) {
   const seconds = Math.floor((Date.now() - timestamp) / 1000);
@@ -65,8 +96,18 @@ clearButton.addEventListener('click', () => {
   });
 });
 
+// Clear selection
+clearSelectionButton.addEventListener('click', () => {
+  chrome.storage.local.remove(['pendingSelection'], () => {
+    selectionPreview.classList.remove('visible');
+    showStatus('Selection cleared', 'success');
+    setTimeout(() => hideStatus(), 2000);
+  });
+});
+
 // Load screenshot on popup open
 loadLastScreenshot();
+loadLastSelection();
 
 // Save settings
 saveButton.addEventListener('click', () => {

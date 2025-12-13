@@ -2,6 +2,10 @@
 
 let agent0Url = 'http://localhost:3000';
 
+const CONTEXT_MENU_IDS = {
+  SEND_SELECTION: 'agent0-send-selection',
+};
+
 // Load saved URL from storage
 chrome.storage.sync.get(['agent0Url'], (result) => {
   if (result.agent0Url) {
@@ -81,6 +85,26 @@ chrome.commands.onCommand.addListener((command) => {
   }
 });
 
+// Create context menu on install
+chrome.runtime.onInstalled.addListener(() => {
+  try {
+    chrome.contextMenus.create({
+      id: CONTEXT_MENU_IDS.SEND_SELECTION,
+      title: 'Send it to Agent0',
+      contexts: ['selection'],
+    });
+  } catch (error) {
+    console.error('Failed to create context menu:', error);
+  }
+});
+
+// Handle context menu clicks
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId === CONTEXT_MENU_IDS.SEND_SELECTION) {
+    handleSendSelectedText(info, tab);
+  }
+});
+
 // Listen for messages from content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'captureVisibleTab') {
@@ -91,6 +115,70 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 });
+
+function toSafeString(value) {
+  if (typeof value === 'string') return value;
+  if (value == null) return '';
+  return String(value);
+}
+
+async function handleSendSelectedText(info, tab) {
+  try {
+    const selectedText = toSafeString(info.selectionText).trim();
+    if (!selectedText) return;
+
+    const pageUrl = toSafeString(tab?.url);
+    const pageTitle = toSafeString(tab?.title) || pageUrl || 'Selection';
+
+    const payload = {
+      selectedText,
+      pageUrl: pageUrl || null,
+      pageTitle: pageTitle || null,
+      timestamp: Date.now(),
+    };
+
+    // Store last selection (for popup preview)
+    await chrome.storage.local.set({
+      pendingSelection: payload,
+    });
+
+    // Open or focus Agent0
+    const tabs = await chrome.tabs.query({ url: `${agent0Url}/*` });
+
+    let targetTab;
+    if (tabs.length > 0) {
+      targetTab = tabs[0];
+      await chrome.tabs.update(targetTab.id, { active: true });
+    } else {
+      targetTab = await chrome.tabs.create({
+        url: `${agent0Url}?context=pending`,
+      });
+    }
+
+    // Send payload to Agent0 page
+    setTimeout(async () => {
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: targetTab.id },
+          func: (selectionData) => {
+            window.postMessage(
+              {
+                type: 'AGENT0_CONTEXT_TEXT',
+                data: selectionData,
+              },
+              '*'
+            );
+          },
+          args: [payload],
+        });
+      } catch (scriptError) {
+        console.error('Failed to send selection to page:', scriptError);
+      }
+    }, 300);
+  } catch (error) {
+    console.error('Failed to send selected text to Agent0:', error);
+  }
+}
 
 async function handleCaptureVisibleTab(request, sender, sendResponse) {
   try {

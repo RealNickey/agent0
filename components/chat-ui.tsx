@@ -162,17 +162,28 @@ export function ChatUI() {
     }
   }, [messages, isLoaded]);
 
-  // Listen for screenshots from browser extension
+  // Listen for extension messages (screenshot + text context)
   useEffect(() => {
-    const handleScreenshotMessage = (event: MessageEvent) => {
-      // Verify message origin and type
+    const setControlledTextareaValue = (textarea: HTMLTextAreaElement, value: string) => {
+      const proto = window.HTMLTextAreaElement.prototype;
+      const descriptor = Object.getOwnPropertyDescriptor(proto, "value");
+      const setter = descriptor?.set;
+      if (setter) {
+        setter.call(textarea, value);
+      } else {
+        textarea.value = value;
+      }
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    };
+
+    const handleExtensionMessage = (event: MessageEvent) => {
+      // Only accept same-origin messages
+      if (event.origin !== window.location.origin) return;
+
       if (event.data?.type === 'AGENT0_SCREENSHOT') {
         const { screenshot, pageUrl, pageTitle, selectedText } = event.data.data;
         
-        // Extract filename from pageTitle or URL
         const filename = `${pageTitle || 'Screenshot'}.png`;
-        
-        // Create attachment from screenshot
         const screenshotAttachment: FileAttachment = {
           name: filename,
           type: 'image/png',
@@ -180,10 +191,8 @@ export function ChatUI() {
           url: screenshot,
         };
         
-        // Add to attachments
         setAttachments((prev) => [...prev, screenshotAttachment]);
         
-        // Optionally, pre-fill input with context
         if (selectedText) {
           setInputValue((prev) => {
             const context = `[Screenshot from: ${pageTitle}]\n${selectedText}\n\n${prev}`;
@@ -196,7 +205,6 @@ export function ChatUI() {
           });
         }
         
-        // Focus the input
         setTimeout(() => {
           const textarea = document.querySelector('textarea[placeholder="Send a message..."]') as HTMLTextAreaElement;
           textarea?.focus();
@@ -207,11 +215,23 @@ export function ChatUI() {
           pageUrl,
           hasSelectedText: !!selectedText
         });
+      } else if (event.data?.type === 'AGENT0_CONTEXT_TEXT') {
+        const data = event.data?.data || {};
+        const selectedText = typeof data.selectedText === "string" ? data.selectedText.trim() : "";
+        if (!selectedText) return;
+
+        const context = `${selectedText}\n\n`;
+        const textarea = document.querySelector('textarea[placeholder="Send a message..."]') as HTMLTextAreaElement | null;
+        if (!textarea) return;
+
+        const existing = textarea.value || "";
+        setControlledTextareaValue(textarea, `${context}${existing}`);
+        textarea.focus();
       }
     };
     
-    window.addEventListener('message', handleScreenshotMessage);
-    return () => window.removeEventListener('message', handleScreenshotMessage);
+    window.addEventListener('message', handleExtensionMessage);
+    return () => window.removeEventListener('message', handleExtensionMessage);
   }, []);
 
   const isLoading = status === "streaming" || status === "submitted";

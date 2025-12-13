@@ -2,103 +2,182 @@
 
 ## Architecture Overview
 
-This is a **Next.js 16** chat application using the **Vercel AI SDK** with **Google Gemini** models. The app follows a component-based architecture with clear separation between UI primitives and AI-specific components.
+**Next.js 14+** chat application using **Vercel AI SDK** with **Google Gemini** models. Component-based architecture with separation between UI primitives and AI-specific components.
 
-### Key Layers
-- **API Layer**: [app/api/chat/route.ts](app/api/chat/route.ts) - Handles streaming chat via `streamText()` with Gemini models
-- **Chat UI**: [components/chat-ui.tsx](components/chat-ui.tsx) - Main orchestrator using `useChat()` hook
-- **AI Elements**: [components/ai-elements/](components/ai-elements/) - Specialized chat components from AI SDK registry
-- **UI Primitives**: [components/ui/](components/ui/) - shadcn/ui components (new-york style)
+### Key Files
+- **API Route**: [app/api/chat/route.ts](app/api/chat/route.ts) - `streamText()` with Gemini, returns `toUIMessageStreamResponse()`
+- **Chat UI**: [components/chat-ui.tsx](components/chat-ui.tsx) - Main orchestrator using `useChat()` hook with `DefaultChatTransport`
+- **Tools**: [ai/tools.ts](ai/tools.ts) - Custom tools (weather) using `tool()` helper
+- **AI Elements**: [components/ai-elements/](components/ai-elements/) - AI SDK component registry patterns
+- **UI Primitives**: [components/ui/](components/ui/) - shadcn/ui (new-york style)
 
 ### Data Flow
 ```
-User Input → PromptInput → useChat() → POST /api/chat → streamText(google(model)) → UI Message Stream
+User Input → sendMessage({ role, parts }) → POST /api/chat → streamText() → toUIMessageStreamResponse() → useChat messages
 ```
 
-## Component Patterns
+## Message Structure (AI SDK v5)
 
-### AI Elements (from `registry.ai-sdk.dev`)
-Components in `components/ai-elements/` are sourced from the AI SDK component registry (see [components.json](components.json)). These follow compound component patterns:
-
+Messages use `parts` array (not `content` string):
 ```tsx
-// Example: Tool invocation display
+// User message with files
+{ role: "user", parts: [
+  { type: "text", text: "..." },
+  { type: "file", url: "data:image/png;base64,...", mediaType: "image/png" }
+]}
+
+// Assistant message
+{ role: "assistant", parts: [
+  { type: "reasoning", text: "..." },        // From thinking models
+  { type: "tool-displayWeather", ... },      // Tool invocations (tool-{name})
+  { type: "source-url", ... },               // Sources from search
+  { type: "text", text: "..." }              // Response text
+]}
+```
+
+**Helpers** ([lib/chat-message-utils.ts](lib/chat-message-utils.ts)): `getMessageTextContent()`, `getMessageReasoning()`, `getToolInvocations()`, `getMessageSources()`
+
+## AI SDK Patterns
+
+### Route Handler Pattern
+```ts
+import { google, GoogleGenerativeAIProviderOptions } from "@ai-sdk/google";
+import { streamText, convertToModelMessages, stepCountIs } from "ai";
+
+const result = streamText({
+  model: google(modelId),
+  messages: convertToModelMessages(uiMessages),
+  tools: { /* ... */ },
+  providerOptions: {
+    google: {
+      thinkingConfig: { thinkingBudget: 4096, includeThoughts: true }  // For 2.5+ models
+    }
+  },
+  stopWhen: stepCountIs(5),  // For multi-step tool calling
+});
+
+return result.toUIMessageStreamResponse({ sendReasoning: true, sendSources: true });
+```
+
+### Client-Side Chat
+```tsx
+const { messages, sendMessage, status } = useChat<MyUIMessage>({
+  transport: new DefaultChatTransport({ api: "/api/chat" }),
+});
+
+// Send with parts for multi-modal
+sendMessage({ role: "user", parts: [{ type: "text", text: input }, ...fileParts] }, {
+  body: { model, enableSearch, enableThinking }
+});
+```
+
+### Tool Definition
+```ts
+import { tool } from "ai";
+import { z } from "zod";
+
+const weatherTool = tool({
+  description: "Get current weather",
+  inputSchema: z.object({ location: z.string() }),
+  execute: async ({ location }) => ({ temperature: 72, condition: "sunny" }),
+});
+```
+
+## Implemented Features ✅
+
+### Core Chat
+- Streaming chat with Gemini models (2.0 Flash, 2.5 Flash/Pro/Lite)
+- Multi-modal input (images, PDFs, text files via base64 data URLs)
+- Thinking/reasoning display for 2.5+ models with collapsible UI
+- Message persistence to localStorage
+
+### Google Native Tools
+- **Google Search** - Toggled via UI, grounding with `google.tools.googleSearch()`
+- **URL Context** - Always enabled, `google.tools.urlContext()`
+- **Code Execution** - Always enabled, `google.tools.codeExecution()`
+
+### Custom Tools
+- **Weather** - `@weather` mention triggers `displayWeather` tool via Open-Meteo API
+- Tool mentions system (`@toolname` in prompt input)
+
+### UI Features
+- Model selector with thinking toggle
+- File attachments with preview
+- Feature badges row showing active capabilities
+- Suggestion chips for quick prompts
+- Table of contents for long conversations
+- Integration panel/modal scaffolding
+- Browser extension support (screenshot capture)
+
+## Planned Features (from PRD) 📋
+
+### Tools Not Yet Implemented
+- Email Summary Tool (Gmail integration)
+- Calendar Event Creation / Schedule Meeting (Google Calendar)
+- To-Do List Management (Google Tasks)
+- Video Download Tool (yt-dlp)
+- PDF Operations (merge, compress)
+- File Conversion Tool (formats via FFmpeg)
+- Image Generator (DALL-E 3)
+- Mermaid Graph Tool
+- LaTeX Renderer
+- Spotify Integration
+- Movie Tool (TMDB/OMDB)
+
+### Features Not Yet Implemented
+- Human-in-the-Loop (HITL) approval prompts - AI SDK v6 has `needsApproval` support
+- Tool chaining (sequential, parallel, conditional patterns)
+- `@command` system for explicit tool invocation
+- Dashboard with audio briefing (TTS)
+- RAG with pgvector embeddings (Supabase schema exists but not wired)
+- Database integration via Supabase
+
+## AI SDK Component Patterns
+
+### Tool Display (compound component)
+```tsx
 <Tool>
-  <ToolHeader title="Google Search" type="tool-invocation" state="output-available" />
+  <ToolHeader title="Weather" type="tool-displayWeather" state="output-available" />
   <ToolContent>
     <ToolInput input={args} />
     <ToolOutput output={result} />
   </ToolContent>
 </Tool>
+```
 
-// Example: Reasoning/thinking display
+### Reasoning Display
+```tsx
 <Reasoning isStreaming={isLoading}>
   <ReasoningTrigger />
   <ReasoningContent>{reasoningText}</ReasoningContent>
 </Reasoning>
 ```
 
-### Message Structure
-Messages use a `parts` array structure (not simple `content` string):
+### Markdown Streaming
 ```tsx
-// User message with attachments
-{ role: "user", parts: [
-  { type: "text", text: "..." },
-  { type: "file", data: "data:...", mediaType: "image/png" }
-]}
-
-// Assistant message with reasoning + tools + sources
-{ role: "assistant", parts: [
-  { type: "reasoning", text: "..." },
-  { type: "tool-invocation", toolInvocation: {...} },
-  { type: "source", source: { url, title } },
-  { type: "text", text: "..." }
-]}
+import { Streamdown } from "streamdown";
+<Streamdown>{streamingText}</Streamdown>
 ```
 
-Use helpers from [lib/chat-message-utils.ts](lib/chat-message-utils.ts): `getMessageTextContent()`, `getMessageReasoning()`, `getToolInvocations()`, `getMessageSources()`.
-
-## Gemini-Specific Features
-
-### Model Configuration
-Models are defined in `chat-ui.tsx` with `supportsThinking` flag for 2.5+ series. The API route configures thinking budget automatically:
-```ts
-// In route.ts - auto-configured for 2.5 models
-thinkingConfig: { thinkingBudget: 4096, includeThoughts: true }
-```
-
-### Available Tools
-Three Google-native tools are available via `google.tools.*`:
-- `googleSearch` - Web search (toggled via UI)
-- `urlContext` - URL content extraction (always enabled)
-- `codeExecution` - Python code execution (always enabled)
-
-## Styling Conventions
+## Styling
 
 - **Tailwind CSS v4** with CSS variables in [app/globals.css](app/globals.css)
 - **Dark mode only** (`className="dark"` on `<html>`)
-- **OKLCH colors** for theme variables
-- Use `cn()` from `@/lib/utils` for conditional classes
-- Animation via `framer-motion` (imported as `motion/react`)
-- Icons from `lucide-react`
-
-## Development Commands
-
-```bash
-npm run dev      # Start dev server (port 3000)
-npm run build    # Production build
-npm run lint     # ESLint
-```
-
-## Authentication
-
-Uses **Clerk** for auth (`@clerk/nextjs`). The `ClerkProvider` wraps the app in [app/layout.tsx](app/layout.tsx). Components like `SignInButton`, `SignedIn`, `SignedOut`, `UserButton` are available but not currently rendered in the main UI.
-
-## File Attachment Handling
-
-Attachments are converted to base64 data URLs client-side before sending. The API route converts these to appropriate `ImagePart` or `FilePart` types based on MIME type. Supported formats: images, PDF, text files, JSON, CSV.
+- **OKLCH colors** for theme
+- `cn()` from `@/lib/utils` for conditional classes
+- `framer-motion` (import from `motion/react`)
+- `lucide-react` for icons
 
 ## Key Dependencies
 - `ai` / `@ai-sdk/react` / `@ai-sdk/google` - Vercel AI SDK
-- `streamdown` - Streaming markdown renderer for assistant responses
-- `shiki` - Syntax highlighting in code blocks
-- `@xyflow/react` - Flow/graph visualization (for canvas features)
+- `streamdown` - Streaming markdown renderer
+- `shiki` - Syntax highlighting
+- `@clerk/nextjs` - Auth (configured, not fully rendered)
+- `zod` - Schema validation for tools and API
+
+## Dev Commands
+```bash
+npm run dev      # Dev server (port 3000)
+npm run build    # Production build
+npm run lint     # ESLint
+```

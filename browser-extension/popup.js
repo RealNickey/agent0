@@ -10,43 +10,55 @@ const selectionPreview = document.getElementById('selection-preview');
 const selectionText = document.getElementById('selection-text');
 const clearSelectionButton = document.getElementById('clear-selection');
 
-// Load and display last screenshot if available
-function loadLastScreenshot() {
-  chrome.storage.local.get(['pendingScreenshot'], (result) => {
-    if (result.pendingScreenshot) {
-      const data = result.pendingScreenshot;
-      
-      // Check if screenshot is still recent (within 5 minutes)
-      const isRecent = Date.now() - data.timestamp < 5 * 60 * 1000;
-      
-      if (isRecent) {
-        screenshotImage.src = data.screenshot;
-        
-        screenshotPreview.classList.add('visible');
-      } else {
-        // Clear old screenshot
-        chrome.storage.local.remove(['pendingScreenshot']);
-      }
-    }
-  });
+const POPUP_TTL_MS = 60 * 1000; // short period (privacy-first)
+const AUTO_HIDE_MS = 8 * 1000;  // keep visible briefly while popup is open
+
+function hidePreviews() {
+  screenshotPreview.classList.remove('visible');
+  selectionPreview.classList.remove('visible');
 }
 
-// Load and display last selection if available
-function loadLastSelection() {
-  chrome.storage.local.get(['pendingSelection'], (result) => {
-    if (result.pendingSelection) {
-      const data = result.pendingSelection;
+function showLastItemOnce() {
+  hidePreviews();
 
-      const isRecent = Date.now() - data.timestamp < 5 * 60 * 1000;
-      if (isRecent) {
-        const trimmed = (data.selectedText || '').toString().trim();
-        // Keep popup compact
-        selectionText.textContent = trimmed.length > 240 ? `${trimmed.slice(0, 240)}…` : trimmed;
-        selectionPreview.classList.add('visible');
-      } else {
-        chrome.storage.local.remove(['pendingSelection']);
-      }
+  chrome.storage.local.get(['pendingScreenshot', 'pendingSelection'], (result) => {
+    const screenshot = result.pendingScreenshot;
+    const selection = result.pendingSelection;
+
+    const now = Date.now();
+
+    const screenshotTs = screenshot?.timestamp ?? 0;
+    const selectionTs = selection?.timestamp ?? 0;
+
+    // Filter out expired items
+    const screenshotValid = screenshot && typeof screenshotTs === 'number' && now - screenshotTs < POPUP_TTL_MS;
+    const selectionValid = selection && typeof selectionTs === 'number' && now - selectionTs < POPUP_TTL_MS;
+
+    if (!screenshotValid && !selectionValid) {
+      // Cleanup anything stale
+      chrome.storage.local.remove(['pendingScreenshot', 'pendingSelection']);
+      return;
     }
+
+    // Choose the newest item so only one appears
+    const showScreenshot = screenshotValid && (!selectionValid || screenshotTs >= selectionTs);
+
+    if (showScreenshot) {
+      screenshotImage.src = screenshot.screenshot;
+      screenshotPreview.classList.add('visible');
+    } else {
+      const trimmed = (selection.selectedText || '').toString().trim();
+      selectionText.textContent = trimmed.length > 240 ? `${trimmed.slice(0, 240)}…` : trimmed;
+      selectionPreview.classList.add('visible');
+    }
+
+    // One-time display: clear immediately so it won't appear again
+    chrome.storage.local.remove(['pendingScreenshot', 'pendingSelection']);
+
+    // Hide after a short time while popup remains open
+    setTimeout(() => {
+      hidePreviews();
+    }, AUTO_HIDE_MS);
   });
 }
 
@@ -69,8 +81,7 @@ clearSelectionButton.addEventListener('click', () => {
 });
 
 // Load screenshot on popup open
-loadLastScreenshot();
-loadLastSelection();
+showLastItemOnce();
 
 // Capture screenshot
 captureButton.addEventListener('click', () => {

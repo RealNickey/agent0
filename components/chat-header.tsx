@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { UserButton, SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
-import { TreePine } from "lucide-react";
+import { TreePine, Blocks } from "lucide-react";
 import { ModelSelectorControl, Model } from "@/components/ai-elements/model-selector-control";
 
 export type ChatHeaderProps = {
@@ -12,6 +12,7 @@ export type ChatHeaderProps = {
   isModelOpen: boolean;
   onModelOpenChange: (open: boolean) => void;
   onNewChat?: () => void;
+  onOpenIntegrations?: () => void;
 };
 
 export function ChatHeader({
@@ -21,6 +22,7 @@ export function ChatHeader({
   isModelOpen,
   onModelOpenChange,
   onNewChat,
+  onOpenIntegrations,
 }: ChatHeaderProps) {
   return (
     <header className="flex h-14 items-center justify-between border-b px-4 lg:px-8 bg-background/80 backdrop-blur-sm sticky top-0 z-10">
@@ -50,6 +52,16 @@ export function ChatHeader({
       />
 
       <div className="flex items-center gap-2">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="gap-2"
+          onClick={onOpenIntegrations}
+        >
+          <Blocks className="size-4" />
+          <span className="hidden sm:inline">Integrations</span>
+        </Button>
+
         <SignedIn>
           <UserButton />
         </SignedIn>

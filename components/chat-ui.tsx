@@ -17,6 +17,8 @@ import { ChatEmptyState } from "@/components/ai-elements/chat-empty-state";
 import { SuggestionsGrid } from "@/components/ai-elements/chat-suggestions-grid";
 import { Model } from "@/components/ai-elements/model-selector-control";
 import { TableOfContents } from "@/components/table-of-contents";
+import { IntegrationsModal } from "@/components/integrations-modal";
+import { IntegrationPanel } from "@/components/integration-panel";
 
 // Gemini models with their capabilities
 const models: Model[] = [
@@ -39,6 +41,7 @@ const STORAGE_KEYS = {
   MODEL: "agent0-selected-model",
   MESSAGES: "agent0-chat-messages",
   THINKING: "agent0-enable-thinking",
+  INTEGRATIONS: "agent0-added-integrations",
 };
 
 export function ChatUI() {
@@ -46,10 +49,15 @@ export function ChatUI() {
   const [isModelOpen, setIsModelOpen] = useState(false);
   const [enableSearch, setEnableSearch] = useState(false);
   const [enableThinking, setEnableThinking] = useState(true);
-  const [enableWeather, setEnableWeather] = useState(false);
+  const [mentionedTools, setMentionedTools] = useState<string[]>([]);
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoaded, setIsLoaded] = useState(false);
+  
+  // Integrations state
+  const [isIntegrationsModalOpen, setIsIntegrationsModalOpen] = useState(false);
+  const [activeIntegration, setActiveIntegration] = useState<string | null>(null);
+  const [addedIntegrations, setAddedIntegrations] = useState<string[]>([]);
   
   // File input ref for native FileList handling
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -105,6 +113,18 @@ export function ChatUI() {
           localStorage.removeItem(STORAGE_KEYS.MESSAGES);
         }
       }
+
+      const savedIntegrations = localStorage.getItem(STORAGE_KEYS.INTEGRATIONS);
+      if (savedIntegrations) {
+        try {
+          const parsed = JSON.parse(savedIntegrations);
+          if (Array.isArray(parsed)) {
+            setAddedIntegrations(parsed);
+          }
+        } catch (e) {
+          console.error("Failed to parse saved integrations", e);
+        }
+      }
     } catch (e) {
       console.error("Failed to load from localStorage", e);
     }
@@ -133,6 +153,17 @@ export function ChatUI() {
       }
     }
   }, [enableThinking, isLoaded]);
+
+  // Save integrations to local storage
+  useEffect(() => {
+    if (isLoaded) {
+      try {
+        localStorage.setItem(STORAGE_KEYS.INTEGRATIONS, JSON.stringify(addedIntegrations));
+      } catch (e) {
+        console.error("Failed to save integrations to localStorage", e);
+      }
+    }
+  }, [addedIntegrations, isLoaded]);
 
   // If model doesn't support thinking, force thinking off
   useEffect(() => {
@@ -258,6 +289,20 @@ export function ChatUI() {
     }
   }, [setMessages]);
 
+  const handleAddIntegration = useCallback((id: string) => {
+    if (!addedIntegrations.includes(id)) {
+      setAddedIntegrations((prev) => [...prev, id]);
+    }
+    setActiveIntegration(id);
+  }, [addedIntegrations]);
+
+  const handleRemoveIntegration = useCallback((id: string) => {
+    setAddedIntegrations((prev) => prev.filter((i) => i !== id));
+    if (activeIntegration === id) {
+      setActiveIntegration(null);
+    }
+  }, [activeIntegration]);
+
   // Simplified handleSubmit using AI SDK's new API
   const handleSubmit = async (value: { text: string; files: any[] }) => {
     if (!value.text.trim() && attachments.length === 0) return;
@@ -288,11 +333,11 @@ export function ChatUI() {
       {
         body: {
           model: selectedModel.id,
-          enableSearch: enableWeather ? false : enableSearch, // Disable search when weather is on
+          enableSearch,
           enableThinking: selectedModel.supportsThinking ? enableThinking : false,
-          enableUrlContext: enableWeather ? false : true, // Disable URL context when weather is on
-          enableCodeExecution: enableWeather ? false : true, // Disable code execution when weather is on
-          enableWeather,
+          enableUrlContext: true,
+          enableCodeExecution: true,
+          mentionedTools,
         },
       }
     );
@@ -310,14 +355,14 @@ export function ChatUI() {
     regenerate({
       body: {
         model: selectedModel.id,
-        enableSearch: enableWeather ? false : enableSearch,
+        enableSearch,
         enableThinking: selectedModel.supportsThinking ? enableThinking : false,
-        enableUrlContext: enableWeather ? false : true,
-        enableCodeExecution: enableWeather ? false : true,
-        enableWeather,
+        enableUrlContext: true,
+        enableCodeExecution: true,
+        mentionedTools,
       },
     });
-  }, [regenerate, selectedModel, enableSearch, enableThinking, enableWeather]);
+  }, [regenerate, selectedModel, enableSearch, enableThinking, mentionedTools]);
 
   const handleSuggestionClick = useCallback((suggestion: string) => {
     setInputValue(suggestion);
@@ -328,15 +373,22 @@ export function ChatUI() {
   if (!isLoaded) return null;
 
   const isStarted = messages.length > 0;
+  const hasCustomTools = mentionedTools.length > 0;
   
   const featureBadges: FeatureBadge[] = [
-    { label: "Google Search", enabled: enableSearch && !enableWeather, color: "blue" },
+    { label: "Google Search", enabled: enableSearch && !hasCustomTools, color: "blue" },
     ...(selectedModel.supportsThinking
       ? [{ label: "Thinking", enabled: enableThinking, color: "amber" as const }]
       : []),
-    { label: "URL Context", enabled: !enableWeather, color: "green" },
-    { label: "Code Execution", enabled: !enableWeather, color: "purple" },
-    { label: "Weather", enabled: enableWeather, color: "cyan" as const },
+    { label: "URL Context", enabled: !hasCustomTools, color: "green" },
+    { label: "Code Execution", enabled: !hasCustomTools, color: "purple" },
+    ...(hasCustomTools
+      ? mentionedTools.map((tool) => ({
+          label: `@${tool}`,
+          enabled: true,
+          color: "cyan" as const,
+        }))
+      : []),
   ];
 
   return (
@@ -349,6 +401,7 @@ export function ChatUI() {
         isModelOpen={isModelOpen}
         onModelOpenChange={setIsModelOpen}
         onNewChat={handleNewChat}
+        onOpenIntegrations={() => setIsIntegrationsModalOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -399,9 +452,9 @@ export function ChatUI() {
                   if (!selectedModel.supportsThinking) return;
                   setEnableThinking((prev) => !prev);
                 }}
-                enableWeather={enableWeather}
-                onToggleWeather={() => setEnableWeather(!enableWeather)}
                 onFilesSelected={handleFileSelect}
+                mentionedTools={mentionedTools}
+                onToolMentionsChange={setMentionedTools}
               />
             </motion.div>
 
@@ -418,6 +471,20 @@ export function ChatUI() {
           </div>
         </motion.div>
       </div>
+
+      <IntegrationsModal
+        isOpen={isIntegrationsModalOpen}
+        onOpenChange={setIsIntegrationsModalOpen}
+        onAddIntegration={handleAddIntegration}
+        onRemoveIntegration={handleRemoveIntegration}
+        addedIntegrations={addedIntegrations}
+      />
+
+      <IntegrationPanel
+        isOpen={!!activeIntegration}
+        onClose={() => setActiveIntegration(null)}
+        integrationId={activeIntegration}
+      />
     </div>
   );
 }

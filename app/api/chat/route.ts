@@ -2,7 +2,7 @@ import { google, GoogleGenerativeAIProviderOptions } from "@ai-sdk/google";
 import { streamText, convertToModelMessages, stepCountIs } from "ai";
 import { z } from "zod";
 import type { MyUIMessage } from "@/types/chat";
-import { tools as weatherTools } from "@/ai/tools";
+import { tools as customTools } from "@/ai/tools";
 
 export const maxDuration = 60;
 
@@ -100,7 +100,10 @@ export async function POST(req: Request) {
       
       // Map mentioned tool names to actual tool implementations
       if (lowerToolName === "weather") {
-        tools.displayWeather = weatherTools.displayWeather;
+        tools.displayWeather = customTools.displayWeather;
+      }
+      if (lowerToolName === "mermaid") {
+        tools.renderMermaid = customTools.renderMermaid;
       }
       // Add more tool mappings here as needed
     }

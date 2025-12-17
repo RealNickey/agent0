@@ -91,6 +91,24 @@ export const weatherTool = tool({
   },
 });
 
+export const mermaidTool = tool({
+  description: "Render Mermaid diagrams from code. Use this when asked to create flowcharts, sequence diagrams, class diagrams, state diagrams, entity relationship diagrams, Gantt charts, pie charts, or any other diagram types supported by Mermaid.js.",
+  inputSchema: z.object({
+    diagramCode: z.string().describe("Mermaid diagram syntax code (e.g., 'graph TD\\n    A[Start] --> B[End]')"),
+    title: z.string().optional().describe("Optional title for the diagram"),
+  }),
+  execute: async ({ diagramCode, title }) => {
+    // Return the diagram code for client-side rendering
+    // The client component will handle the actual rendering using Mermaid.js
+    return {
+      diagramCode,
+      title: title || undefined,
+      type: "mermaid",
+    };
+  },
+});
+
 export const tools = {
   displayWeather: weatherTool,
+  renderMermaid: mermaidTool,
 };

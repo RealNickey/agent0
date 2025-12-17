@@ -16,6 +16,15 @@ const defaultInstalledTools = [
     enabled: true,
     installedAt: new Date().toISOString(),
   },
+  {
+    id: "mermaid",
+    name: "Mermaid",
+    description: "Render Mermaid diagrams from code - flowcharts, sequence diagrams, class diagrams, and more",
+    category: "visualization",
+    icon: "workflow",
+    enabled: true,
+    installedAt: new Date().toISOString(),
+  },
 ];
 
 export async function GET(request: Request) {

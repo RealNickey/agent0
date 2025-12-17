@@ -53,6 +53,7 @@ import {
 import type { MyUIMessage } from "@/types/chat";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { Weather, WeatherLoading } from "@/components/weather";
+import { MermaidDiagram } from "@/components/ai-elements/mermaid-diagram";
 
 type ChatStatus = UseChatHelpers<MyUIMessage>["status"];
 
@@ -228,6 +229,60 @@ export function MessageList({ messages, isLoading, status, onRegenerate, error }
                             </div>
                           );
                         }
+                        
+                        // Special rendering for Mermaid tool
+                        if (toolInvocation.toolName === "renderMermaid") {
+                          const isCompleted = toolInvocation.state === "result";
+                          
+                          return (
+                            <div key={toolInvocation.toolCallId} className="flex flex-col gap-2 w-full">
+                              <Tool defaultOpen={false}>
+                                <ToolHeader
+                                  title="Mermaid Diagram"
+                                  type={"tool-renderMermaid" as any}
+                                  state={
+                                    isCompleted
+                                      ? "output-available"
+                                      : "input-available"
+                                  }
+                                />
+                                <ToolContent>
+                                  <ToolInput input={toolInvocation.args} />
+                                </ToolContent>
+                              </Tool>
+                              
+                              {/* Mermaid Diagram rendered outside the Tool component */}
+                              {isCompleted && toolInvocation.result?.diagramCode && (
+                                <motion.div
+                                  initial={{ opacity: 0, y: 10 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ delay: 0.2 }}
+                                  className="w-full"
+                                >
+                                  <MermaidDiagram
+                                    diagramCode={toolInvocation.result.diagramCode}
+                                    title={toolInvocation.result.title}
+                                  />
+                                </motion.div>
+                              )}
+                              
+                              {/* Loading state for Mermaid */}
+                              {!isCompleted && (
+                                <motion.div
+                                  initial={{ opacity: 0 }}
+                                  animate={{ opacity: 1 }}
+                                  className="w-full p-4 rounded-lg border bg-card/50 flex items-center justify-center"
+                                >
+                                  <div className="flex items-center gap-2 text-muted-foreground">
+                                    <div className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                                    <span className="text-sm">Generating diagram...</span>
+                                  </div>
+                                </motion.div>
+                              )}
+                            </div>
+                          );
+                        }
+                        
                         // Default tool rendering
                         return (
                           <Tool key={toolInvocation.toolCallId} defaultOpen={false}>

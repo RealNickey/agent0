@@ -15,7 +15,14 @@ const marketplaceTools = [
     icon: "cloud-sun",
     enabled: true,
   },
-  // Add more tools here as needed
+  {
+    id: "mermaid",
+    name: "Mermaid",
+    description: "Render Mermaid diagrams from code - flowcharts, sequence diagrams, class diagrams, and more",
+    category: "visualization",
+    icon: "workflow",
+    enabled: true,
+  },
 ];
 
 export async function GET(request: Request) {

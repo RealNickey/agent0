@@ -3,6 +3,7 @@ import { streamText, convertToModelMessages, stepCountIs } from "ai";
 import { z } from "zod";
 import type { MyUIMessage } from "@/types/chat";
 import { tools as weatherTools } from "@/ai/tools";
+import { knowledgeTools } from "@/lib/tools/knowledge-base";
 
 export const maxDuration = 60;
 
@@ -102,7 +103,13 @@ export async function POST(req: Request) {
       if (lowerToolName === "weather") {
         tools.displayWeather = weatherTools.displayWeather;
       }
-      // Add more tool mappings here as needed
+      // Knowledge base tools
+      if (lowerToolName === "knowledge" || lowerToolName === "kb") {
+        tools.searchKnowledgeBase = knowledgeTools.searchKnowledgeBase;
+      }
+      if (lowerToolName === "remember" || lowerToolName === "save") {
+        tools.remember = knowledgeTools.remember;
+      }
     }
   } else {
     // Only add Google provider tools when NO custom tools are mentioned

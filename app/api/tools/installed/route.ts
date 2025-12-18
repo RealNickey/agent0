@@ -16,6 +16,24 @@ const defaultInstalledTools = [
     enabled: true,
     installedAt: new Date().toISOString(),
   },
+  {
+    id: "knowledge",
+    name: "Knowledge Base",
+    description: "Search your personal knowledge base and documents using semantic search",
+    category: "knowledge",
+    icon: "book-open",
+    enabled: true,
+    installedAt: new Date().toISOString(),
+  },
+  {
+    id: "remember",
+    name: "Remember",
+    description: "Save important information, notes, or facts to your knowledge base",
+    category: "knowledge",
+    icon: "brain",
+    enabled: true,
+    installedAt: new Date().toISOString(),
+  },
 ];
 
 export async function GET(request: Request) {

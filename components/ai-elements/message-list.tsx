@@ -65,6 +65,27 @@ export type MessageListProps = {
   error?: Error | undefined;
 };
 
+function getToolNameFromInvocation(toolInvocation: any): string | undefined {
+  const t = toolInvocation?.toolInvocation || toolInvocation;
+  if (!t) return undefined;
+
+  if (typeof t.toolName === "string" && t.toolName) return t.toolName;
+  if (typeof t.type === "string" && t.type.startsWith("tool-")) {
+    return t.type.replace("tool-", "");
+  }
+
+  return undefined;
+}
+
+function stripMermaidCodeBlocks(text: string): string {
+  if (!text) return text;
+
+  // Remove fenced Mermaid blocks so we don't render a second (non-interactive) diagram.
+  const withoutMermaidFences = text.replace(/```mermaid\s*[\s\S]*?```/gi, "");
+  // Tidy up any extra whitespace from removal.
+  return withoutMermaidFences.replace(/\n{3,}/g, "\n\n").trim();
+}
+
 export function MessageList({ messages, isLoading, status, onRegenerate, error }: MessageListProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
@@ -105,11 +126,19 @@ export function MessageList({ messages, isLoading, status, onRegenerate, error }
             const reasoning = getMessageReasoning(message);
             const toolInvocations = getToolInvocations(message);
             const sources = getMessageSources(message);
+
+            const hasMermaidToolInvocation = toolInvocations.some(
+              (ti: any) => getToolNameFromInvocation(ti) === "renderMermaid"
+            );
+            const displayTextContent = hasMermaidToolInvocation
+              ? stripMermaidCodeBlocks(textContent)
+              : textContent;
+
             const isLastMessage = lastMessage?.id === message.id;
             const hasAssistantContent =
               message.role !== "assistant"
                 ? true
-                : Boolean(textContent && textContent.trim()) ||
+                : Boolean(displayTextContent && displayTextContent.trim()) ||
                   Boolean(reasoning && reasoning.trim()) ||
                   toolInvocations.length > 0 ||
                   sources.length > 0;
@@ -188,7 +217,16 @@ export function MessageList({ messages, isLoading, status, onRegenerate, error }
                           result: t.result || t.output,
                         };
                       });
-                      return normalizedToolInvocations.map((toolInvocation: any) => {
+                      const lastMermaidIndex = normalizedToolInvocations
+                        .map((t: any) => t.toolName)
+                        .lastIndexOf("renderMermaid");
+
+                      const filteredToolInvocations = normalizedToolInvocations.filter(
+                        (t: any, index: number) =>
+                          t.toolName !== "renderMermaid" || index === lastMermaidIndex
+                      );
+
+                      return filteredToolInvocations.map((toolInvocation: any) => {
                         // Special rendering for Weather tool - wrapped in Tool UI
                         if (toolInvocation.toolName === "displayWeather") {
                           const isCompleted = toolInvocation.state === "result";
@@ -326,19 +364,19 @@ export function MessageList({ messages, isLoading, status, onRegenerate, error }
 
                     {message.role === "assistant" ? (
                       hasAssistantContent ? (
-                        <MessageResponse>{textContent}</MessageResponse>
+                        <MessageResponse>{displayTextContent}</MessageResponse>
                       ) : shouldShowThinkingPlaceholder ? (
                         <ThinkingIndicator />
                       ) : null
                     ) : (
-                      <div className="whitespace-pre-wrap">{textContent}</div>
+                      <div className="whitespace-pre-wrap">{displayTextContent}</div>
                     )}
                   </MessageContent>
                   {message.role === "assistant" && (
                     <MessageActions className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 px-2">
                       <MessageAction
                         tooltip="Copy"
-                        onClick={() => navigator.clipboard.writeText(textContent)}
+                        onClick={() => navigator.clipboard.writeText(displayTextContent)}
                       >
                         <CopyIcon className="size-3.5" />
                       </MessageAction>

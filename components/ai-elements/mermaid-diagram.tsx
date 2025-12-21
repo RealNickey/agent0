@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { AlertCircle, Maximize2, Minimize2, Download, FileImage, FileCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,26 +14,212 @@ import { motion, AnimatePresence } from "motion/react";
 import mermaid from "mermaid";
 import DOMPurify from "dompurify";
 
-// Initialize mermaid with dark theme settings and strict security
-mermaid.initialize({
-  startOnLoad: false,
-  theme: "dark",
-  securityLevel: "strict",
-  fontFamily: "inherit",
-  themeVariables: {
-    primaryColor: "#6366f1",
-    primaryTextColor: "#fff",
-    primaryBorderColor: "#4f46e5",
-    lineColor: "#6b7280",
-    secondaryColor: "#374151",
-    tertiaryColor: "#1f2937",
-    background: "#111827",
-    mainBkg: "#1f2937",
-    nodeBorder: "#4f46e5",
-    clusterBkg: "#1f2937",
-    titleColor: "#f9fafb",
-  },
-});
+type MermaidThemeColors = {
+  primary: string;
+  primaryForeground: string;
+  foreground: string;
+  mutedForeground: string;
+  border: string;
+  card: string;
+  background: string;
+};
+
+function readCssVar(name: string): string {
+  if (typeof window === "undefined") return "";
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+function clamp01(value: number) {
+  return Math.min(1, Math.max(0, value));
+}
+
+function labToRgbString(lab: string): string | null {
+  const match = lab
+    .trim()
+    .match(
+      /^lab\(\s*([+-]?(?:\d+\.?\d*|\.\d+))\s+([+-]?(?:\d+\.?\d*|\.\d+))\s+([+-]?(?:\d+\.?\d*|\.\d+))(?:\s*\/\s*([^)]+))?\s*\)$/i
+    );
+  if (!match) return null;
+
+  const L = Number(match[1]);
+  const a = Number(match[2]);
+  const b = Number(match[3]);
+  if ([L, a, b].some((n) => Number.isNaN(n))) return null;
+
+  // CSS lab() is defined relative to D50.
+  // Convert Lab(D50) -> XYZ(D50) -> XYZ(D65) -> sRGB.
+  const Xn = 96.4212;
+  const Yn = 100.0;
+  const Zn = 82.5188;
+
+  const delta = 6 / 29;
+  const finv = (t: number) => {
+    if (t > delta) return t ** 3;
+    return 3 * delta * delta * (t - 4 / 29);
+  };
+
+  const fy = (L + 16) / 116;
+  const fx = fy + a / 500;
+  const fz = fy - b / 200;
+
+  let X = Xn * finv(fx);
+  let Y = Yn * finv(fy);
+  let Z = Zn * finv(fz);
+
+  // Bradford adaptation D50 -> D65
+  const Xd = 0.9555766 * X + -0.0230393 * Y + 0.0631636 * Z;
+  const Yd = -0.0282895 * X + 1.0099416 * Y + 0.0210077 * Z;
+  const Zd = 0.0122982 * X + -0.020483 * Y + 1.3299098 * Z;
+  X = Xd;
+  Y = Yd;
+  Z = Zd;
+
+  // XYZ (0..100) -> linear RGB (0..1)
+  const x = X / 100;
+  const y = Y / 100;
+  const z = Z / 100;
+
+  let r = 3.2406 * x + -1.5372 * y + -0.4986 * z;
+  let g = -0.9689 * x + 1.8758 * y + 0.0415 * z;
+  let bl = 0.0557 * x + -0.204 * y + 1.057 * z;
+
+  const compand = (c: number) => {
+    const cc = clamp01(c);
+    if (cc <= 0.0031308) return 12.92 * cc;
+    return 1.055 * Math.pow(cc, 1 / 2.4) - 0.055;
+  };
+
+  r = compand(r);
+  g = compand(g);
+  bl = compand(bl);
+
+  const R = Math.round(r * 255);
+  const G = Math.round(g * 255);
+  const B = Math.round(bl * 255);
+
+  return `rgb(${R}, ${G}, ${B})`;
+}
+
+function resolveToRgb(colorValue: string): string {
+  if (typeof window === "undefined") return colorValue;
+
+  // Mermaid only accepts a limited set of color syntaxes (hex/rgb/hsl).
+  // Our theme vars are OKLCH with alpha in some cases; Chromium can compute those
+  // into lab()/oklch() strings, which Mermaid rejects. Canvas normalizes to
+  // a Mermaid-friendly string (usually #rrggbb or rgba()).
+  try {
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      ctx.fillStyle = "#000";
+      ctx.fillStyle = colorValue;
+      const normalized = String(ctx.fillStyle);
+
+      if (normalized.startsWith("lab(")) {
+        const rgb = labToRgbString(normalized);
+        if (rgb) return rgb;
+      }
+
+      if (normalized.startsWith("rgba(")) {
+        const match = normalized.match(
+          /^rgba\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d.]+)\)$/
+        );
+        if (match) {
+          const r = match[1];
+          const g = match[2];
+          const b = match[3];
+          return `rgb(${r}, ${g}, ${b})`;
+        }
+      }
+      return normalized;
+    }
+  } catch {
+    // fall through
+  }
+
+  // Fallback: computed style (may still return lab()/oklch() in some browsers)
+  // but better than failing hard.
+  const probe = document.createElement("span");
+  probe.style.color = colorValue;
+  probe.style.position = "absolute";
+  probe.style.left = "-9999px";
+  probe.style.top = "-9999px";
+  document.body.appendChild(probe);
+  const computed = getComputedStyle(probe).color;
+  document.body.removeChild(probe);
+
+  if (computed.startsWith("lab(")) {
+    const rgb = labToRgbString(computed);
+    if (rgb) return rgb;
+  }
+
+  return computed;
+}
+
+function getComputedVarColor(varName: string, property: "color" | "backgroundColor" | "borderColor") {
+  if (typeof window === "undefined") return "";
+
+  const probe = document.createElement("div");
+  probe.style.position = "absolute";
+  probe.style.left = "-9999px";
+  probe.style.top = "-9999px";
+  (probe.style as any)[property] = `var(${varName})`;
+  document.body.appendChild(probe);
+
+  const computed = (getComputedStyle(probe) as any)[property] as string;
+  document.body.removeChild(probe);
+
+  return resolveToRgb(computed);
+}
+
+function getMermaidThemeColors(): MermaidThemeColors {
+  // Prefer computed values from var() so we don't pass OKLCH/LAB directly.
+  const primary = getComputedVarColor("--primary", "color") || "rgb(99, 102, 241)";
+  const primaryForeground =
+    getComputedVarColor("--primary-foreground", "color") || "rgb(255, 255, 255)";
+  const foreground = getComputedVarColor("--foreground", "color") || "rgb(248, 250, 252)";
+  const mutedForeground =
+    getComputedVarColor("--muted-foreground", "color") || "rgb(148, 163, 184)";
+  const border = getComputedVarColor("--border", "borderColor") || "rgb(71, 85, 105)";
+  const card = getComputedVarColor("--card", "backgroundColor") || "rgb(31, 41, 55)";
+  const background =
+    getComputedVarColor("--background", "backgroundColor") || "rgb(17, 24, 39)";
+
+  return {
+    primary,
+    primaryForeground,
+    foreground,
+    mutedForeground,
+    border,
+    card,
+    background,
+  };
+}
+
+function ensureMermaidInitialized() {
+  if (typeof window === "undefined") return;
+  const c = getMermaidThemeColors();
+
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: "dark",
+    securityLevel: "strict",
+    fontFamily: "inherit",
+    themeVariables: {
+      primaryColor: c.primary,
+      primaryTextColor: c.foreground,
+      primaryBorderColor: c.primary,
+      lineColor: c.mutedForeground,
+      secondaryColor: c.card,
+      tertiaryColor: c.background,
+      background: c.background,
+      mainBkg: c.card,
+      nodeBorder: c.border,
+      clusterBkg: c.card,
+      titleColor: c.foreground,
+    },
+  });
+}
 
 // Sanitize SVG content to prevent XSS attacks
 function sanitizeSvg(svg: string): string {
@@ -55,10 +241,17 @@ export function MermaidDiagram({
   className,
 }: MermaidDiagramProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const isPanningRef = useRef(false);
+  const lastPointerRef = useRef<{ x: number; y: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [svgContent, setSvgContent] = useState<string | null>(null);
   const [isRendering, setIsRendering] = useState(true);
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+
+  const zoomLimits = useMemo(() => ({ min: 0.4, max: 4 }), []);
 
   useEffect(() => {
     let isMounted = true;
@@ -70,6 +263,7 @@ export function MermaidDiagram({
       setError(null);
 
       try {
+        ensureMermaidInitialized();
         // Generate a unique ID for this diagram
         const id = `mermaid-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
@@ -80,6 +274,9 @@ export function MermaidDiagram({
           // Sanitize the SVG to prevent XSS attacks
           setSvgContent(sanitizeSvg(svg));
           setError(null);
+          // Reset pan/zoom whenever we render a new diagram.
+          setZoom(1);
+          setPan({ x: 0, y: 0 });
         }
       } catch (err) {
         if (isMounted) {
@@ -102,6 +299,70 @@ export function MermaidDiagram({
       isMounted = false;
     };
   }, [diagramCode]);
+
+  const clamp = (value: number, min: number, max: number) =>
+    Math.min(max, Math.max(min, value));
+
+  const handleWheel = (e: React.WheelEvent) => {
+    if (!svgContent) return;
+    e.preventDefault();
+
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+
+    const rect = viewport.getBoundingClientRect();
+    const cursorX = e.clientX - rect.left;
+    const cursorY = e.clientY - rect.top;
+
+    const direction = e.deltaY < 0 ? 1 : -1;
+    const factor = 1.1;
+    const nextZoomRaw = direction > 0 ? zoom * factor : zoom / factor;
+    const nextZoom = clamp(nextZoomRaw, zoomLimits.min, zoomLimits.max);
+
+    // Zoom around cursor: keep world-point under cursor stable.
+    const worldX = (cursorX - pan.x) / zoom;
+    const worldY = (cursorY - pan.y) / zoom;
+    const nextPanX = cursorX - worldX * nextZoom;
+    const nextPanY = cursorY - worldY * nextZoom;
+
+    setZoom(nextZoom);
+    setPan({ x: nextPanX, y: nextPanY });
+  };
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (!svgContent) return;
+    if (e.button !== 0) return;
+
+    (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+    isPanningRef.current = true;
+    lastPointerRef.current = { x: e.clientX, y: e.clientY };
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!isPanningRef.current) return;
+    const last = lastPointerRef.current;
+    if (!last) return;
+
+    const dx = e.clientX - last.x;
+    const dy = e.clientY - last.y;
+    lastPointerRef.current = { x: e.clientX, y: e.clientY };
+    setPan((p) => ({ x: p.x + dx, y: p.y + dy }));
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    try {
+      (e.currentTarget as HTMLDivElement).releasePointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
+    isPanningRef.current = false;
+    lastPointerRef.current = null;
+  };
+
+  const handleDoubleClick = () => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  };
 
   const handleDownload = (format: "svg" | "jpg") => {
     if (!svgContent) return;
@@ -257,8 +518,8 @@ export function MermaidDiagram({
           className={cn(
             "p-6 flex items-center justify-center",
             isExpanded
-              ? "h-[calc(100%-3rem)] overflow-auto"
-              : "min-h-[300px] overflow-visible"
+              ? "h-[calc(100%-3rem)] overflow-hidden"
+              : "min-h-[300px] overflow-hidden"
           )}
         >
           {isRendering && !svgContent && !error && (
@@ -287,18 +548,46 @@ export function MermaidDiagram({
           )}
 
           {svgContent && !error && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.2 }}
+            <div
+              ref={viewportRef}
               className={cn(
-                "[&_svg]:h-auto",
-                isExpanded
-                  ? "[&_svg]:max-w-full [&_svg]:max-h-full"
-                  : "[&_svg]:w-full"
+                "relative w-full h-full",
+                "cursor-grab active:cursor-grabbing",
+                isExpanded ? "min-h-[400px]" : "min-h-[300px]"
               )}
-              dangerouslySetInnerHTML={{ __html: svgContent }}
-            />
+              style={{ touchAction: "none" }}
+              onWheel={handleWheel}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerCancel={handlePointerUp}
+              onDoubleClick={handleDoubleClick}
+              aria-label="Diagram viewport (scroll to zoom, drag to pan)"
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.2 }}
+                className={cn(
+                  "absolute inset-0 flex items-start justify-center",
+                  "[&_svg]:h-auto [&_svg]:max-w-none"
+                )}
+              >
+                <div
+                  style={{
+                    transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                    transformOrigin: "0 0",
+                    willChange: "transform",
+                  }}
+                  className={cn(
+                    "inline-block",
+                    // Ensure SVG uses its intrinsic size unless constrained by our transforms.
+                    isExpanded ? "[&_svg]:max-h-[calc(100vh-12rem)]" : "[&_svg]:w-full"
+                  )}
+                  dangerouslySetInnerHTML={{ __html: svgContent }}
+                />
+              </motion.div>
+            </div>
           )}
         </motion.div>
       </motion.div>

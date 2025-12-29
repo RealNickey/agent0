@@ -7,6 +7,7 @@ export function getToolTitle(toolName: string): string {
     url_context: "URL Context",
     code_execution: "Code Execution",
     displayWeather: "Weather",
+    generateMermaidDiagram: "Mermaid Diagram",
   };
   return titles[toolName] || toolName;
 }

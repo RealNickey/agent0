@@ -15,6 +15,11 @@ export type InstalledTool = Tool & {
   installedAt: string;
 };
 
+export type ToolMentionWithPosition = {
+  name: string;
+  position: number;
+};
+
 /**
  * Parse @tool mentions from a message
  * Returns array of tool names mentioned
@@ -30,6 +35,26 @@ export function parseToolMentions(message: string): string[] {
 
   // Remove duplicates
   return [...new Set(mentions)];
+}
+
+/**
+ * Parse @tool mentions with their positions in the message
+ * Returns array of tool names with their position/order
+ */
+export function parseToolMentionsWithPositions(message: string): ToolMentionWithPosition[] {
+  const toolMentionRegex = /@(\w+)/g;
+  const mentions: ToolMentionWithPosition[] = [];
+  let match;
+
+  while ((match = toolMentionRegex.exec(message)) !== null) {
+    mentions.push({
+      name: match[1].toLowerCase(),
+      position: match.index,
+    });
+  }
+
+  // Sort by position to maintain order
+  return mentions.sort((a, b) => a.position - b.position);
 }
 
 /**

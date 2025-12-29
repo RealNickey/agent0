@@ -88,8 +88,8 @@ export async function POST(req: Request) {
   }
 
   // Build tools object based on mentioned tools and enabled features
-  let tools: Record<string, any> = {};
-  let useProviderTools = false;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tools: Record<string, any> = {};
   const hasCustomTools = mentionedTools.length > 0;
 
   // Add @mentioned custom tools (like weather)
@@ -102,6 +102,9 @@ export async function POST(req: Request) {
       if (lowerToolName === "weather") {
         tools.displayWeather = weatherTools.displayWeather;
       }
+      if (lowerToolName === "mermaid") {
+        tools.generateMermaidDiagram = weatherTools.generateMermaidDiagram;
+      }
       // Add more tool mappings here as needed
     }
   } else {
@@ -109,17 +112,14 @@ export async function POST(req: Request) {
     // This prevents mixing function tools with provider-defined tools
     if (enableSearch) {
       tools.google_search = google.tools.googleSearch({});
-      useProviderTools = true;
     }
 
     if (enableUrlContext) {
       tools.url_context = google.tools.urlContext({});
-      useProviderTools = true;
     }
 
     if (enableCodeExecution) {
       tools.code_execution = google.tools.codeExecution({});
-      useProviderTools = true;
     }
   }
 

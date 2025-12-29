@@ -8,16 +8,16 @@ import {
   PromptInputButton,
   PromptInputSpeechButton,
 } from "@/components/ai-elements/prompt-input";
-import { BrainIcon, CloudSunIcon, PaperclipIcon, SearchIcon } from "lucide-react";
+import { BrainIcon, CloudSunIcon, PaperclipIcon, SearchIcon, NetworkIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ButtonGroup, ButtonGroupSeparator } from "@/components/ui/button-group";
-import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
-import { fetchInstalledTools, parseToolMentions, type InstalledTool } from "@/lib/tool-utils";
+import { fetchInstalledTools, type InstalledTool } from "@/lib/tool-utils";
 import { Badge } from "@/components/ui/badge";
 
 export type PromptInputAreaProps = {
   value: string;
   onChange: (value: string) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onSubmit: (data: { text: string; files: any[] }) => void;
   isLoading: boolean;
   enableSearch: boolean;
@@ -49,6 +49,7 @@ export function PromptInputArea({
   const [availableTools, setAvailableTools] = useState<InstalledTool[]>([]);
   const [showToolSuggestions, setShowToolSuggestions] = useState(false);
   const [toolQuery, setToolQuery] = useState("");
+  const [selectedToolIndex, setSelectedToolIndex] = useState(0);
 
   // Load available tools on mount
   useEffect(() => {
@@ -73,13 +74,17 @@ export function PromptInputArea({
       const hasSpace = afterAt.includes(" ");
       
       if (!hasSpace) {
-        setToolQuery(afterAt.toLowerCase());
-        setShowToolSuggestions(true);
+        // Use setTimeout to batch state updates and avoid cascading renders
+        setTimeout(() => {
+          setToolQuery(afterAt.toLowerCase());
+          setShowToolSuggestions(true);
+          setSelectedToolIndex(0); // Reset selection when query changes
+        }, 0);
       } else {
-        setShowToolSuggestions(false);
+        setTimeout(() => setShowToolSuggestions(false), 0);
       }
     } else {
-      setShowToolSuggestions(false);
+      setTimeout(() => setShowToolSuggestions(false), 0);
     }
   }, [value]);
 
@@ -200,16 +205,19 @@ export function PromptInputArea({
           {/* Tool Pills inside input */}
           {mentionedTools.length > 0 && (
             <div className="flex items-center gap-1 pl-2 py-2.5 select-none">
-              {mentionedTools.map((tool) => (
-                <Badge 
-                  key={tool} 
-                  variant="secondary" 
-                  className="text-xs h-6 px-2 gap-1 cursor-default whitespace-nowrap"
-                >
-                  <CloudSunIcon className="size-3" />
-                  @{tool}
-                </Badge>
-              ))}
+              {mentionedTools.map((tool) => {
+                const ToolIcon = tool.toLowerCase() === 'mermaid' ? NetworkIcon : CloudSunIcon;
+                return (
+                  <Badge 
+                    key={tool} 
+                    variant="secondary" 
+                    className="text-xs h-6 px-2 gap-1 cursor-default whitespace-nowrap"
+                  >
+                    <ToolIcon className="size-3" />
+                    @{tool}
+                  </Badge>
+                );
+              })}
             </div>
           )}
 
@@ -221,12 +229,38 @@ export function PromptInputArea({
             value={value}
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={(e) => {
-              // If tool suggestions are open, Enter selects the first tool
-              if (e.key === "Enter" && !e.shiftKey && showToolSuggestions && filteredTools.length > 0) {
-                e.preventDefault();
-                handleToolSelect(filteredTools[0].name);
-                return;
+              // Handle tool suggestions navigation
+              if (showToolSuggestions && filteredTools.length > 0) {
+                // Arrow Down - move to next tool
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setSelectedToolIndex((prev) => 
+                    prev < filteredTools.length - 1 ? prev + 1 : 0
+                  );
+                  return;
+                }
+                // Arrow Up - move to previous tool
+                if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setSelectedToolIndex((prev) => 
+                    prev > 0 ? prev - 1 : filteredTools.length - 1
+                  );
+                  return;
+                }
+                // Enter selects the highlighted tool
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleToolSelect(filteredTools[selectedToolIndex].name);
+                  return;
+                }
+                // Escape closes tool suggestions
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  setShowToolSuggestions(false);
+                  return;
+                }
               }
+              
               // Handle Backspace to remove tools
               if (e.key === "Backspace" && value === "" && mentionedTools.length > 0) {
                 e.preventDefault();
@@ -239,11 +273,6 @@ export function PromptInputArea({
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 onSubmit({ text: value, files: [] });
-              }
-              // Escape closes tool suggestions
-              if (e.key === "Escape" && showToolSuggestions) {
-                e.preventDefault();
-                setShowToolSuggestions(false);
               }
             }}
           />
@@ -264,26 +293,31 @@ export function PromptInputArea({
                 Available Tools
               </div>
               <div className="space-y-1">
-                {filteredTools.map((tool, index) => (
-                  <button
-                    key={tool.id}
-                    onClick={() => handleToolSelect(tool.name)}
-                    className={cn(
-                      "w-full flex items-start gap-2 px-2 py-2 rounded-md text-left",
-                      "hover:bg-accent hover:text-accent-foreground",
-                      "focus:bg-accent focus:text-accent-foreground focus:outline-none",
-                      index === 0 && "bg-accent/50"
-                    )}
-                  >
-                    <CloudSunIcon className="h-4 w-4 mt-0.5 shrink-0" />
-                    <div className="flex flex-col min-w-0">
-                      <span className="font-medium text-sm">@{tool.name}</span>
-                      <span className="text-xs text-muted-foreground line-clamp-1">
-                        {tool.description}
-                      </span>
-                    </div>
-                  </button>
-                ))}
+                {filteredTools.map((tool, index) => {
+                  const ToolIcon = tool.id === 'mermaid' ? NetworkIcon : CloudSunIcon;
+                  return (
+                    <button
+                      key={tool.id}
+                      onClick={() => handleToolSelect(tool.name)}
+                      onMouseEnter={() => setSelectedToolIndex(index)}
+                      className={cn(
+                        "w-full flex items-start gap-2 px-2 py-2 rounded-md text-left",
+                        "hover:bg-accent hover:text-accent-foreground",
+                        "focus:bg-accent focus:text-accent-foreground focus:outline-none",
+                        "transition-colors duration-150",
+                        index === selectedToolIndex && "bg-accent text-accent-foreground"
+                      )}
+                    >
+                      <ToolIcon className="h-4 w-4 mt-0.5 shrink-0" />
+                      <div className="flex flex-col min-w-0">
+                        <span className="font-medium text-sm">@{tool.name}</span>
+                        <span className="text-xs text-muted-foreground line-clamp-1">
+                          {tool.description}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>

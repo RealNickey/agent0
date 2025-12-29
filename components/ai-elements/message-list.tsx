@@ -53,6 +53,7 @@ import {
 import type { MyUIMessage } from "@/types/chat";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { Weather, WeatherLoading } from "@/components/weather";
+import { MermaidDiagram } from "@/components/ai-elements/mermaid-diagram";
 
 type ChatStatus = UseChatHelpers<MyUIMessage>["status"];
 
@@ -63,6 +64,28 @@ export type MessageListProps = {
   onRegenerate: () => void;
   error?: Error | undefined;
 };
+
+// Helper to extract mermaid code from text content
+function extractMermaidCode(text: string): string | null {
+  // Match mermaid code blocks (```mermaid ... ```)
+  const mermaidRegex = /```mermaid\s*\n([\s\S]*?)```/;
+  const match = text.match(mermaidRegex);
+  return match ? match[1].trim() : null;
+}
+
+// Helper to check if message contains mermaid tool invocation
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function hasMermaidToolInvocation(toolInvocations: any[]): boolean {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return toolInvocations.some((ti: any) => {
+    const t = ti.toolInvocation || ti;
+    let toolName = t.toolName;
+    if (!toolName && t.type && t.type.startsWith("tool-")) {
+      toolName = t.type.replace("tool-", "");
+    }
+    return toolName === "generateMermaidDiagram";
+  });
+}
 
 export function MessageList({ messages, isLoading, status, onRegenerate, error }: MessageListProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -79,7 +102,8 @@ export function MessageList({ messages, isLoading, status, onRegenerate, error }
         || wrapperRef.current.firstElementChild as HTMLDivElement;
       if (scrollEl) {
         (scrollContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = scrollEl;
-        setMounted(true);
+        // Use setTimeout to avoid synchronous setState in effect
+        setTimeout(() => setMounted(true), 0);
       }
     }
   }, []);
@@ -137,7 +161,9 @@ export function MessageList({ messages, isLoading, status, onRegenerate, error }
                     {message.role === "user" && message.parts && (
                       <div className="flex flex-wrap gap-2 mb-2">
                         {message.parts
+                          // eslint-disable-next-line @typescript-eslint/no-explicit-any
                           .filter((part: any) => part.type === "file")
+                          // eslint-disable-next-line @typescript-eslint/no-explicit-any
                           .map((part: any, i: number) => (
                             <div
                               key={i}
@@ -162,6 +188,7 @@ export function MessageList({ messages, isLoading, status, onRegenerate, error }
                     )}
 
                     {message.role === "assistant" && (() => {
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       const normalizedToolInvocations = toolInvocations.map((ti: any) => {
                         const t = ti.toolInvocation || ti;
                         
@@ -187,6 +214,7 @@ export function MessageList({ messages, isLoading, status, onRegenerate, error }
                           result: t.result || t.output,
                         };
                       });
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       return normalizedToolInvocations.map((toolInvocation: any) => {
                         // Special rendering for Weather tool - wrapped in Tool UI
                         if (toolInvocation.toolName === "displayWeather") {
@@ -198,6 +226,7 @@ export function MessageList({ messages, isLoading, status, onRegenerate, error }
                               <Tool defaultOpen={false}>
                                 <ToolHeader
                                   title="Weather Information"
+                                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                   type={"tool-displayWeather" as any}
                                   state={
                                     hasError
@@ -258,6 +287,7 @@ export function MessageList({ messages, isLoading, status, onRegenerate, error }
                       <Sources>
                         <SourcesTrigger count={sources.length} />
                         <SourcesContent>
+                          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                           {sources.map((source: any, i: number) => (
                             <Source
                               key={i}
@@ -269,13 +299,40 @@ export function MessageList({ messages, isLoading, status, onRegenerate, error }
                       </Sources>
                     )}
 
-                    {message.role === "assistant" ? (
-                      hasAssistantContent ? (
+                    {message.role === "assistant" && (() => {
+                      // Check if this message has mermaid tool invocation and contains mermaid code
+                      const hasMermaid = hasMermaidToolInvocation(toolInvocations);
+                      const mermaidCode = hasMermaid ? extractMermaidCode(textContent) : null;
+                      
+                      if (mermaidCode) {
+                        // Render mermaid diagram separately
+                        const textWithoutMermaid = textContent.replace(/```mermaid\s*\n[\s\S]*?```/, '').trim();
+                        return (
+                          <>
+                            <motion.div
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: 0.2 }}
+                              className="w-full"
+                            >
+                              <MermaidDiagram code={mermaidCode} />
+                            </motion.div>
+                            {textWithoutMermaid && (
+                              <MessageResponse>{textWithoutMermaid}</MessageResponse>
+                            )}
+                          </>
+                        );
+                      }
+                      
+                      // Default rendering
+                      return hasAssistantContent ? (
                         <MessageResponse>{textContent}</MessageResponse>
                       ) : shouldShowThinkingPlaceholder ? (
                         <ThinkingIndicator />
-                      ) : null
-                    ) : (
+                      ) : null;
+                    })()}
+
+                    {message.role === "user" && (
                       <div className="whitespace-pre-wrap">{textContent}</div>
                     )}
                   </MessageContent>

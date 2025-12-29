@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Weather } from "@/components/weather";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 interface IntegrationPanelProps {
   isOpen: boolean;
@@ -18,7 +18,7 @@ export function IntegrationPanel({
   integrationId,
 }: IntegrationPanelProps) {
   // Mock weather data state
-  const [weatherData, setWeatherData] = useState({
+  const [weatherData] = useState({
     location: "San Francisco, CA",
     temperature: 72,
     temperatureUnit: "°F",
@@ -53,7 +53,11 @@ export function IntegrationPanel({
           >
             <div className="flex items-center justify-between p-4 border-b">
               <h2 className="font-semibold text-lg">
-                {integrationId === "weather" ? "Weather" : "Integration"}
+                {integrationId === "weather" 
+                  ? "Weather" 
+                  : integrationId === "mermaid"
+                    ? "Mermaid Diagrams"
+                    : "Integration"}
               </h2>
               <Button variant="ghost" size="icon" onClick={onClose}>
                 <X className="h-4 w-4" />
@@ -67,6 +71,29 @@ export function IntegrationPanel({
                   
                   <div className="text-sm text-muted-foreground mt-4">
                     <p>Integration active. Weather data is simulated for demo purposes.</p>
+                  </div>
+                </div>
+              )}
+              
+              {integrationId === "mermaid" && (
+                <div className="space-y-4">
+                  <div className="text-sm space-y-2">
+                    <p className="font-medium">Mermaid Diagrams Integration</p>
+                    <p className="text-muted-foreground">
+                      Use @mermaid in your messages to generate diagrams automatically.
+                    </p>
+                    <div className="mt-4 space-y-2">
+                      <p className="font-medium">Supported Diagram Types:</p>
+                      <ul className="list-disc list-inside text-muted-foreground space-y-1">
+                        <li>Flowcharts</li>
+                        <li>Sequence diagrams</li>
+                        <li>Class diagrams</li>
+                        <li>State diagrams</li>
+                        <li>Entity relationship diagrams</li>
+                        <li>Gantt charts</li>
+                        <li>And more...</li>
+                      </ul>
+                    </div>
                   </div>
                 </div>
               )}

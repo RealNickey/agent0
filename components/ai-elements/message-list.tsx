@@ -40,6 +40,7 @@ import {
   ThumbsDownIcon,
   FileIcon,
   AlertCircleIcon,
+  DownloadIcon,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
@@ -53,6 +54,7 @@ import {
 import type { MyUIMessage } from "@/types/chat";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { Weather, WeatherLoading } from "@/components/weather";
+import { generateChatPDF, generateTitle } from "@/lib/pdf-generator";
 
 type ChatStatus = UseChatHelpers<MyUIMessage>["status"];
 
@@ -279,26 +281,51 @@ export function MessageList({ messages, isLoading, status, onRegenerate, error }
                       <div className="whitespace-pre-wrap">{textContent}</div>
                     )}
                   </MessageContent>
-                  {message.role === "assistant" && (
-                    <MessageActions className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 px-2">
-                      <MessageAction
-                        tooltip="Copy"
-                        onClick={() => navigator.clipboard.writeText(textContent)}
-                      >
-                        <CopyIcon className="size-3.5" />
-                      </MessageAction>
-                      <MessageAction tooltip="Regenerate" onClick={() => onRegenerate()}>
-                        <RefreshCwIcon className="size-3.5" />
-                      </MessageAction>
-                      <div className="flex-1" />
-                      <MessageAction tooltip="Good response">
-                        <ThumbsUpIcon className="size-3.5" />
-                      </MessageAction>
-                      <MessageAction tooltip="Bad response">
-                        <ThumbsDownIcon className="size-3.5" />
-                      </MessageAction>
-                    </MessageActions>
-                  )}
+                  {message.role === "assistant" && (() => {
+                    // Find the previous user message for PDF context
+                    const messageIndex = messages.findIndex((m) => m.id === message.id);
+                    const previousUserMessage = messageIndex > 0 
+                      ? messages.slice(0, messageIndex).reverse().find((m) => m.role === "user")
+                      : null;
+                    const userPrompt = previousUserMessage ? getMessageTextContent(previousUserMessage) : "";
+                    
+                    const handleDownloadPDF = () => {
+                      const title = generateTitle(userPrompt, textContent);
+                      generateChatPDF({
+                        userPrompt,
+                        aiResponse: textContent,
+                        title,
+                        timestamp: new Date(),
+                      });
+                    };
+                    
+                    return (
+                      <MessageActions className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 px-2">
+                        <MessageAction
+                          tooltip="Copy"
+                          onClick={() => navigator.clipboard.writeText(textContent)}
+                        >
+                          <CopyIcon className="size-3.5" />
+                        </MessageAction>
+                        <MessageAction
+                          tooltip="Download PDF"
+                          onClick={handleDownloadPDF}
+                        >
+                          <DownloadIcon className="size-3.5" />
+                        </MessageAction>
+                        <MessageAction tooltip="Regenerate" onClick={() => onRegenerate()}>
+                          <RefreshCwIcon className="size-3.5" />
+                        </MessageAction>
+                        <div className="flex-1" />
+                        <MessageAction tooltip="Good response">
+                          <ThumbsUpIcon className="size-3.5" />
+                        </MessageAction>
+                        <MessageAction tooltip="Bad response">
+                          <ThumbsDownIcon className="size-3.5" />
+                        </MessageAction>
+                      </MessageActions>
+                    );
+                  })()}
                 </Message>
               </motion.div>
             );

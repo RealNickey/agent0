@@ -7,7 +7,7 @@ const CONTEXT_MENU_IDS = {
   SEND_SELECTION: 'agent0-send-selection',
 };
 
-// Listen for keyboard shortcut
+// Listen for keyboard shortcuts
 chrome.commands.onCommand.addListener((command) => {
   if (command === 'capture-screenshot') {
     chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
@@ -69,6 +69,8 @@ chrome.commands.onCommand.addListener((command) => {
         }
       }
     });
+  } else if (command === 'toggle-focus-mode') {
+    handleToggleFocusMode();
   }
 });
 
@@ -99,6 +101,27 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true; // Keep channel open for async response
   } else if (request.action === 'sendToAgent0') {
     handleSendToAgent0(request, sendResponse);
+    return true;
+  } else if (request.action === 'startFocusSession') {
+    handleStartFocusSession(request, sendResponse);
+    return true;
+  } else if (request.action === 'pauseFocusSession') {
+    handlePauseFocusSession(request, sendResponse);
+    return true;
+  } else if (request.action === 'stopFocusSession') {
+    handleStopFocusSession(request, sendResponse);
+    return true;
+  } else if (request.action === 'getFocusStatus') {
+    handleGetFocusStatus(request, sendResponse);
+    return true;
+  } else if (request.action === 'focusSessionStarted') {
+    handleFocusSessionStarted(request, sendResponse);
+    return true;
+  } else if (request.action === 'focusSessionCompleted') {
+    handleFocusSessionCompleted(request, sendResponse);
+    return true;
+  } else if (request.action === 'focusSessionStopped') {
+    handleFocusSessionStopped(request, sendResponse);
     return true;
   }
 });
@@ -205,6 +228,185 @@ async function handleCaptureVisibleTab(request, sender, sendResponse) {
   }
 }
 
+// ==================== Focus Mode Handlers ====================
+
+/**
+ * Toggle focus mode overlay
+ */
+async function handleToggleFocusMode() {
+  try {
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    const tab = tabs[0];
+    
+    if (!tab?.id) return;
+    
+    // Check if URL is restricted
+    const restrictedProtocols = ['chrome://', 'chrome-extension://', 'edge://', 'about:', 'view-source:'];
+    const isRestricted = restrictedProtocols.some(protocol => tab.url?.startsWith(protocol));
+    
+    if (isRestricted) {
+      chrome.notifications.create({
+        type: 'basic',
+        iconUrl: 'icons/icon48.png',
+        title: 'Focus Mode Unavailable',
+        message: 'Focus mode cannot be used on browser system pages.',
+        priority: 1
+      });
+      return;
+    }
+    
+    // Send message to content script to toggle overlay
+    try {
+      await chrome.tabs.sendMessage(tab.id, { action: 'toggleFocusMode' });
+    } catch (error) {
+      console.error('Failed to toggle focus mode:', error);
+    }
+  } catch (error) {
+    console.error('Error toggling focus mode:', error);
+  }
+}
+
+/**
+ * Start a focus session
+ */
+async function handleStartFocusSession(request, sendResponse) {
+  try {
+    const { mode, duration, config } = request;
+    
+    // Store current session state
+    await chrome.storage.local.set({
+      currentFocusSession: {
+        mode,
+        duration,
+        config,
+        startedAt: Date.now(),
+        status: 'running'
+      }
+    });
+    
+    sendResponse({ success: true });
+  } catch (error) {
+    console.error('Error starting focus session:', error);
+    sendResponse({ success: false, error: error.message });
+  }
+}
+
+/**
+ * Pause a focus session
+ */
+async function handlePauseFocusSession(request, sendResponse) {
+  try {
+    const data = await chrome.storage.local.get('currentFocusSession');
+    
+    if (data.currentFocusSession) {
+      data.currentFocusSession.status = 'paused';
+      data.currentFocusSession.pausedAt = Date.now();
+      
+      await chrome.storage.local.set({
+        currentFocusSession: data.currentFocusSession
+      });
+    }
+    
+    sendResponse({ success: true });
+  } catch (error) {
+    console.error('Error pausing focus session:', error);
+    sendResponse({ success: false, error: error.message });
+  }
+}
+
+/**
+ * Stop a focus session
+ */
+async function handleStopFocusSession(request, sendResponse) {
+  try {
+    await chrome.storage.local.remove('currentFocusSession');
+    sendResponse({ success: true });
+  } catch (error) {
+    console.error('Error stopping focus session:', error);
+    sendResponse({ success: false, error: error.message });
+  }
+}
+
+/**
+ * Get focus session status
+ */
+async function handleGetFocusStatus(request, sendResponse) {
+  try {
+    const data = await chrome.storage.local.get('currentFocusSession');
+    sendResponse({ 
+      success: true, 
+      session: data.currentFocusSession || null 
+    });
+  } catch (error) {
+    console.error('Error getting focus status:', error);
+    sendResponse({ success: false, error: error.message });
+  }
+}
+
+/**
+ * Handle focus session started notification
+ */
+async function handleFocusSessionStarted(request, sendResponse) {
+  try {
+    const { mode, duration } = request;
+    
+    // Show notification
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: 'icons/icon48.png',
+      title: 'Focus Session Started',
+      message: `${mode.charAt(0).toUpperCase() + mode.slice(1)} session started${duration > 0 ? ` for ${Math.round(duration / 60)} minutes` : ''}`,
+      priority: 1
+    });
+    
+    sendResponse({ success: true });
+  } catch (error) {
+    console.error('Error handling focus session started:', error);
+    sendResponse({ success: false, error: error.message });
+  }
+}
+
+/**
+ * Handle focus session completed notification
+ */
+async function handleFocusSessionCompleted(request, sendResponse) {
+  try {
+    const { mode, duration } = request;
+    
+    // Show notification with sound
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: 'icons/icon48.png',
+      title: 'Focus Session Completed! 🎉',
+      message: `Great work! You completed a ${Math.round(duration / 60)} minute ${mode} session.`,
+      priority: 2,
+      requireInteraction: true
+    });
+    
+    // Clear current session
+    await chrome.storage.local.remove('currentFocusSession');
+    
+    sendResponse({ success: true });
+  } catch (error) {
+    console.error('Error handling focus session completed:', error);
+    sendResponse({ success: false, error: error.message });
+  }
+}
+
+/**
+ * Handle focus session stopped notification
+ */
+async function handleFocusSessionStopped(request, sendResponse) {
+  try {
+    // Clear current session
+    await chrome.storage.local.remove('currentFocusSession');
+    
+    sendResponse({ success: true });
+  } catch (error) {
+    console.error('Error handling focus session stopped:', error);
+    sendResponse({ success: false, error: error.message });
+  }
+}
 async function handleSendToAgent0(request, sendResponse) {
   try {
     const { screenshot, pageUrl, pageTitle, selectedText } = request;

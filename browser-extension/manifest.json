@@ -23,6 +23,16 @@
       "js": ["content.js"],
       "css": ["content.css"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": [
+        "focus-mode/timer-engine.js",
+        "focus-mode/strategies.js",
+        "focus-mode/storage.js",
+        "focus-mode/focus-overlay.js"
+      ],
+      "run_at": "document_idle"
     }
   ],
   "commands": {
@@ -32,6 +42,13 @@
         "mac": "Command+Shift+S"
       },
       "description": "Capture image"
+    },
+    "toggle-focus-mode": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+F",
+        "mac": "Command+Shift+F"
+      },
+      "description": "Toggle focus mode overlay"
     }
   },
   "action": {

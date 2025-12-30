@@ -59,6 +59,15 @@ export function ChatUI() {
   const [activeIntegration, setActiveIntegration] = useState<string | null>(null);
   const [addedIntegrations, setAddedIntegrations] = useState<string[]>([]);
   
+  // Focus mode state
+  const [focusSession, setFocusSession] = useState<{
+    active: boolean;
+    mode: string;
+    duration: number;
+    taskName?: string;
+    startedAt: number;
+  } | null>(null);
+  
   // File input ref for native FileList handling
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -259,6 +268,42 @@ export function ChatUI() {
         const existing = textarea.value || "";
         setControlledTextareaValue(textarea, `${context}${existing}`);
         textarea.focus();
+      } else if (event.data?.type === 'AGENT0_FOCUS_STARTED') {
+        // Handle focus session started
+        const data = event.data?.data || event.data;
+        setFocusSession({
+          active: true,
+          mode: data.mode,
+          duration: data.duration,
+          taskName: data.taskName,
+          startedAt: data.startedAt || Date.now(),
+        });
+        console.log('Focus session started:', data);
+      } else if (event.data?.type === 'AGENT0_FOCUS_COMPLETE') {
+        // Handle focus session completed
+        console.log('Focus session completed:', event.data);
+        setFocusSession(null);
+      } else if (event.data?.type === 'AGENT0_FOCUS_STOPPED') {
+        // Handle focus session stopped
+        console.log('Focus session stopped');
+        setFocusSession(null);
+      } else if (event.data?.type === 'AGENT0_FOCUS_STATUS') {
+        // Handle focus session status update
+        const status = event.data?.status;
+        if (status) {
+          setFocusSession({
+            active: status.status === 'running',
+            mode: status.mode,
+            duration: status.duration,
+            taskName: status.taskName,
+            startedAt: status.startedAt,
+          });
+        } else {
+          setFocusSession(null);
+        }
+      } else if (event.data?.type === 'AGENT0_FOCUS_COMMAND_RESPONSE') {
+        // Handle response from focus command
+        console.log('Focus command response:', event.data);
       }
     };
     
@@ -364,6 +409,7 @@ export function ChatUI() {
 
     setInputValue("");
     setAttachments([]);
+    setMentionedTools([]); // Clear mentioned tools after sending
     // Clear the file input
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -402,6 +448,13 @@ export function ChatUI() {
       : []),
     { label: "URL Context", enabled: !hasCustomTools, color: "green" },
     { label: "Code Execution", enabled: !hasCustomTools, color: "purple" },
+    ...(focusSession?.active
+      ? [{ 
+          label: `🎯 Focus: ${focusSession.mode}`, 
+          enabled: true, 
+          color: "pink" as const 
+        }]
+      : []),
     ...(hasCustomTools
       ? mentionedTools.map((tool) => ({
           label: `@${tool}`,

@@ -91,6 +91,107 @@ export const weatherTool = tool({
   },
 });
 
+// Focus Mode Tool
+export const focusModeTool = tool({
+  description: `Control a real, interactive focus/work timer overlay in the user's browser.
+
+**IMPORTANT**: Use this tool (NOT code execution) when the user wants to:
+- Start a focus session, work session, or concentration timer
+- Use Pomodoro technique (25min work + 5min break cycles)
+- Set a countdown timer for work/study
+- Start a Flowtime session (work until naturally ready for break)
+- Track focused work time
+- Need help staying focused or avoiding distractions
+
+Three modes available:
+- pomodoro: Classic 25-minute work sessions with automatic 5-minute breaks
+- flowtime: Work without time limits, break duration adapts to work time
+- countdown: Custom duration timer (1-180 minutes)
+
+This creates an actual draggable timer overlay (press Ctrl+Shift+F to view) with notifications when sessions complete. Much better than code-based timers!`,
+  inputSchema: z.object({
+    action: z
+      .enum(['start', 'pause', 'resume', 'stop', 'status'])
+      .describe('Action: start (new session), pause, resume, stop, or status'),
+    mode: z
+      .enum(['pomodoro', 'flowtime', 'countdown'])
+      .optional()
+      .describe('Focus mode (required for start): pomodoro, flowtime, or countdown'),
+    duration: z
+      .number()
+      .min(1)
+      .max(180)
+      .optional()
+      .describe('Duration in minutes (required for countdown mode only, 1-180)'),
+    taskName: z
+      .string()
+      .optional()
+      .describe('Optional task name/description'),
+  }),
+  execute: async ({ action, mode, duration, taskName }) => {
+    // Validate parameters
+    if (action === 'start') {
+      if (!mode) {
+        return {
+          success: false,
+          message: 'Mode is required for start action. Choose: pomodoro, flowtime, or countdown',
+        };
+      }
+      
+      if (mode === 'countdown' && !duration) {
+        return {
+          success: false,
+          message: 'Duration (in minutes) is required for countdown mode',
+        };
+      }
+      
+      if (mode === 'countdown' && duration && (duration < 1 || duration > 180)) {
+        return {
+          success: false,
+          message: 'Duration must be between 1 and 180 minutes',
+        };
+      }
+    }
+    
+    // Generate user-friendly message
+    let message = '';
+    switch (action) {
+      case 'start':
+        if (mode === 'pomodoro') {
+          message = `Starting Pomodoro focus session (25 minutes work, 5 minutes break)${taskName ? ` for: ${taskName}` : ''}`;
+        } else if (mode === 'flowtime') {
+          message = `Starting Flowtime session (work until you're ready for a break)${taskName ? ` for: ${taskName}` : ''}`;
+        } else if (mode === 'countdown') {
+          message = `Starting ${duration}-minute focus session${taskName ? ` for: ${taskName}` : ''}`;
+        }
+        break;
+      case 'pause':
+        message = 'Pausing your focus session';
+        break;
+      case 'resume':
+        message = 'Resuming your focus session';
+        break;
+      case 'stop':
+        message = 'Stopping your focus session';
+        break;
+      case 'status':
+        message = 'Checking focus session status';
+        break;
+    }
+    
+    // Return the command data - client will handle execution via tool-call rendering
+    return {
+      success: true,
+      message,
+      action,
+      mode: mode || null,
+      duration: duration || null,
+      taskName: taskName || null,
+    };
+  },
+});
+
 export const tools = {
   displayWeather: weatherTool,
+  focusMode: focusModeTool,
 };

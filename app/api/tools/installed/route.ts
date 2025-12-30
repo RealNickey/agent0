@@ -16,6 +16,15 @@ const defaultInstalledTools = [
     enabled: true,
     installedAt: new Date().toISOString(),
   },
+  {
+    id: "focus",
+    name: "Focus Mode",
+    description: "Start a focus timer (Pomodoro, Flowtime, or Countdown)",
+    category: "productivity",
+    icon: "timer",
+    enabled: true,
+    installedAt: new Date().toISOString(),
+  },
 ];
 
 export async function GET(request: Request) {

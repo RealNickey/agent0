@@ -15,6 +15,8 @@ class FocusOverlay {
     this.dragOffset = { x: 0, y: 0 };
     this.currentStrategy = null;
     this.currentConfig = {};
+    this.currentTaskName = null;
+    this.overrideDuration = null;
     
     this.initializeOverlay();
     this.attachEventListeners();
@@ -369,6 +371,25 @@ class FocusOverlay {
             state: this.timer.getState()
           });
           break;
+        case 'startFocusSession':
+          // Handle start command from chat UI
+          console.log('[Focus Overlay] Received startFocusSession command:', message);
+          if (message.mode) {
+            this.selectMode(message.mode);
+          }
+          if (message.taskName) {
+            this.currentTaskName = message.taskName;
+          }
+          if (message.duration) {
+            this.overrideDuration = message.duration; // Store duration override
+            console.log('[Focus Overlay] Duration override set:', this.overrideDuration, 'seconds');
+          }
+          this.show(); // Make sure overlay is visible
+          setTimeout(() => {
+            this.startSession();
+          }, 100);
+          sendResponse({ success: true });
+          break;
       }
       return true; // Keep message channel open for async response
     });
@@ -458,8 +479,16 @@ class FocusOverlay {
       duration = this.currentStrategy.getInitialDuration(config);
     } else if (this.currentStrategy.name === 'countdown') {
       config = await FocusStorage.getCountdownConfig();
-      const lastDuration = await FocusStorage.getLastCountdownDuration();
-      duration = lastDuration;
+      // Use override duration if provided (from chat), otherwise use last duration
+      if (this.overrideDuration) {
+        duration = this.overrideDuration;
+        // Save it for next time
+        await FocusStorage.setLastCountdownDuration(this.overrideDuration);
+        this.overrideDuration = null; // Clear after using
+      } else {
+        const lastDuration = await FocusStorage.getLastCountdownDuration();
+        duration = lastDuration;
+      }
     }
 
     this.currentConfig = config;
@@ -475,6 +504,7 @@ class FocusOverlay {
       action: 'focusSessionStarted',
       mode: this.currentStrategy.name,
       duration: duration,
+      taskName: this.currentTaskName || null,
     });
   }
 

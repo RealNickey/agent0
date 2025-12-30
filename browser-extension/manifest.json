@@ -33,6 +33,11 @@
         "focus-mode/focus-overlay.js"
       ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["http://localhost:3000/*"],
+      "js": ["agent0-bridge.js"],
+      "run_at": "document_idle"
     }
   ],
   "commands": {

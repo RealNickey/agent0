@@ -53,6 +53,7 @@ import {
 import type { MyUIMessage } from "@/types/chat";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { Weather, WeatherLoading } from "@/components/weather";
+import { FocusMode, FocusModeLoading } from "@/components/focus-mode-display";
 
 type ChatStatus = UseChatHelpers<MyUIMessage>["status"];
 
@@ -228,6 +229,45 @@ export function MessageList({ messages, isLoading, status, onRegenerate, error }
                             </div>
                           );
                         }
+                        
+                        // Special rendering for Focus Mode tool
+                        if (toolInvocation.toolName === "focusMode") {
+                          const isCompleted = toolInvocation.state === "result";
+                          
+                          return (
+                            <div key={toolInvocation.toolCallId} className="flex flex-col gap-2 w-full">
+                              <Tool defaultOpen={false}>
+                                <ToolHeader
+                                  title="Focus Mode"
+                                  type={"tool-focusMode" as any}
+                                  state={
+                                    isCompleted
+                                      ? "output-available"
+                                      : "input-available"
+                                  }
+                                />
+                                <ToolContent>
+                                  <ToolInput input={toolInvocation.args} />
+                                </ToolContent>
+                              </Tool>
+                              
+                              {/* Focus Mode UI rendered outside the Tool component */}
+                              <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.2 }}
+                                className="w-full"
+                              >
+                                {isCompleted ? (
+                                  <FocusMode {...toolInvocation.result} />
+                                ) : (
+                                  <FocusModeLoading action={toolInvocation.args?.action} />
+                                )}
+                              </motion.div>
+                            </div>
+                          );
+                        }
+                        
                         // Default tool rendering
                         return (
                           <Tool key={toolInvocation.toolCallId} defaultOpen={false}>

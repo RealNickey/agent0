@@ -55,6 +55,7 @@ import type { MyUIMessage } from "@/types/chat";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { Weather, WeatherLoading } from "@/components/weather";
 import { generateChatPDF, generateTitle } from "@/lib/pdf-generator";
+import { ReadAloudButton } from "@/components/read-aloud-button";
 
 type ChatStatus = UseChatHelpers<MyUIMessage>["status"];
 
@@ -313,6 +314,7 @@ export function MessageList({ messages, isLoading, status, onRegenerate, error }
                         >
                           <DownloadIcon className="size-3.5" />
                         </MessageAction>
+                        <ReadAloudButton text={textContent} />
                         <MessageAction tooltip="Regenerate" onClick={() => onRegenerate()}>
                           <RefreshCwIcon className="size-3.5" />
                         </MessageAction>

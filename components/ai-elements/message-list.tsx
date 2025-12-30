@@ -40,6 +40,7 @@ import {
   ThumbsDownIcon,
   FileIcon,
   AlertCircleIcon,
+  FileText,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
@@ -53,6 +54,7 @@ import {
 import type { MyUIMessage } from "@/types/chat";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { Weather, WeatherLoading } from "@/components/weather";
+import { analyzeContent } from "@/components/word-count";
 
 type ChatStatus = UseChatHelpers<MyUIMessage>["status"];
 
@@ -62,9 +64,10 @@ export type MessageListProps = {
   status: ChatStatus;
   onRegenerate: () => void;
   error?: Error | undefined;
+  addedIntegrations?: string[];
 };
 
-export function MessageList({ messages, isLoading, status, onRegenerate, error }: MessageListProps) {
+export function MessageList({ messages, isLoading, status, onRegenerate, error, addedIntegrations = [] }: MessageListProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -279,6 +282,17 @@ export function MessageList({ messages, isLoading, status, onRegenerate, error }
                       <div className="whitespace-pre-wrap">{textContent}</div>
                     )}
                   </MessageContent>
+                  {message.role === "assistant" && hasAssistantContent && addedIntegrations.includes("word-count") && (() => {
+                    const stats = analyzeContent(textContent);
+                    return stats.totalWords > 0 ? (
+                      <div className="flex items-center gap-1.5 px-2 py-1 text-xs text-muted-foreground">
+                        <FileText className="size-3" />
+                        <span>{stats.totalWords} words</span>
+                        <span className="text-muted-foreground/50">•</span>
+                        <span>{stats.totalParagraphs} {stats.totalParagraphs === 1 ? 'paragraph' : 'paragraphs'}</span>
+                      </div>
+                    ) : null;
+                  })()}
                   {message.role === "assistant" && (
                     <MessageActions className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 px-2">
                       <MessageAction

@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { CloudSun, Plus, Trash2, ExternalLink } from "lucide-react";
+import { CloudSun, Plus, Trash2, ExternalLink, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -28,6 +28,14 @@ const INTEGRATIONS = [
     icon: CloudSun,
     color: "text-blue-500",
     bgColor: "bg-blue-500/10",
+  },
+  {
+    id: "word-count",
+    name: "Word Count",
+    description: "Count words and paragraphs in AI-generated content.",
+    icon: FileText,
+    color: "text-emerald-500",
+    bgColor: "bg-emerald-500/10",
   },
 ];
 

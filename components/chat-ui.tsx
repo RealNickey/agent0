@@ -436,6 +436,7 @@ export function ChatUI() {
             onRegenerate={handleRegenerate}
             status={status}
             error={error}
+            addedIntegrations={addedIntegrations}
           />
         </div>
 
@@ -504,6 +505,7 @@ export function ChatUI() {
         isOpen={!!activeIntegration}
         onClose={() => setActiveIntegration(null)}
         integrationId={activeIntegration}
+        messages={messages}
       />
     </div>
   );

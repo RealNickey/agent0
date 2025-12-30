@@ -4,21 +4,26 @@ import { motion, AnimatePresence } from "motion/react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Weather } from "@/components/weather";
-import { useEffect, useState } from "react";
+import { WordCount, analyzeContent } from "@/components/word-count";
+import { useMemo } from "react";
+import type { MyUIMessage } from "@/types/chat";
+import { getMessageTextContent } from "@/lib/chat-message-utils";
 
 interface IntegrationPanelProps {
   isOpen: boolean;
   onClose: () => void;
   integrationId: string | null;
+  messages?: MyUIMessage[];
 }
 
 export function IntegrationPanel({
   isOpen,
   onClose,
   integrationId,
+  messages = [],
 }: IntegrationPanelProps) {
   // Mock weather data state
-  const [weatherData, setWeatherData] = useState({
+  const weatherData = {
     location: "San Francisco, CA",
     temperature: 72,
     temperatureUnit: "°F",
@@ -28,7 +33,15 @@ export function IntegrationPanel({
     windSpeedUnit: "mph",
     weatherCode: 1, // Sunny/Cloudy
     weatherDescription: "Partly Cloudy",
-  });
+  };
+
+  // Calculate word count stats from AI messages
+  const wordCountStats = useMemo(() => {
+    // Get all assistant messages and extract their text content
+    const aiMessages = messages.filter((msg) => msg.role === "assistant");
+    const allText = aiMessages.map((msg) => getMessageTextContent(msg)).join("\n\n");
+    return analyzeContent(allText);
+  }, [messages]);
 
   return (
     <AnimatePresence>
@@ -53,7 +66,11 @@ export function IntegrationPanel({
           >
             <div className="flex items-center justify-between p-4 border-b">
               <h2 className="font-semibold text-lg">
-                {integrationId === "weather" ? "Weather" : "Integration"}
+                {integrationId === "weather" 
+                  ? "Weather" 
+                  : integrationId === "word-count"
+                  ? "Word Count"
+                  : "Integration"}
               </h2>
               <Button variant="ghost" size="icon" onClick={onClose}>
                 <X className="h-4 w-4" />
@@ -68,6 +85,18 @@ export function IntegrationPanel({
                   <div className="text-sm text-muted-foreground mt-4">
                     <p>Integration active. Weather data is simulated for demo purposes.</p>
                   </div>
+                </div>
+              )}
+
+              {integrationId === "word-count" && (
+                <div className="space-y-4">
+                  <WordCount {...wordCountStats} />
+                  
+                  {messages.filter((m) => m.role === "assistant").length === 0 && (
+                    <div className="text-sm text-muted-foreground mt-4 p-3 bg-muted/30 rounded-lg">
+                      <p>No AI-generated content yet. Start a conversation to see word count statistics.</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

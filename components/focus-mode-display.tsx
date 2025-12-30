@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "motion/react";
-import { Timer, Play, Pause, Square, Clock } from "lucide-react";
+import { Timer, Play, Pause, Square, Clock, ExternalLink, Keyboard } from "lucide-react";
 
 type FocusModeResult = {
   success: boolean;
@@ -14,15 +14,25 @@ type FocusModeResult = {
 };
 
 export function FocusMode(result: FocusModeResult) {
+  const [isSent, setIsSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   // Send command to extension when component mounts
   useEffect(() => {
-    if (result.success && result.action === 'start') {
-      console.log('[FocusMode] Sending command to extension:', {
-        action: result.action,
-        mode: result.mode,
-        duration: result.duration,
-        taskName: result.taskName,
-      });
+    if (result.success && result.action === 'start' && !isSent) {
+      // Listen for response from extension
+      const handleResponse = (event: MessageEvent) => {
+        if (event.data.type === 'AGENT0_FOCUS_COMMAND_RESPONSE') {
+          if (event.data.success) {
+            setIsSent(true);
+            setError(null);
+          } else {
+            setError(event.data.message);
+          }
+        }
+      };
+      
+      window.addEventListener('message', handleResponse);
       
       // Send command to extension via postMessage
       window.postMessage(
@@ -38,9 +48,9 @@ export function FocusMode(result: FocusModeResult) {
         window.location.origin
       );
       
-      console.log('[FocusMode] Command sent successfully');
+      return () => window.removeEventListener('message', handleResponse);
     }
-  }, [result]);
+  }, [result, isSent]);
 
   if (!result.success) {
     return (
@@ -67,18 +77,20 @@ export function FocusMode(result: FocusModeResult) {
     }
   };
 
-  const getModeEmoji = () => {
+  const getModeInfo = () => {
     switch (result.mode) {
       case 'pomodoro':
-        return '🍅';
+        return { emoji: '🍅', name: 'Pomodoro', desc: '25 min work, 5 min break' };
       case 'flowtime':
-        return '🌊';
+        return { emoji: '🌊', name: 'Flowtime', desc: 'Work until ready for break' };
       case 'countdown':
-        return '⏱️';
+        return { emoji: '⏱️', name: 'Countdown', desc: `${result.duration} minute session` };
       default:
-        return '🎯';
+        return { emoji: '🎯', name: 'Focus', desc: 'Focus session' };
     }
   };
+
+  const modeInfo = getModeInfo();
 
   return (
     <motion.div
@@ -92,12 +104,23 @@ export function FocusMode(result: FocusModeResult) {
         </div>
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <span className="text-2xl">{getModeEmoji()}</span>
-            <h3 className="font-semibold text-foreground">
-              {result.action === 'start' ? 'Focus Session Started' : 'Focus Mode'}
-            </h3>
+            <span className="text-2xl">{modeInfo.emoji}</span>
+            <div>
+              <h3 className="font-semibold text-foreground">
+                {result.action === 'start' ? 'Focus Session Started' : 'Focus Mode'}
+              </h3>
+              <p className="text-xs text-muted-foreground">{modeInfo.name} • {modeInfo.desc}</p>
+            </div>
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">{result.message}</p>
+          
+          {error && (
+            <div className="mt-3 rounded-md bg-red-500/10 border border-red-500/20 p-2">
+              <p className="text-xs text-red-400">{error}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Try refreshing the page or check if the Agent0 extension is installed.
+              </p>
+            </div>
+          )}
           
           {result.taskName && (
             <div className="mt-3 rounded-md bg-background/50 p-2">
@@ -106,14 +129,16 @@ export function FocusMode(result: FocusModeResult) {
             </div>
           )}
           
-          {result.action === 'start' && (
-            <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-              <Timer className="h-4 w-4" />
-              <span>
-                {result.mode === 'pomodoro' && 'Press Ctrl+Shift+F to view timer overlay'}
-                {result.mode === 'flowtime' && 'Work as long as you need, then take a break'}
-                {result.mode === 'countdown' && `${result.duration} minute focus session`}
-              </span>
+          {result.action === 'start' && !error && (
+            <div className="mt-3 space-y-2">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Keyboard className="h-3.5 w-3.5" />
+                <span>Press <kbd className="px-1.5 py-0.5 bg-background rounded text-[10px] font-mono">Ctrl+Shift+F</kbd> to toggle overlay</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-purple-400">
+                <ExternalLink className="h-3.5 w-3.5" />
+                <span>Timer is running on all browser tabs</span>
+              </div>
             </div>
           )}
         </div>

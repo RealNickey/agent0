@@ -3,6 +3,9 @@
 // Fixed Agent0 URL (popup configuration removed)
 const agent0Url = 'http://localhost:3000';
 
+// Track active focus session globally (for syncing to new tabs)
+let activeFocusSession = null;
+
 const CONTEXT_MENU_IDS = {
   SEND_SELECTION: 'agent0-send-selection',
 };
@@ -16,12 +19,49 @@ function sendFocusUpdateToAgent0(data) {
       chrome.tabs.sendMessage(tabs[0].id, {
         action: 'injectFocusUpdate',
         data: data
-      }).catch(error => {
-        console.log('Could not send focus update to Agent0:', error);
-      });
+      }).catch(() => {});
     }
   });
 }
+
+/**
+ * Sync focus overlay to a newly opened/updated tab
+ */
+async function syncFocusToNewTab(tabId, tabUrl) {
+  if (!activeFocusSession) return;
+  
+  const restricted = ['chrome://', 'chrome-extension://', 'edge://', 'about:', 'view-source:', 'devtools://'];
+  if (restricted.some(p => tabUrl?.startsWith(p))) return;
+  
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: [
+        'focus-mode/timer-engine.js',
+        'focus-mode/strategies.js', 
+        'focus-mode/storage.js',
+        'focus-mode/focus-overlay.js'
+      ]
+    });
+    
+    await new Promise(r => setTimeout(r, 200));
+    
+    chrome.tabs.sendMessage(tabId, {
+      action: 'startFocusSession',
+      ...activeFocusSession
+    });
+    chrome.tabs.sendMessage(tabId, { action: 'showFocusMode' });
+  } catch {
+    // Tab may not be ready yet, ignore
+  }
+}
+
+// Sync focus overlay to new tabs when they finish loading
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status === 'complete' && activeFocusSession) {
+    syncFocusToNewTab(tabId, tab.url);
+  }
+});
 
 // Listen for keyboard shortcuts
 chrome.commands.onCommand.addListener((command) => {
@@ -444,6 +484,9 @@ async function handleFocusSessionStopped(request, sendResponse) {
       stoppedAt: Date.now()
     });
     
+    // Clear the active session
+    activeFocusSession = null;
+    
     sendResponse({ success: true });
   } catch (error) {
     console.error('Error handling focus session stopped:', error);
@@ -453,38 +496,26 @@ async function handleFocusSessionStopped(request, sendResponse) {
 
 /**
  * Handle start focus session from chat UI
+ * Broadcasts to ALL tabs so the focus overlay appears everywhere
  */
 async function handleStartFocusFromChat(request, sendResponse) {
-  console.log('[Background] handleStartFocusFromChat called:', request);
   const { mode, duration, taskName } = request;
   
+  // Store active session for syncing to new tabs
+  activeFocusSession = { mode, duration, taskName };
+  
   try {
-    // Find the active tab to send the command to
-    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    // Get ALL tabs to broadcast focus session
+    const allTabs = await chrome.tabs.query({});
     
-    if (tabs.length === 0) {
-      console.error('[Background] No active tab found');
-      sendResponse({ success: false, error: 'No active tab found' });
+    if (allTabs.length === 0) {
+      sendResponse({ success: false, error: 'No tabs found' });
       return;
     }
     
-    const tab = tabs[0];
-    console.log('[Background] Active tab:', tab.id, tab.url);
+    const restrictedProtocols = ['chrome://', 'chrome-extension://', 'edge://', 'about:', 'view-source:', 'devtools://'];
     
-    // Check if URL is restricted
-    const restrictedProtocols = ['chrome://', 'chrome-extension://', 'edge://', 'about:', 'view-source:'];
-    const isRestricted = restrictedProtocols.some(protocol => tab.url?.startsWith(protocol));
-    
-    if (isRestricted) {
-      console.error('[Background] Tab URL is restricted:', tab.url);
-      sendResponse({ 
-        success: false, 
-        error: 'Focus mode cannot be started on browser system pages' 
-      });
-      return;
-    }
-    
-    // Helper to send message to tab with error handling
+    // Helper to send message to tab
     const sendMessageToTab = (tabId, message) => {
       return new Promise((resolve, reject) => {
         chrome.tabs.sendMessage(tabId, message, (response) => {
@@ -498,69 +529,66 @@ async function handleStartFocusFromChat(request, sendResponse) {
     };
     
     // Helper to inject focus mode scripts
-    const injectFocusModeScripts = async (tabId) => {
-      console.log('[Background] Injecting focus mode scripts...');
-      await chrome.scripting.executeScript({
-        target: { tabId: tabId },
-        files: [
-          'focus-mode/timer-engine.js',
-          'focus-mode/strategies.js', 
-          'focus-mode/storage.js',
-          'focus-mode/focus-overlay.js'
-        ]
-      });
-      // Wait for scripts to initialize
-      await new Promise(resolve => setTimeout(resolve, 300));
-      console.log('[Background] Focus mode scripts injected');
-    };
-    
-    // Try to send message, inject scripts if needed
-    const sendFocusCommand = async (retryAfterInject = false) => {
+    const injectScripts = async (tabId) => {
       try {
-        console.log('[Background] Sending startFocusSession to tab...');
-        await sendMessageToTab(tab.id, {
-          action: 'startFocusSession',
-          mode: mode,
-          duration: duration,
-          taskName: taskName
+        await chrome.scripting.executeScript({
+          target: { tabId },
+          files: [
+            'focus-mode/timer-engine.js',
+            'focus-mode/strategies.js', 
+            'focus-mode/storage.js',
+            'focus-mode/focus-overlay.js'
+          ]
         });
-        
-        // Show the overlay
-        await sendMessageToTab(tab.id, {
-          action: 'showFocusMode'
-        });
-        
-        console.log('[Background] Focus session started successfully');
-        return { success: true };
-      } catch (error) {
-        console.error('[Background] sendFocusCommand error:', error.message);
-        if (!retryAfterInject && error.message?.includes('Receiving end does not exist')) {
-          // Scripts not loaded, inject them
-          await injectFocusModeScripts(tab.id);
-          return sendFocusCommand(true); // Retry once
-        }
-        throw error;
+        await new Promise(resolve => setTimeout(resolve, 200));
+        return true;
+      } catch {
+        return false;
       }
     };
     
-    try {
-      const result = await sendFocusCommand();
-      sendResponse({ 
-        success: true, 
-        message: `Focus session started: ${mode}` 
-      });
-    } catch (tabError) {
-      console.error('[Background] Failed to send focus command to tab:', tabError);
-      sendResponse({ 
-        success: false, 
-        error: 'Could not start focus mode. Try refreshing the page.' 
-      });
+    // Send focus command to a single tab
+    const sendFocusToTab = async (tab) => {
+      if (restrictedProtocols.some(p => tab.url?.startsWith(p))) return false;
+      
+      try {
+        await sendMessageToTab(tab.id, {
+          action: 'startFocusSession',
+          mode, duration, taskName
+        });
+        await sendMessageToTab(tab.id, { action: 'showFocusMode' });
+        return true;
+      } catch (error) {
+        if (error.message?.includes('Receiving end does not exist')) {
+          if (await injectScripts(tab.id)) {
+            try {
+              await sendMessageToTab(tab.id, {
+                action: 'startFocusSession',
+                mode, duration, taskName
+              });
+              await sendMessageToTab(tab.id, { action: 'showFocusMode' });
+              return true;
+            } catch { return false; }
+          }
+        }
+        return false;
+      }
+    };
+    
+    // Broadcast to all tabs
+    const results = await Promise.allSettled(allTabs.map(tab => sendFocusToTab(tab)));
+    const successCount = results.filter(r => r.status === 'fulfilled' && r.value === true).length;
+    
+    if (successCount > 0) {
+      sendResponse({ success: true, message: `Focus session started on ${successCount} tabs` });
+    } else {
+      sendResponse({ success: false, error: 'Could not start focus mode. Try refreshing the page.' });
     }
   } catch (error) {
-    console.error('[Background] Error handling start focus from chat:', error);
     sendResponse({ success: false, error: error.message || 'Unknown error' });
   }
 }
+
 async function handleSendToAgent0(request, sendResponse) {
   try {
     const { screenshot, pageUrl, pageTitle, selectedText } = request;

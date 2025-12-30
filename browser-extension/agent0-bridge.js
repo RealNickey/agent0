@@ -54,10 +54,23 @@ window.addEventListener('message', async (event) => {
       }, window.location.origin);
     } catch (error) {
       console.error('[Agent0 Bridge] Failed to send focus command:', error);
+      
+      // Check if extension context was invalidated
+      const isContextInvalidated = error.message?.includes('Extension context invalidated');
+      
+      if (isContextInvalidated) {
+        // Auto-refresh the page after showing alert
+        if (confirm('Extension was reloaded. This page needs to refresh to reconnect. Refresh now?')) {
+          window.location.reload();
+          return;
+        }
+      }
+      
       window.postMessage({
         type: 'AGENT0_FOCUS_COMMAND_RESPONSE',
         success: false,
-        message: 'Failed to communicate with extension'
+        message: isContextInvalidated 
+          ? 'Extension was reloaded. Please refresh this page (F5).'\n          : 'Failed to communicate with extension. Make sure Agent0 extension is installed and enabled.'
       }, window.location.origin);
     }
   }

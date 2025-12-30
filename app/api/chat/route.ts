@@ -71,41 +71,10 @@ export async function POST(req: Request) {
   // Type-cast messages to MyUIMessage[] for type safety
   const uiMessages = messages as MyUIMessage[];
 
-  // Sanitize messages - remove incomplete tool calls that could cause Gemini API errors
-  // Gemini requires tool calls to be immediately followed by tool responses
-  const sanitizedMessages = uiMessages.filter((msg, index) => {
-    // Keep all user messages
-    if (msg.role === "user") return true;
-    
-    // For assistant messages, check if they have incomplete tool calls
-    if (msg.role === "assistant" && msg.parts) {
-      const hasToolCall = msg.parts.some((p: any) => 
-        p.type?.startsWith("tool-") || p.type === "tool-invocation"
-      );
-      
-      if (hasToolCall) {
-        // Check if all tool calls have results
-        const toolParts = msg.parts.filter((p: any) => 
-          p.type?.startsWith("tool-") || p.type === "tool-invocation"
-        );
-        const allHaveResults = toolParts.every((p: any) => 
-          p.state === "result" || p.state === "output-available" || p.result !== undefined
-        );
-        
-        if (!allHaveResults) {
-          console.log("[route] Filtering out message with incomplete tool calls:", msg.id);
-          return false; // Filter out messages with incomplete tool calls
-        }
-      }
-    }
-    
-    return true;
-  });
-
   // Convert UI messages to model messages using the AI SDK helper
   let modelMessages;
   try {
-    modelMessages = convertToModelMessages(sanitizedMessages);
+    modelMessages = convertToModelMessages(uiMessages);
   } catch (error) {
     console.error("convertToModelMessages failed", error);
     return new Response(
@@ -123,16 +92,11 @@ export async function POST(req: Request) {
   let useProviderTools = false;
   const hasCustomTools = mentionedTools.length > 0;
 
-  console.log('[route] mentionedTools:', mentionedTools);
-  console.log('[route] hasCustomTools:', hasCustomTools);
-  console.log('[route] Tools object after building:', Object.keys(tools));
-
   // Add @mentioned custom tools (like weather, focus)
   // When custom tools are mentioned, ONLY use those tools (disable provider tools)
   if (hasCustomTools) {
     for (const toolName of mentionedTools) {
       const lowerToolName = toolName.toLowerCase();
-      console.log('[route] Processing tool:', lowerToolName);
       
       // Map mentioned tool names to actual tool implementations
       // Check for both ID format ("weather") and display name format ("Weather")
@@ -142,7 +106,6 @@ export async function POST(req: Request) {
       // Handle focus mode - matches: "focus", "focus mode", "pomodoro", "timer"
       if (lowerToolName === "focus" || lowerToolName === "focus mode" || lowerToolName === "pomodoro" || lowerToolName === "timer") {
         tools.focusMode = weatherTools.focusMode;
-        console.log('[route] Added focusMode tool');
       }
       // Add more tool mappings here as needed
     }
@@ -166,7 +129,6 @@ export async function POST(req: Request) {
   }
 
   const hasTools = Object.keys(tools).length > 0;
-  console.log('[route] Final tools:', Object.keys(tools), 'hasTools:', hasTools);
 
   // Only use stopWhen if we actually have custom function tools registered
   const useMultiStep = hasTools && hasCustomTools;

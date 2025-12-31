@@ -2,8 +2,9 @@
 
 import { Button } from "@/components/ui/button";
 import { UserButton, SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
-import { TreePine, Blocks } from "lucide-react";
+import { TreePine, Blocks, LayoutDashboard } from "lucide-react";
 import { ModelSelectorControl, Model } from "@/components/ai-elements/model-selector-control";
+import Link from "next/link";
 
 export type ChatHeaderProps = {
   models: Model[];
@@ -52,6 +53,18 @@ export function ChatHeader({
       />
 
       <div className="flex items-center gap-2">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="gap-2"
+          asChild
+        >
+          <Link href="/dashboard">
+            <LayoutDashboard className="size-4" />
+            <span className="hidden sm:inline">Dashboard</span>
+          </Link>
+        </Button>
+
         <Button 
           variant="ghost" 
           size="sm" 

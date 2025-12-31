@@ -1,23 +1,33 @@
 /**
  * Focus Mode Strategies
  * Define different focus mode strategies with their configurations
+ * 
+ * Based on research from the Pomodoro Technique and productivity studies:
+ * - 25-minute work sessions are optimal for most people
+ * - After 4 pomodoros, take a longer 15-30 minute break
+ * - DeskTime research shows 52/17 works for some, but 25/5 is more universally applicable
+ * - Flowtime allows for natural flow states in creative work
  */
 
 /**
  * Pomodoro Strategy
  * Work in 25-minute intervals with short breaks, and longer breaks every 4 cycles
+ * Research-backed intervals from Francesco Cirillo's original method
  */
 const PomodoroStrategy = {
   name: 'pomodoro',
   displayName: 'Pomodoro',
   description: 'Classic 25-minute work sessions with breaks',
   
-  // Default configuration
+  // Default configuration (research-backed values)
   config: {
-    workDuration: 25 * 60, // 25 minutes in seconds
-    shortBreakDuration: 5 * 60, // 5 minutes
-    longBreakDuration: 15 * 60, // 15 minutes
-    cyclesBeforeLongBreak: 4,
+    workDuration: 25 * 60, // 25 minutes in seconds (optimal for focus)
+    shortBreakDuration: 5 * 60, // 5 minutes (enough to reset without losing momentum)
+    longBreakDuration: 15 * 60, // 15 minutes (15-30 range, using conservative)
+    cyclesBeforeLongBreak: 4, // Every 4th cycle gets a long break
+    // Advanced settings based on productivity research
+    extendedWorkDuration: 50 * 60, // 50 min option for deep work
+    maxDailyPomodoros: 16, // ~8 hour workday with breaks
   },
 
   /**
@@ -32,6 +42,7 @@ const PomodoroStrategy = {
 
   /**
    * Should automatically start break after work session
+   * Research suggests manual control is better for habit formation
    */
   shouldAutoStartBreak: false,
 
@@ -49,7 +60,7 @@ const PomodoroStrategy = {
   getBreakDuration(cycle, config = {}) {
     const mergedConfig = { ...this.config, ...config };
     
-    // Every Nth cycle gets a long break
+    // Every Nth cycle gets a long break (based on research, every 4th)
     if (cycle % mergedConfig.cyclesBeforeLongBreak === 0) {
       return mergedConfig.longBreakDuration;
     }
@@ -67,23 +78,60 @@ const PomodoroStrategy = {
     const mergedConfig = { ...this.config, ...config };
     return cycle % mergedConfig.cyclesBeforeLongBreak === 0 ? 'long' : 'short';
   },
+  
+  /**
+   * Get motivational message based on completed pomodoros
+   * @param {number} completedCount - Number of completed pomodoros
+   * @returns {string} Motivational message
+   */
+  getMotivationalMessage(completedCount) {
+    if (completedCount === 0) return "Let's start your first pomodoro!";
+    if (completedCount === 1) return "Great start! Keep the momentum going.";
+    if (completedCount < 4) return `${completedCount} down, ${4 - completedCount} to go until a long break!`;
+    if (completedCount === 4) return "4 pomodoros complete! You've earned a long break.";
+    if (completedCount < 8) return `Impressive! ${completedCount} pomodoros today.`;
+    if (completedCount < 12) return `Outstanding focus! ${completedCount} pomodoros.`;
+    return `Incredible productivity! ${completedCount} pomodoros today!`;
+  },
+
+  /**
+   * Get tips for better focus during pomodoro
+   * @returns {Array<string>} Array of tips
+   */
+  getTips() {
+    return [
+      "If a task takes more than 4 pomodoros, break it into smaller steps",
+      "Tasks under 1 pomodoro? Batch them together",
+      "Write down distractions to address during breaks",
+      "The pomodoro is indivisible - resist checking notifications",
+      "Use breaks to step away from screens",
+    ];
+  },
 };
 
 /**
  * Flowtime Strategy
  * No fixed duration - work until you naturally want to take a break
  * Break duration is based on how long you worked (ratio-based)
+ * Best for creative work and tasks requiring deep flow states
  */
 const FlowtimeStrategy = {
   name: 'flowtime',
   displayName: 'Flowtime',
   description: 'Work without time limits, take breaks based on flow',
   
-  // Default configuration
+  // Default configuration (research-informed values)
   config: {
     breakRatio: 0.2, // 20% of work time as break (e.g., 50min work = 10min break)
-    minBreakDuration: 5 * 60, // Minimum 5 minutes
-    maxBreakDuration: 20 * 60, // Maximum 20 minutes
+    minBreakDuration: 5 * 60, // Minimum 5 minutes (always beneficial)
+    maxBreakDuration: 20 * 60, // Maximum 20 minutes (avoid losing momentum)
+    // Suggested break ranges based on work duration
+    breakTiers: [
+      { workMin: 0, workMax: 25, breakMin: 5 },
+      { workMin: 25, workMax: 50, breakMin: 8 },
+      { workMin: 50, workMax: 90, breakMin: 10 },
+      { workMin: 90, workMax: 180, breakMin: 15 },
+    ],
   },
 
   /**
@@ -132,14 +180,29 @@ const FlowtimeStrategy = {
    */
   getBreakSuggestion(workDuration, config = {}) {
     const breakDuration = this.getBreakDuration(0, config, workDuration);
-    const minutes = Math.round(breakDuration / 60);
-    return `Based on your ${Math.round(workDuration / 60)} minute session, we suggest a ${minutes} minute break.`;
+    const workMinutes = Math.round(workDuration / 60);
+    const breakMinutes = Math.round(breakDuration / 60);
+    return `Based on your ${workMinutes}-minute session, we suggest a ${breakMinutes}-minute break.`;
+  },
+  
+  /**
+   * Get tips for flowtime
+   * @returns {Array<string>} Array of tips
+   */
+  getTips() {
+    return [
+      "Work until you naturally feel your focus waning",
+      "Great for creative work, research, and exploration",
+      "Don't force breaks - trust your natural rhythm",
+      "Step away from screens during breaks for best recovery",
+    ];
   },
 };
 
 /**
  * Countdown Strategy
  * Simple countdown timer - set any duration you want
+ * Good for time-boxed tasks and deadlines
  */
 const CountdownStrategy = {
   name: 'countdown',
@@ -151,6 +214,14 @@ const CountdownStrategy = {
     defaultDuration: 30 * 60, // 30 minutes default
     minDuration: 1 * 60, // 1 minute minimum
     maxDuration: 180 * 60, // 3 hours maximum
+    // Popular duration presets based on common use cases
+    presets: [
+      { label: '15 min', value: 15 * 60, useCase: 'Quick task' },
+      { label: '25 min', value: 25 * 60, useCase: 'Standard focus block' },
+      { label: '45 min', value: 45 * 60, useCase: 'Meeting length' },
+      { label: '60 min', value: 60 * 60, useCase: 'Deep work hour' },
+      { label: '90 min', value: 90 * 60, useCase: 'Extended focus' },
+    ],
   },
 
   /**
@@ -180,14 +251,16 @@ const CountdownStrategy = {
   shouldAutoStartNextSession: false,
 
   /**
-   * Get break duration (countdown doesn't enforce breaks)
+   * Get break duration (countdown suggests but doesn't enforce breaks)
    * @param {number} cycle - Current cycle number
    * @param {object} config - Custom configuration
-   * @returns {number} Break duration in seconds (optional)
+   * @param {number} workDuration - How long the user worked
+   * @returns {number} Break duration in seconds (suggested)
    */
-  getBreakDuration(cycle, config = {}) {
-    // Return a suggested break of 5 minutes, but not enforced
-    return 5 * 60;
+  getBreakDuration(cycle, config = {}, workDuration = 0) {
+    // Suggest 10-20% of work time as break, min 5 min
+    const suggested = Math.max(5 * 60, workDuration * 0.15);
+    return Math.min(suggested, 15 * 60); // Cap at 15 min
   },
 
   /**
@@ -199,6 +272,18 @@ const CountdownStrategy = {
   isValidDuration(duration, config = {}) {
     const mergedConfig = { ...this.config, ...config };
     return duration >= mergedConfig.minDuration && duration <= mergedConfig.maxDuration;
+  },
+  
+  /**
+   * Get tips for countdown mode
+   * @returns {Array<string>} Array of tips
+   */
+  getTips() {
+    return [
+      "Choose a duration that matches your task complexity",
+      "Consider time-boxing: set a firm limit and stop when it rings",
+      "For meetings, add 5 min buffer for transition",
+    ];
   },
 };
 

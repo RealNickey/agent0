@@ -1,6 +1,7 @@
 /**
  * Focus Mode Overlay
  * Content script that displays the focus mode UI overlay on web pages
+ * Timer state is managed centrally by the background script and synced to all tabs
  */
 
 // Import timer engine and strategies (injected via manifest)
@@ -8,7 +9,7 @@
 
 class FocusOverlay {
   constructor() {
-    this.timer = new TimerEngine();
+    this.timer = new TimerEngine(); // Still needed for formatTime utility
     this.isVisible = false;
     this.isDragging = false;
     this.isMinimized = false;
@@ -22,6 +23,31 @@ class FocusOverlay {
     this.attachEventListeners();
     this.loadPreferences();
     this.setupMessageListener();
+    this.setupStorageListener();
+  }
+
+  /**
+   * Setup storage listener for cross-tab sync
+   */
+  setupStorageListener() {
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName === 'local' && changes.centralFocusTimer) {
+        const state = changes.centralFocusTimer.newValue;
+        if (state) {
+          this.handleCentralTimerUpdate(state);
+          
+          // Auto-show overlay when timer is running
+          if ((state.status === 'running' || state.status === 'paused') && !this.isVisible) {
+            this.show();
+          }
+          
+          // Auto-hide when stopped (optional)
+          if (state.status === 'idle' && this.isVisible) {
+            // Keep visible for now, user can close manually
+          }
+        }
+      }
+    });
   }
 
   /**
@@ -352,17 +378,24 @@ class FocusOverlay {
    */
   setupMessageListener() {
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      console.log('[Focus Overlay] Received message:', message.action);
+      
       switch (message.action) {
         case 'toggleFocusMode':
           this.toggle();
-          sendResponse({ success: true });
+          console.log('[Focus Overlay] Toggled, now visible:', this.isVisible);
+          sendResponse({ success: true, visible: this.isVisible });
           break;
         case 'showFocusMode':
           this.show();
+          // Request current timer state from background
+          this.requestCentralTimerState();
+          console.log('[Focus Overlay] Shown');
           sendResponse({ success: true });
           break;
         case 'hideFocusMode':
           this.hide();
+          console.log('[Focus Overlay] Hidden');
           sendResponse({ success: true });
           break;
         case 'getFocusStatus':
@@ -371,8 +404,13 @@ class FocusOverlay {
             state: this.timer.getState()
           });
           break;
+        case 'timerStateUpdate':
+          // Receive centralized timer state from background script
+          this.handleCentralTimerUpdate(message.state);
+          sendResponse({ success: true });
+          break;
         case 'startFocusSession':
-          // Handle start command from chat UI
+          // Legacy: Handle start command from chat UI (now handled by central timer)
           console.log('[Focus Overlay] Received startFocusSession command:', message);
           if (message.mode) {
             this.selectMode(message.mode);
@@ -380,19 +418,68 @@ class FocusOverlay {
           if (message.taskName) {
             this.currentTaskName = message.taskName;
           }
-          if (message.duration) {
-            this.overrideDuration = message.duration; // Store duration override
-            console.log('[Focus Overlay] Duration override set:', this.overrideDuration, 'seconds');
-          }
           this.show(); // Make sure overlay is visible
-          setTimeout(() => {
-            this.startSession();
-          }, 100);
+          // Request current timer state (session already started by background)
+          this.requestCentralTimerState();
           sendResponse({ success: true });
           break;
+        default:
+          console.log('[Focus Overlay] Unknown action:', message.action);
       }
       return true; // Keep message channel open for async response
     });
+  }
+
+  /**
+   * Request current timer state from background script
+   */
+  requestCentralTimerState() {
+    chrome.runtime.sendMessage({ action: 'getCentralTimerState' }, (response) => {
+      if (response?.success && response.state) {
+        this.handleCentralTimerUpdate(response.state);
+      }
+    });
+  }
+
+  /**
+   * Handle timer state update from background script
+   */
+  handleCentralTimerUpdate(state) {
+    if (!state) return;
+    
+    // Update mode display if different
+    if (state.mode && state.mode !== this.currentStrategy?.name) {
+      this.selectMode(state.mode);
+    }
+    
+    // Update task name
+    if (state.taskName) {
+      this.currentTaskName = state.taskName;
+    }
+    
+    // Update timer display based on state
+    const timeDisplay = this.overlay.querySelector('.focus-timer-time');
+    const labelDisplay = this.overlay.querySelector('.focus-timer-label');
+    const progressBar = this.overlay.querySelector('.focus-timer-progress-bar');
+    
+    // Format time
+    if (state.mode === 'flowtime') {
+      timeDisplay.textContent = TimerEngine.formatTime(state.elapsedTime);
+      labelDisplay.textContent = state.status === 'running' ? 'In the flow...' : 
+                                  state.status === 'paused' ? 'Paused' :
+                                  state.status === 'completed' ? 'Session complete!' : 'Ready to focus';
+    } else {
+      timeDisplay.textContent = TimerEngine.formatTime(state.remainingTime);
+      labelDisplay.textContent = state.status === 'running' ? 'Stay focused!' : 
+                                  state.status === 'paused' ? 'Paused' :
+                                  state.status === 'completed' ? 'Session complete!' : 'Ready to focus';
+    }
+    
+    // Update progress bar
+    progressBar.style.width = `${state.progress}%`;
+    
+    // Update control buttons
+    this.updateControls(state.status);
   }
 
   /**
@@ -418,8 +505,33 @@ class FocusOverlay {
 
       // Select last mode
       this.selectMode(lastMode);
+      
+      // Check if there's an active focus session and auto-show overlay
+      this.checkActiveSession();
     } catch (error) {
       console.error('Error loading preferences:', error);
+    }
+  }
+
+  /**
+   * Check if there's an active focus session and show overlay if so
+   */
+  async checkActiveSession() {
+    try {
+      const response = await new Promise((resolve) => {
+        chrome.runtime.sendMessage({ action: 'getCentralTimerState' }, resolve);
+      });
+      
+      if (response?.success && response.state) {
+        const state = response.state;
+        if (state.status === 'running' || state.status === 'paused') {
+          console.log('[Focus Overlay] Active session detected, showing overlay');
+          this.handleCentralTimerUpdate(state);
+          this.show();
+        }
+      }
+    } catch (error) {
+      console.error('[Focus Overlay] Error checking active session:', error);
     }
   }
 
@@ -459,26 +571,34 @@ class FocusOverlay {
   }
 
   /**
-   * Start a focus session
+   * Start a focus session via central timer
    */
   async startSession() {
-    if (this.timer.getState().status === 'paused') {
-      this.timer.resume();
-      return;
+    // Check if we need to resume a paused session
+    try {
+      const response = await new Promise((resolve) => {
+        chrome.runtime.sendMessage({ action: 'getCentralTimerState' }, resolve);
+      });
+      
+      if (response?.success && response.state?.status === 'paused') {
+        // Resume the paused session
+        chrome.runtime.sendMessage({ action: 'resumeCentralTimer' });
+        return;
+      }
+    } catch {
+      // Continue to start new session
     }
 
     // Get configuration based on current strategy
     let duration;
-    let config = {};
 
     if (this.currentStrategy.name === 'pomodoro') {
-      config = await FocusStorage.getPomodoroConfig();
+      const config = await FocusStorage.getPomodoroConfig();
       duration = this.currentStrategy.getInitialDuration(config);
     } else if (this.currentStrategy.name === 'flowtime') {
-      config = await FocusStorage.getFlowtimeConfig();
+      const config = await FocusStorage.getFlowtimeConfig();
       duration = this.currentStrategy.getInitialDuration(config);
     } else if (this.currentStrategy.name === 'countdown') {
-      config = await FocusStorage.getCountdownConfig();
       // Use override duration if provided (from chat), otherwise use last duration
       if (this.overrideDuration) {
         duration = this.overrideDuration;
@@ -491,40 +611,30 @@ class FocusOverlay {
       }
     }
 
-    this.currentConfig = config;
-
-    // Start timer
-    this.timer.start(duration, this.currentStrategy.name, {
-      cycle: 1,
-      isBreak: false,
-    });
-
-    // Notify background script
+    // Start central timer via background script (broadcasts to all tabs)
     chrome.runtime.sendMessage({
-      action: 'focusSessionStarted',
+      action: 'startFocusFromChat',
       mode: this.currentStrategy.name,
       duration: duration,
-      taskName: this.currentTaskName || null,
+      taskName: this.currentTaskName || null
     });
   }
 
   /**
-   * Pause the current session
+   * Pause the current session - sends to central timer
    */
   pauseSession() {
-    this.timer.pause();
+    // Notify background script to pause central timer
+    chrome.runtime.sendMessage({ action: 'pauseCentralTimer' });
   }
 
   /**
-   * Stop the current session
+   * Stop the current session - sends to central timer
    */
   stopSession() {
-    this.timer.stop();
-
-    // Notify background script
-    chrome.runtime.sendMessage({
-      action: 'focusSessionStopped',
-    });
+    // Notify background script to stop central timer
+    chrome.runtime.sendMessage({ action: 'stopCentralTimer' });
+    this.hide();
   }
 
   /**
@@ -699,10 +809,27 @@ class FocusOverlay {
 }
 
 // Initialize the overlay when DOM is ready
+// Wrap in try-catch to catch initialization errors
+function initializeFocusOverlay() {
+  try {
+    // Check if dependencies are available
+    if (typeof TimerEngine === 'undefined') {
+      console.error('[Focus Overlay] TimerEngine not found. Make sure timer-engine.js is loaded first.');
+      return;
+    }
+    
+    if (!window.focusOverlay) {
+      window.focusOverlay = new FocusOverlay();
+      console.log('[Focus Overlay] Successfully initialized');
+    }
+  } catch (error) {
+    console.error('[Focus Overlay] Initialization error:', error);
+  }
+}
+
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    window.focusOverlay = new FocusOverlay();
-  });
+  document.addEventListener('DOMContentLoaded', initializeFocusOverlay);
 } else {
-  window.focusOverlay = new FocusOverlay();
+  // Use a small delay to ensure all scripts are parsed
+  setTimeout(initializeFocusOverlay, 50);
 }

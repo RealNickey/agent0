@@ -104,11 +104,28 @@ export const focusModeTool = tool({
 - Need help staying focused or avoiding distractions
 
 Three modes available:
-- pomodoro: Classic 25-minute work sessions with automatic 5-minute breaks
-- flowtime: Work without time limits, break duration adapts to work time
-- countdown: Custom duration timer (1-180 minutes)
+1. **Pomodoro** (Recommended for most tasks):
+   - 25-minute work sessions with 5-minute breaks
+   - After 4 pomodoros, take a longer 15-minute break
+   - Best for: tasks requiring sustained focus, learning, writing, coding
+   - Based on the Pomodoro Technique research showing this optimizes focus
 
-This creates an actual draggable timer overlay (press Ctrl+Shift+F to view) with notifications when sessions complete. Much better than code-based timers!`,
+2. **Flowtime** (For creative/exploratory work):
+   - Work without time limits until naturally ready for break
+   - Break duration is 20% of work time (5-20 min range)
+   - Best for: creative work, research, exploration, when in flow state
+   
+3. **Countdown** (Custom timer):
+   - Set any duration from 1-180 minutes
+   - Good for: meetings, time-boxed tasks, deadlines
+
+Pro tips to share with users:
+- Break complex projects into 1-4 pomodoro tasks
+- Write down distracting thoughts to address later
+- Take breaks seriously - step away from screens
+- After 4 pomodoros, the brain needs a longer 15-30 min rest
+
+This creates an actual draggable timer overlay (press Ctrl+Shift+F to view) with notifications when sessions complete.`,
   inputSchema: z.object({
     action: z
       .enum(['start', 'pause', 'resume', 'stop', 'status'])
@@ -116,7 +133,7 @@ This creates an actual draggable timer overlay (press Ctrl+Shift+F to view) with
     mode: z
       .enum(['pomodoro', 'flowtime', 'countdown'])
       .optional()
-      .describe('Focus mode (required for start): pomodoro, flowtime, or countdown'),
+      .describe('Focus mode (required for start): pomodoro (25/5min), flowtime (no limit), or countdown (custom)'),
     duration: z
       .number()
       .min(1)
@@ -126,7 +143,7 @@ This creates an actual draggable timer overlay (press Ctrl+Shift+F to view) with
     taskName: z
       .string()
       .optional()
-      .describe('Optional task name/description'),
+      .describe('Optional task name/description to display on the timer'),
   }),
   execute: async ({ action, mode, duration, taskName }) => {
     // Validate parameters
@@ -155,24 +172,40 @@ This creates an actual draggable timer overlay (press Ctrl+Shift+F to view) with
     
     // Generate user-friendly message
     let message = '';
+    let tips: string[] = [];
+    
     switch (action) {
       case 'start':
         if (mode === 'pomodoro') {
-          message = `Starting Pomodoro focus session (25 minutes work, 5 minutes break)${taskName ? ` for: ${taskName}` : ''}`;
+          message = `Starting Pomodoro focus session (25 minutes work, then 5 minutes break)${taskName ? ` for: ${taskName}` : ''}`;
+          tips = [
+            'Stay focused until the timer ends - avoid checking emails or messages',
+            'Write down any distracting thoughts to address during your break',
+            'After 4 pomodoros, you\'ll earn a longer 15-minute break',
+          ];
         } else if (mode === 'flowtime') {
-          message = `Starting Flowtime session (work until you're ready for a break)${taskName ? ` for: ${taskName}` : ''}`;
+          message = `Starting Flowtime session (work until you're naturally ready for a break)${taskName ? ` for: ${taskName}` : ''}`;
+          tips = [
+            'Work until you feel your focus naturally waning',
+            'Your break will be ~20% of your work time (5-20 min)',
+            'Great for creative work and deep exploration',
+          ];
         } else if (mode === 'countdown') {
           message = `Starting ${duration}-minute focus session${taskName ? ` for: ${taskName}` : ''}`;
+          tips = [
+            'Consider what you can realistically accomplish in this time',
+            'Break the task into smaller steps if needed',
+          ];
         }
         break;
       case 'pause':
-        message = 'Pausing your focus session';
+        message = 'Pausing your focus session. Take a moment, then resume when ready.';
         break;
       case 'resume':
-        message = 'Resuming your focus session';
+        message = 'Resuming your focus session. Let\'s get back to it!';
         break;
       case 'stop':
-        message = 'Stopping your focus session';
+        message = 'Stopping your focus session. Great work on what you accomplished!';
         break;
       case 'status':
         message = 'Checking focus session status';
@@ -183,6 +216,7 @@ This creates an actual draggable timer overlay (press Ctrl+Shift+F to view) with
     return {
       success: true,
       message,
+      tips,
       action,
       mode: mode || null,
       duration: duration || null,

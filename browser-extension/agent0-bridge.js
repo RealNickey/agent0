@@ -23,6 +23,15 @@ window.addEventListener('message', async (event) => {
   // Only accept messages from same origin
   if (event.origin !== window.location.origin) return;
   
+  // Handle ping for extension detection
+  if (event.data.type === 'AGENT0_PING') {
+    window.postMessage({
+      type: 'AGENT0_PONG',
+      extensionVersion: '1.0.0'
+    }, window.location.origin);
+    return;
+  }
+  
   // Handle focus mode commands from the chat UI
   if (event.data.type === 'AGENT0_FOCUS_COMMAND') {
     console.log('[Agent0 Bridge] Received AGENT0_FOCUS_COMMAND:', event.data);
@@ -70,7 +79,8 @@ window.addEventListener('message', async (event) => {
         type: 'AGENT0_FOCUS_COMMAND_RESPONSE',
         success: false,
         message: isContextInvalidated 
-          ? 'Extension was reloaded. Please refresh this page (F5).'\n          : 'Failed to communicate with extension. Make sure Agent0 extension is installed and enabled.'
+          ? 'Extension was reloaded. Please refresh this page (F5).'
+          : 'Failed to communicate with extension. Make sure Agent0 extension is installed and enabled.'
       }, window.location.origin);
     }
   }

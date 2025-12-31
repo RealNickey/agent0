@@ -62,7 +62,7 @@ export function ChatUI() {
   // Focus mode state
   const [focusSession, setFocusSession] = useState<{
     active: boolean;
-    mode: string;
+    mode: "pomodoro" | "flowtime" | "countdown";
     duration: number;
     taskName?: string;
     startedAt: number;
@@ -271,9 +271,10 @@ export function ChatUI() {
       } else if (event.data?.type === 'AGENT0_FOCUS_STARTED') {
         // Handle focus session started
         const data = event.data?.data || event.data;
+        const mode = data.mode as "pomodoro" | "flowtime" | "countdown";
         setFocusSession({
           active: true,
-          mode: data.mode,
+          mode,
           duration: data.duration,
           taskName: data.taskName,
           startedAt: data.startedAt || Date.now(),
@@ -291,9 +292,10 @@ export function ChatUI() {
         // Handle focus session status update
         const status = event.data?.status;
         if (status) {
+          const mode = status.mode as "pomodoro" | "flowtime" | "countdown";
           setFocusSession({
             active: status.status === 'running',
-            mode: status.mode,
+            mode,
             duration: status.duration,
             taskName: status.taskName,
             startedAt: status.startedAt,
@@ -403,6 +405,7 @@ export function ChatUI() {
           enableUrlContext: true,
           enableCodeExecution: true,
           mentionedTools,
+          addedIntegrations, // Pass enabled integrations to filter available tools
         },
       }
     );
@@ -426,9 +429,10 @@ export function ChatUI() {
         enableUrlContext: true,
         enableCodeExecution: true,
         mentionedTools,
+        addedIntegrations,
       },
     });
-  }, [regenerate, selectedModel, enableSearch, enableThinking, mentionedTools]);
+  }, [regenerate, selectedModel, enableSearch, enableThinking, mentionedTools, addedIntegrations]);
 
   const handleSuggestionClick = useCallback((suggestion: string) => {
     setInputValue(suggestion);
@@ -440,6 +444,7 @@ export function ChatUI() {
 
   const isStarted = messages.length > 0;
   const hasCustomTools = mentionedTools.length > 0;
+  const isFocusModeEnabled = addedIntegrations.includes("focus-mode");
   
   const featureBadges: FeatureBadge[] = [
     { label: "Google Search", enabled: enableSearch && !hasCustomTools, color: "blue" },
@@ -448,9 +453,16 @@ export function ChatUI() {
       : []),
     { label: "URL Context", enabled: !hasCustomTools, color: "green" },
     { label: "Code Execution", enabled: !hasCustomTools, color: "purple" },
-    ...(focusSession?.active
+    // Show Focus Mode badge when integration is enabled
+    ...(isFocusModeEnabled && focusSession?.active
       ? [{ 
           label: `🎯 Focus: ${focusSession.mode}`, 
+          enabled: true, 
+          color: "pink" as const 
+        }]
+      : isFocusModeEnabled
+      ? [{ 
+          label: "🎯 Focus Mode", 
           enabled: true, 
           color: "pink" as const 
         }]
@@ -528,6 +540,7 @@ export function ChatUI() {
                 onFilesSelected={handleFileSelect}
                 mentionedTools={mentionedTools}
                 onToolMentionsChange={setMentionedTools}
+                addedIntegrations={addedIntegrations}
               />
             </motion.div>
 
@@ -557,6 +570,8 @@ export function ChatUI() {
         isOpen={!!activeIntegration}
         onClose={() => setActiveIntegration(null)}
         integrationId={activeIntegration}
+        focusSession={focusSession}
+        onFocusSessionChange={setFocusSession}
       />
     </div>
   );

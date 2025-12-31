@@ -6,6 +6,297 @@ const agent0Url = 'http://localhost:3000';
 // Track active focus session globally (for syncing to new tabs)
 let activeFocusSession = null;
 
+// ==================== Centralized Timer System ====================
+// This timer runs in the background and syncs to ALL tabs via chrome.storage
+
+let centralTimerInterval = null;
+let centralTimerState = {
+  status: 'idle', // 'idle' | 'running' | 'paused' | 'completed'
+  mode: null, // 'pomodoro' | 'flowtime' | 'countdown'
+  totalDuration: 0, // in seconds
+  startTime: null,
+  pausedTime: null,
+  elapsedTime: 0,
+  taskName: null,
+  isBreak: false,
+  cycle: 1
+};
+
+/**
+ * Start the centralized timer
+ */
+function startCentralTimer(mode, duration, taskName = null) {
+  stopCentralTimer(); // Clear any existing timer
+  
+  centralTimerState = {
+    status: 'running',
+    mode: mode,
+    totalDuration: duration,
+    startTime: Date.now(),
+    pausedTime: null,
+    elapsedTime: 0,
+    taskName: taskName,
+    isBreak: false,
+    cycle: 1
+  };
+  
+  // Store active session for new tab sync
+  activeFocusSession = { mode, duration, taskName };
+  
+  // Persist to storage immediately
+  saveCentralTimerState();
+  
+  // Start the ticker
+  centralTimerInterval = setInterval(() => {
+    updateCentralTimer();
+  }, 1000);
+  
+  // Broadcast to all tabs
+  broadcastTimerStateToAllTabs();
+  
+  console.log('[Central Timer] Started:', mode, duration, 'seconds');
+}
+
+/**
+ * Update the central timer state
+ */
+function updateCentralTimer() {
+  if (centralTimerState.status !== 'running') return;
+  
+  const now = Date.now();
+  centralTimerState.elapsedTime = Math.floor((now - centralTimerState.startTime) / 1000);
+  
+  // Check for completion (except flowtime which has no limit)
+  if (centralTimerState.mode !== 'flowtime' && 
+      centralTimerState.elapsedTime >= centralTimerState.totalDuration) {
+    completeCentralTimer();
+    return;
+  }
+  
+  // Persist and broadcast every tick
+  saveCentralTimerState();
+  broadcastTimerStateToAllTabs();
+}
+
+/**
+ * Pause the centralized timer
+ */
+function pauseCentralTimer() {
+  if (centralTimerState.status !== 'running') return;
+  
+  centralTimerState.status = 'paused';
+  centralTimerState.pausedTime = Date.now();
+  centralTimerState.elapsedTime = Math.floor((centralTimerState.pausedTime - centralTimerState.startTime) / 1000);
+  
+  clearInterval(centralTimerInterval);
+  centralTimerInterval = null;
+  
+  saveCentralTimerState();
+  broadcastTimerStateToAllTabs();
+  
+  console.log('[Central Timer] Paused at', centralTimerState.elapsedTime, 'seconds');
+}
+
+/**
+ * Resume the centralized timer
+ */
+function resumeCentralTimer() {
+  if (centralTimerState.status !== 'paused') return;
+  
+  // Adjust start time to account for pause duration
+  const pauseDuration = Date.now() - centralTimerState.pausedTime;
+  centralTimerState.startTime += pauseDuration;
+  centralTimerState.status = 'running';
+  centralTimerState.pausedTime = null;
+  
+  // Restart the ticker
+  centralTimerInterval = setInterval(() => {
+    updateCentralTimer();
+  }, 1000);
+  
+  saveCentralTimerState();
+  broadcastTimerStateToAllTabs();
+  
+  console.log('[Central Timer] Resumed');
+}
+
+/**
+ * Stop the centralized timer
+ */
+function stopCentralTimer() {
+  clearInterval(centralTimerInterval);
+  centralTimerInterval = null;
+  
+  const wasRunning = centralTimerState.status !== 'idle';
+  
+  centralTimerState = {
+    status: 'idle',
+    mode: null,
+    totalDuration: 0,
+    startTime: null,
+    pausedTime: null,
+    elapsedTime: 0,
+    taskName: null,
+    isBreak: false,
+    cycle: 1
+  };
+  
+  activeFocusSession = null;
+  
+  saveCentralTimerState();
+  broadcastTimerStateToAllTabs();
+  
+  if (wasRunning) {
+    console.log('[Central Timer] Stopped');
+  }
+}
+
+/**
+ * Complete the timer (natural end)
+ */
+function completeCentralTimer() {
+  clearInterval(centralTimerInterval);
+  centralTimerInterval = null;
+  
+  centralTimerState.status = 'completed';
+  centralTimerState.elapsedTime = centralTimerState.totalDuration;
+  
+  // Show notification
+  chrome.notifications.create({
+    type: 'basic',
+    iconUrl: 'icons/icon48.png',
+    title: 'Focus Session Completed! 🎉',
+    message: `Great work! You completed a ${Math.round(centralTimerState.totalDuration / 60)} minute ${centralTimerState.mode} session.`,
+    priority: 2,
+    requireInteraction: true
+  });
+  
+  // Send update to Agent0 web app
+  sendFocusUpdateToAgent0({
+    type: 'AGENT0_FOCUS_COMPLETE',
+    mode: centralTimerState.mode,
+    duration: centralTimerState.totalDuration,
+    completed: true,
+    completedAt: Date.now()
+  });
+  
+  saveCentralTimerState();
+  broadcastTimerStateToAllTabs();
+  
+  console.log('[Central Timer] Completed');
+  
+  // Reset after completion
+  setTimeout(() => {
+    stopCentralTimer();
+  }, 2000);
+}
+
+/**
+ * Save timer state to chrome.storage for persistence and cross-tab sync
+ */
+function saveCentralTimerState() {
+  const state = getCentralTimerStateForBroadcast();
+  chrome.storage.local.set({ centralFocusTimer: state }).catch(() => {});
+}
+
+/**
+ * Get timer state formatted for broadcast
+ */
+function getCentralTimerStateForBroadcast() {
+  const remainingTime = centralTimerState.mode === 'flowtime' 
+    ? 0 
+    : Math.max(0, centralTimerState.totalDuration - centralTimerState.elapsedTime);
+  
+  const progress = centralTimerState.totalDuration > 0
+    ? Math.min(100, (centralTimerState.elapsedTime / centralTimerState.totalDuration) * 100)
+    : 0;
+  
+  return {
+    status: centralTimerState.status,
+    mode: centralTimerState.mode,
+    totalDuration: centralTimerState.totalDuration,
+    elapsedTime: centralTimerState.elapsedTime,
+    remainingTime: remainingTime,
+    progress: progress,
+    taskName: centralTimerState.taskName,
+    isBreak: centralTimerState.isBreak,
+    cycle: centralTimerState.cycle
+  };
+}
+
+/**
+ * Broadcast timer state to ALL open tabs
+ */
+async function broadcastTimerStateToAllTabs() {
+  const state = getCentralTimerStateForBroadcast();
+  const restrictedProtocols = ['chrome://', 'chrome-extension://', 'edge://', 'about:', 'view-source:', 'devtools://'];
+  
+  try {
+    const allTabs = await chrome.tabs.query({});
+    
+    for (const tab of allTabs) {
+      if (restrictedProtocols.some(p => tab.url?.startsWith(p))) continue;
+      
+      try {
+        chrome.tabs.sendMessage(tab.id, {
+          action: 'timerStateUpdate',
+          state: state
+        }).catch(() => {}); // Ignore errors for tabs without content script
+      } catch {
+        // Tab may not have content script, ignore
+      }
+    }
+  } catch (error) {
+    console.error('[Central Timer] Broadcast error:', error);
+  }
+}
+
+/**
+ * Restore timer state on service worker startup
+ */
+async function restoreCentralTimerState() {
+  try {
+    const data = await chrome.storage.local.get('centralFocusTimer');
+    const saved = data.centralFocusTimer;
+    
+    if (saved && (saved.status === 'running' || saved.status === 'paused')) {
+      console.log('[Central Timer] Restoring state:', saved);
+      
+      centralTimerState = {
+        status: saved.status,
+        mode: saved.mode,
+        totalDuration: saved.totalDuration,
+        elapsedTime: saved.elapsedTime,
+        taskName: saved.taskName,
+        isBreak: saved.isBreak || false,
+        cycle: saved.cycle || 1,
+        startTime: Date.now() - (saved.elapsedTime * 1000),
+        pausedTime: saved.status === 'paused' ? Date.now() : null
+      };
+      
+      activeFocusSession = {
+        mode: saved.mode,
+        duration: saved.totalDuration,
+        taskName: saved.taskName
+      };
+      
+      // Restart ticker if was running
+      if (saved.status === 'running') {
+        centralTimerInterval = setInterval(() => {
+          updateCentralTimer();
+        }, 1000);
+      }
+      
+      broadcastTimerStateToAllTabs();
+    }
+  } catch (error) {
+    console.error('[Central Timer] Restore error:', error);
+  }
+}
+
+// Restore timer state when service worker starts
+restoreCentralTimerState();
+
 const CONTEXT_MENU_IDS = {
   SEND_SELECTION: 'agent0-send-selection',
 };
@@ -26,9 +317,11 @@ function sendFocusUpdateToAgent0(data) {
 
 /**
  * Sync focus overlay to a newly opened/updated tab
+ * Shows overlay and sends current timer state
  */
 async function syncFocusToNewTab(tabId, tabUrl) {
   if (!activeFocusSession) return;
+  if (centralTimerState.status === 'idle') return;
   
   const restricted = ['chrome://', 'chrome-extension://', 'edge://', 'about:', 'view-source:', 'devtools://'];
   if (restricted.some(p => tabUrl?.startsWith(p))) return;
@@ -46,11 +339,15 @@ async function syncFocusToNewTab(tabId, tabUrl) {
     
     await new Promise(r => setTimeout(r, 200));
     
+    // Just show the overlay - timer state will be synced via timerStateUpdate
+    chrome.tabs.sendMessage(tabId, { action: 'showFocusMode' }).catch(() => {});
+    
+    // Send current timer state
+    const state = getCentralTimerStateForBroadcast();
     chrome.tabs.sendMessage(tabId, {
-      action: 'startFocusSession',
-      ...activeFocusSession
-    });
-    chrome.tabs.sendMessage(tabId, { action: 'showFocusMode' });
+      action: 'timerStateUpdate',
+      state: state
+    }).catch(() => {});
   } catch {
     // Tab may not be ready yet, ignore
   }
@@ -164,11 +461,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.action === 'pauseFocusSession') {
     handlePauseFocusSession(request, sendResponse);
     return true;
+  } else if (request.action === 'resumeFocusSession') {
+    // Resume centralized timer
+    resumeCentralTimer();
+    sendResponse({ success: true });
+    return true;
   } else if (request.action === 'stopFocusSession') {
     handleStopFocusSession(request, sendResponse);
     return true;
   } else if (request.action === 'getFocusStatus') {
     handleGetFocusStatus(request, sendResponse);
+    return true;
+  } else if (request.action === 'getCentralTimerState') {
+    // Return current central timer state
+    sendResponse({ success: true, state: getCentralTimerStateForBroadcast() });
     return true;
   } else if (request.action === 'focusSessionStarted') {
     handleFocusSessionStarted(request, sendResponse);
@@ -181,6 +487,23 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   } else if (request.action === 'startFocusFromChat') {
     handleStartFocusFromChat(request, sendResponse);
+    return true;
+  } else if (request.action === 'pauseCentralTimer') {
+    pauseCentralTimer();
+    sendResponse({ success: true });
+    return true;
+  } else if (request.action === 'resumeCentralTimer') {
+    resumeCentralTimer();
+    sendResponse({ success: true });
+    return true;
+  } else if (request.action === 'stopCentralTimer') {
+    stopCentralTimer();
+    // Send update to Agent0 web app
+    sendFocusUpdateToAgent0({
+      type: 'AGENT0_FOCUS_STOPPED',
+      stoppedAt: Date.now()
+    });
+    sendResponse({ success: true });
     return true;
   }
 });
@@ -300,7 +623,7 @@ async function handleToggleFocusMode() {
     if (!tab?.id) return;
     
     // Check if URL is restricted
-    const restrictedProtocols = ['chrome://', 'chrome-extension://', 'edge://', 'about:', 'view-source:'];
+    const restrictedProtocols = ['chrome://', 'chrome-extension://', 'edge://', 'about:', 'view-source:', 'devtools://'];
     const isRestricted = restrictedProtocols.some(protocol => tab.url?.startsWith(protocol));
     
     if (isRestricted) {
@@ -314,11 +637,51 @@ async function handleToggleFocusMode() {
       return;
     }
     
-    // Send message to content script to toggle overlay
+    // Try to send toggle message to content script
     try {
       await chrome.tabs.sendMessage(tab.id, { action: 'toggleFocusMode' });
+      console.log('[Background] Focus mode toggled via message');
     } catch (error) {
-      console.error('Failed to toggle focus mode:', error);
+      // Content script not available, inject it first
+      console.log('[Background] Content script not found, injecting focus mode scripts...');
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: [
+            'focus-mode/timer-engine.js',
+            'focus-mode/strategies.js',
+            'focus-mode/storage.js',
+            'focus-mode/focus-overlay.js'
+          ]
+        });
+        
+        // Wait for scripts to initialize
+        await new Promise(r => setTimeout(r, 300));
+        
+        // Try to toggle again
+        try {
+          await chrome.tabs.sendMessage(tab.id, { action: 'toggleFocusMode' });
+          console.log('[Background] Focus mode toggled after injection');
+        } catch (retryError) {
+          console.error('[Background] Failed to toggle after injection:', retryError);
+          chrome.notifications.create({
+            type: 'basic',
+            iconUrl: 'icons/icon48.png',
+            title: 'Focus Mode Error',
+            message: 'Unable to start focus mode. Try refreshing the page.',
+            priority: 1
+          });
+        }
+      } catch (injectError) {
+        console.error('[Background] Failed to inject focus mode scripts:', injectError);
+        chrome.notifications.create({
+          type: 'basic',
+          iconUrl: 'icons/icon48.png',
+          title: 'Focus Mode Error',
+          message: 'Unable to load focus mode on this page.',
+          priority: 1
+        });
+      }
     }
   } catch (error) {
     console.error('Error toggling focus mode:', error);
@@ -496,16 +859,18 @@ async function handleFocusSessionStopped(request, sendResponse) {
 
 /**
  * Handle start focus session from chat UI
- * Broadcasts to ALL tabs so the focus overlay appears everywhere
+ * Uses the centralized timer and broadcasts overlay to ALL tabs
  */
 async function handleStartFocusFromChat(request, sendResponse) {
   const { mode, duration, taskName } = request;
   
-  // Store active session for syncing to new tabs
-  activeFocusSession = { mode, duration, taskName };
+  console.log('[Background] handleStartFocusFromChat:', { mode, duration, taskName });
   
   try {
-    // Get ALL tabs to broadcast focus session
+    // Start the centralized timer
+    startCentralTimer(mode, duration, taskName);
+    
+    // Get ALL tabs to show the overlay
     const allTabs = await chrome.tabs.query({});
     
     if (allTabs.length === 0) {
@@ -514,19 +879,6 @@ async function handleStartFocusFromChat(request, sendResponse) {
     }
     
     const restrictedProtocols = ['chrome://', 'chrome-extension://', 'edge://', 'about:', 'view-source:', 'devtools://'];
-    
-    // Helper to send message to tab
-    const sendMessageToTab = (tabId, message) => {
-      return new Promise((resolve, reject) => {
-        chrome.tabs.sendMessage(tabId, message, (response) => {
-          if (chrome.runtime.lastError) {
-            reject(chrome.runtime.lastError);
-          } else {
-            resolve(response);
-          }
-        });
-      });
-    };
     
     // Helper to inject focus mode scripts
     const injectScripts = async (tabId) => {
@@ -547,44 +899,65 @@ async function handleStartFocusFromChat(request, sendResponse) {
       }
     };
     
-    // Send focus command to a single tab
-    const sendFocusToTab = async (tab) => {
+    // Show overlay on a single tab
+    const showOverlayOnTab = async (tab) => {
       if (restrictedProtocols.some(p => tab.url?.startsWith(p))) return false;
       
       try {
-        await sendMessageToTab(tab.id, {
-          action: 'startFocusSession',
-          mode, duration, taskName
+        // Try to show overlay
+        await new Promise((resolve, reject) => {
+          chrome.tabs.sendMessage(tab.id, { action: 'showFocusMode' }, (response) => {
+            if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
+            else resolve(response);
+          });
         });
-        await sendMessageToTab(tab.id, { action: 'showFocusMode' });
         return true;
       } catch (error) {
-        if (error.message?.includes('Receiving end does not exist')) {
-          if (await injectScripts(tab.id)) {
-            try {
-              await sendMessageToTab(tab.id, {
-                action: 'startFocusSession',
-                mode, duration, taskName
+        // Content script not available, inject it first
+        if (await injectScripts(tab.id)) {
+          try {
+            await new Promise((resolve, reject) => {
+              chrome.tabs.sendMessage(tab.id, { action: 'showFocusMode' }, (response) => {
+                if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
+                else resolve(response);
               });
-              await sendMessageToTab(tab.id, { action: 'showFocusMode' });
-              return true;
-            } catch { return false; }
-          }
+            });
+            return true;
+          } catch { return false; }
         }
         return false;
       }
     };
     
     // Broadcast to all tabs
-    const results = await Promise.allSettled(allTabs.map(tab => sendFocusToTab(tab)));
+    const results = await Promise.allSettled(allTabs.map(tab => showOverlayOnTab(tab)));
     const successCount = results.filter(r => r.status === 'fulfilled' && r.value === true).length;
+    
+    // Send notification
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: 'icons/icon48.png',
+      title: 'Focus Session Started',
+      message: `${mode.charAt(0).toUpperCase() + mode.slice(1)} session started${duration > 0 ? ` for ${Math.round(duration / 60)} minutes` : ''}`,
+      priority: 1
+    });
+    
+    // Notify Agent0 web app
+    sendFocusUpdateToAgent0({
+      type: 'AGENT0_FOCUS_STARTED',
+      mode: mode,
+      duration: duration,
+      taskName: taskName || null,
+      startedAt: Date.now()
+    });
     
     if (successCount > 0) {
       sendResponse({ success: true, message: `Focus session started on ${successCount} tabs` });
     } else {
-      sendResponse({ success: false, error: 'Could not start focus mode. Try refreshing the page.' });
+      sendResponse({ success: true, message: 'Focus session started (overlay will appear when you switch tabs)' });
     }
   } catch (error) {
+    console.error('[Background] handleStartFocusFromChat error:', error);
     sendResponse({ success: false, error: error.message || 'Unknown error' });
   }
 }

@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { CloudSun, Plus, Trash2, ExternalLink } from "lucide-react";
+import { CloudSun, Plus, Trash2, ExternalLink, Timer, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -28,6 +28,15 @@ const INTEGRATIONS = [
     icon: CloudSun,
     color: "text-blue-500",
     bgColor: "bg-blue-500/10",
+  },
+  {
+    id: "focus-mode",
+    name: "Focus Mode",
+    description: "Pomodoro timer, flowtime, and focus sessions. Requires browser extension.",
+    icon: Timer,
+    color: "text-purple-500",
+    bgColor: "bg-purple-500/10",
+    requiresExtension: true,
   },
 ];
 
@@ -73,6 +82,12 @@ export function IntegrationsModal({
                         {isAdded && (
                           <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-500/10 text-green-600 font-medium border border-green-500/20">
                             Active
+                          </span>
+                        )}
+                        {"requiresExtension" in integration && integration.requiresExtension && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 font-medium border border-amber-500/20 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" />
+                            Extension
                           </span>
                         )}
                       </h4>

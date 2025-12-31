@@ -14,6 +14,7 @@ const bodySchema = z.object({
   enableUrlContext: z.boolean().optional(),
   enableCodeExecution: z.boolean().optional(),
   mentionedTools: z.array(z.string()).optional(),
+  addedIntegrations: z.array(z.string()).optional(), // Which integrations are enabled
 });
 
 // Custom error handler for user-friendly error messages
@@ -66,6 +67,7 @@ export async function POST(req: Request) {
     enableUrlContext = true,
     enableCodeExecution = true,
     mentionedTools = [],
+    addedIntegrations = [],
   } = parsedBody;
 
   // Type-cast messages to MyUIMessage[] for type safety
@@ -87,6 +89,10 @@ export async function POST(req: Request) {
     );
   }
 
+  // Check which integrations are enabled
+  const isFocusModeEnabled = addedIntegrations.includes("focus-mode");
+  const isWeatherEnabled = addedIntegrations.includes("weather");
+
   // Build tools object based on mentioned tools and enabled features
   let tools: Record<string, any> = {};
   let useProviderTools = false;
@@ -94,17 +100,20 @@ export async function POST(req: Request) {
 
   // Add @mentioned custom tools (like weather, focus)
   // When custom tools are mentioned, ONLY use those tools (disable provider tools)
+  // Tools are only available if their integration is enabled
   if (hasCustomTools) {
     for (const toolName of mentionedTools) {
       const lowerToolName = toolName.toLowerCase();
       
       // Map mentioned tool names to actual tool implementations
       // Check for both ID format ("weather") and display name format ("Weather")
-      if (lowerToolName === "weather") {
+      // Weather tool only available if weather integration is enabled
+      if (lowerToolName === "weather" && isWeatherEnabled) {
         tools.displayWeather = weatherTools.displayWeather;
       }
-      // Handle focus mode - matches: "focus", "focus mode", "pomodoro", "timer"
-      if (lowerToolName === "focus" || lowerToolName === "focus mode" || lowerToolName === "pomodoro" || lowerToolName === "timer") {
+      // Handle focus mode - only available if focus-mode integration is enabled
+      // matches: "focus", "focusmode", "pomodoro", "timer"
+      if ((lowerToolName === "focus" || lowerToolName === "focusmode" || lowerToolName === "pomodoro" || lowerToolName === "timer") && isFocusModeEnabled) {
         tools.focusMode = weatherTools.focusMode;
       }
       // Add more tool mappings here as needed

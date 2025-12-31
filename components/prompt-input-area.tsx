@@ -28,6 +28,7 @@ export type PromptInputAreaProps = {
   onFilesSelected: (e: React.ChangeEvent<HTMLInputElement>) => void;
   mentionedTools?: string[];
   onToolMentionsChange?: (tools: string[]) => void;
+  addedIntegrations?: string[]; // Which integrations are enabled
 };
 
 export function PromptInputArea({
@@ -43,6 +44,7 @@ export function PromptInputArea({
   onFilesSelected,
   mentionedTools = [],
   onToolMentionsChange,
+  addedIntegrations = [],
 }: PromptInputAreaProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -105,12 +107,34 @@ export function PromptInputArea({
     }
   };
 
-  const filteredTools = availableTools.filter(
-    (tool) =>
+  // Map tool IDs to their corresponding integration IDs
+  const toolIntegrationMap: Record<string, string> = {
+    weather: "weather",
+    focus: "focus-mode",
+    focusmode: "focus-mode",
+    pomodoro: "focus-mode",
+    timer: "focus-mode",
+  };
+
+  // Filter tools based on:
+  // 1. Search query match
+  // 2. Integration is enabled for that tool
+  const filteredTools = availableTools.filter((tool) => {
+    const lowerName = tool.name.toLowerCase();
+    const lowerId = tool.id.toLowerCase();
+    
+    // Check if tool matches the query
+    const matchesQuery =
       toolQuery === "" ||
-      tool.name.toLowerCase().includes(toolQuery) ||
-      tool.id.toLowerCase().includes(toolQuery)
-  );
+      lowerName.includes(toolQuery) ||
+      lowerId.includes(toolQuery);
+    
+    // Check if the tool's integration is enabled
+    const integrationId = toolIntegrationMap[lowerId] || toolIntegrationMap[lowerName];
+    const isIntegrationEnabled = integrationId ? addedIntegrations.includes(integrationId) : true;
+    
+    return matchesQuery && isIntegrationEnabled;
+  });
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

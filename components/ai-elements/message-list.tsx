@@ -56,6 +56,7 @@ import {
 import type { MyUIMessage } from "@/types/chat";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { Weather, WeatherLoading } from "@/components/weather";
+import { Mermaid } from "@/components/ai-elements/mermaid";
 
 type ChatStatus = UseChatHelpers<MyUIMessage>["status"];
 
@@ -219,6 +220,19 @@ export function MessageList({ messages, isLoading, status, onRegenerate, error }
                                 startTime={toolInvocation.result.startTime}
                                 endTime={toolInvocation.result.endTime}
                                 link={toolInvocation.result.link}
+                              />
+                            );
+                          }
+                        }
+
+                        // Mermaid Diagram
+                        if (toolInvocation.toolName === "renderMermaid" && isCompleted) {
+                          if (!hasError && toolInvocation.result) {
+                            return (
+                              <Mermaid
+                                key={toolInvocation.toolCallId}
+                                code={toolInvocation.result.code}
+                                caption={toolInvocation.result.caption}
                               />
                             );
                           }

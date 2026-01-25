@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { MyUIMessage } from "@/types/chat";
 import { tools as weatherTools } from "@/ai/tools";
 import { calendarTools } from "@/ai/calendar-tools";
+import { mermaidTools } from "@/ai/mermaid-tools";
 import { isToolInstalled } from "@/lib/installed-tools";
 
 export const maxDuration = 60;
@@ -117,6 +118,15 @@ export async function POST(req: Request) {
              // Optionally add a system message or error logic here if the tool is not installed
              // For now, we just don't add the tools
              console.warn("Calendar tool mentioned but not installed");
+        }
+      }
+      
+      // Mermaid tools
+      if (lowerToolName === "mermaid") {
+        if (isToolInstalled("mermaid")) {
+          tools.renderMermaid = mermaidTools.renderMermaid;
+        } else {
+           console.warn("Mermaid tool mentioned but not installed");
         }
       }
       // Add more tool mappings here as needed

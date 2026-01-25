@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { CloudSun, Plus, Trash2, ExternalLink, Calendar } from "lucide-react";
+import { CloudSun, Plus, Trash2, ExternalLink, Calendar, Workflow } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -36,6 +36,14 @@ const INTEGRATIONS = [
     icon: Calendar,
     color: "text-red-500",
     bgColor: "bg-red-500/10",
+  },
+  {
+    id: "mermaid",
+    name: "Mermaid Diagrams",
+    description: "Create flowcharts, sequence diagrams, and more.",
+    icon: Workflow,
+    color: "text-purple-500",
+    bgColor: "bg-purple-500/10",
   },
 ];
 

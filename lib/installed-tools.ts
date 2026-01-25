@@ -20,9 +20,17 @@ try {
     const json = JSON.parse(data);
     installedTools = new Map(Object.entries(json));
   } else {
-    // Default installed tools (weather is always installed for now as per original code)
+    // Default installed tools
     installedTools.set("weather", {
       id: "weather",
+      installedAt: new Date().toISOString(),
+    });
+    installedTools.set("pdf", {
+      id: "pdf",
+      installedAt: new Date().toISOString(),
+    });
+    installedTools.set("image", {
+      id: "image",
       installedAt: new Date().toISOString(),
     });
     saveToolsToFile();

@@ -23,7 +23,14 @@ const marketplaceTools = [
     icon: "calendar",
     enabled: true,
   },
-  // Add more tools here as needed
+  {
+    id: "pdf",
+    name: "PDF",
+    description: "Compress PDF files to reduce size or merge multiple PDFs into one document",
+    category: "utility",
+    icon: "file-text",
+    enabled: true,
+  },
 ];
 
 export async function GET(request: Request) {

@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { CloudSun, Plus, Trash2, ExternalLink, Calendar } from "lucide-react";
+import { CloudSun, Plus, Trash2, ExternalLink, Calendar, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -17,6 +17,7 @@ interface IntegrationsModalProps {
   onOpenChange: (open: boolean) => void;
   onAddIntegration: (id: string) => void;
   onRemoveIntegration: (id: string) => void;
+  onOpenIntegration?: (id: string) => void;
   addedIntegrations: string[];
 }
 
@@ -37,6 +38,14 @@ const INTEGRATIONS = [
     color: "text-red-500",
     bgColor: "bg-red-500/10",
   },
+  {
+    id: "pdf",
+    name: "PDF Tools",
+    description: "Compress PDF files or merge multiple PDFs into one.",
+    icon: FileText,
+    color: "text-orange-500",
+    bgColor: "bg-orange-500/10",
+  },
 ];
 
 export function IntegrationsModal({
@@ -44,6 +53,7 @@ export function IntegrationsModal({
   onOpenChange,
   onAddIntegration,
   onRemoveIntegration,
+  onOpenIntegration,
   addedIntegrations,
 }: IntegrationsModalProps) {
   return (
@@ -97,7 +107,12 @@ export function IntegrationsModal({
                           size="sm"
                           className="opacity-0 group-hover:opacity-100 transition-opacity"
                           onClick={() => {
-                            onAddIntegration(integration.id); // Opens the panel
+                            // Use onOpenIntegration if provided, otherwise fallback to onAddIntegration
+                            if (onOpenIntegration) {
+                              onOpenIntegration(integration.id);
+                            } else {
+                              onAddIntegration(integration.id);
+                            }
                             onOpenChange(false);
                           }}
                         >

@@ -8,12 +8,30 @@ import {
   PromptInputButton,
   PromptInputSpeechButton,
 } from "@/components/ai-elements/prompt-input";
-import { BrainIcon, CalendarIcon, CloudSunIcon, PaperclipIcon, SearchIcon } from "lucide-react";
+import { BrainIcon, CalendarIcon, CloudSunIcon, FileTextIcon, ImageIcon, PaperclipIcon, SearchIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ButtonGroup, ButtonGroupSeparator } from "@/components/ui/button-group";
 import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 import { fetchInstalledTools, parseToolMentions, type InstalledTool } from "@/lib/tool-utils";
 import { Badge } from "@/components/ui/badge";
+
+// Helper to get the correct icon for each tool
+function getToolIcon(toolName: string) {
+  const name = toolName.toLowerCase();
+  switch (name) {
+    case "weather":
+      return CloudSunIcon;
+    case "calendar":
+      return CalendarIcon;
+    case "pdf":
+      return FileTextIcon;
+    case "image":
+    case "image generator":
+      return ImageIcon;
+    default:
+      return CloudSunIcon;
+  }
+}
 
 export type PromptInputAreaProps = {
   value: string;
@@ -206,16 +224,19 @@ export function PromptInputArea({
           {/* Tool Pills inside input */}
           {mentionedTools.length > 0 && (
             <div className="flex items-center gap-1 pl-2 py-2.5 select-none">
-              {mentionedTools.map((tool) => (
-                <Badge 
-                  key={tool} 
-                  variant="secondary" 
-                  className="text-xs h-6 px-2 gap-1 cursor-default whitespace-nowrap"
-                >
-                  <CloudSunIcon className="size-3" />
-                  @{tool}
-                </Badge>
-              ))}
+              {mentionedTools.map((tool) => {
+                const ToolIcon = getToolIcon(tool);
+                return (
+                  <Badge 
+                    key={tool} 
+                    variant="secondary" 
+                    className="text-xs h-6 px-2 gap-1 cursor-default whitespace-nowrap"
+                  >
+                    <ToolIcon className="size-3" />
+                    @{tool}
+                  </Badge>
+                );
+              })}
             </div>
           )}
 
@@ -283,27 +304,30 @@ export function PromptInputArea({
                 Available Tools
               </div>
               <div className="space-y-1 max-h-[280px] overflow-y-auto custom-scrollbar">
-                {filteredTools.map((tool, index) => (
-                  <button
-                    key={tool.id}
-                    onClick={() => handleToolSelect(tool.name)}
-                    onMouseEnter={() => setSelectedIndex(index)}
-                    className={cn(
-                      "w-full flex items-start gap-2 px-2 py-2 rounded-md text-left transition-colors",
-                      "hover:bg-accent hover:text-accent-foreground",
-                      "focus:bg-accent focus:text-accent-foreground focus:outline-none",
-                      index === selectedIndex && "bg-accent text-accent-foreground"
-                    )}
-                  >
-                    <CloudSunIcon className="h-4 w-4 mt-0.5 shrink-0" />
-                    <div className="flex flex-col min-w-0">
-                      <span className="font-medium text-sm">@{tool.name}</span>
-                      <span className="text-xs text-muted-foreground line-clamp-1">
-                        {tool.description}
-                      </span>
-                    </div>
-                  </button>
-                ))}
+                {filteredTools.map((tool, index) => {
+                  const ToolIcon = getToolIcon(tool.name);
+                  return (
+                    <button
+                      key={tool.id}
+                      onClick={() => handleToolSelect(tool.name)}
+                      onMouseEnter={() => setSelectedIndex(index)}
+                      className={cn(
+                        "w-full flex items-start gap-2 px-2 py-2 rounded-md text-left transition-colors",
+                        "hover:bg-accent hover:text-accent-foreground",
+                        "focus:bg-accent focus:text-accent-foreground focus:outline-none",
+                        index === selectedIndex && "bg-accent text-accent-foreground"
+                      )}
+                    >
+                      <ToolIcon className="h-4 w-4 mt-0.5 shrink-0" />
+                      <div className="flex flex-col min-w-0">
+                        <span className="font-medium text-sm">@{tool.name}</span>
+                        <span className="text-xs text-muted-foreground line-clamp-1">
+                          {tool.description}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>

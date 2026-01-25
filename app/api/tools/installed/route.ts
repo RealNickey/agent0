@@ -25,6 +25,22 @@ function getToolMetadata(id: string) {
       icon: "calendar",
     };
   }
+  if (id === "pdf") {
+    return {
+      name: "PDF",
+      description: "Compress PDF files to reduce size or merge multiple PDFs into one document",
+      category: "utility",
+      icon: "file-text",
+    };
+  }
+  if (id === "image") {
+    return {
+      name: "Image Generator",
+      description: "Generate images from text descriptions using AI. Create artwork, illustrations, and more.",
+      category: "creative",
+      icon: "image",
+    };
+  }
   return {
     name: id,
     description: "Custom tool",

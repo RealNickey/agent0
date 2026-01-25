@@ -386,11 +386,27 @@ export function ChatUI() {
     }
   }, [addedIntegrations, isCalendarConnected]);
 
+  // Handle opening an integration (adds @tool mention to chat)
+  const handleOpenIntegration = useCallback((id: string) => {
+    // For chat-based tools like PDF, add the @mention to mentionedTools
+    if (id === "pdf" || id === "weather") {
+      if (!mentionedTools.includes(id)) {
+        setMentionedTools((prev) => [...prev, id]);
+      }
+    } else {
+      // For panel-based tools like calendar, open the panel
+      setActiveIntegration(id);
+    }
+  }, [mentionedTools]);
+
   const handleRemoveIntegration = useCallback(async (id: string) => {
     setAddedIntegrations((prev) => prev.filter((i) => i !== id));
     if (activeIntegration === id) {
       setActiveIntegration(null);
     }
+    // Also remove from mentioned tools
+    setMentionedTools((prev) => prev.filter((t) => t !== id));
+    
      try {
       await fetch("/api/tools/install", {
         method: "DELETE",
@@ -585,6 +601,7 @@ export function ChatUI() {
         onOpenChange={setIsIntegrationsModalOpen}
         onAddIntegration={handleAddIntegration}
         onRemoveIntegration={handleRemoveIntegration}
+        onOpenIntegration={handleOpenIntegration}
         addedIntegrations={addedIntegrations}
       />
 

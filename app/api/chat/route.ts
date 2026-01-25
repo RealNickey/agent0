@@ -4,6 +4,8 @@ import { z } from "zod";
 import type { MyUIMessage } from "@/types/chat";
 import { tools as weatherTools } from "@/ai/tools";
 import { calendarTools } from "@/ai/calendar-tools";
+import { createPDFTools, extractPDFsFromMessages } from "@/ai/pdf-tools";
+import { imageTools } from "@/ai/image-tools";
 import { isToolInstalled } from "@/lib/installed-tools";
 
 export const maxDuration = 60;
@@ -119,6 +121,17 @@ export async function POST(req: Request) {
              console.warn("Calendar tool mentioned but not installed");
         }
       }
+      // PDF tools - extract PDFs from conversation and create context-aware tools
+      if (lowerToolName === "pdf") {
+        const pdfFiles = extractPDFsFromMessages(uiMessages);
+        const pdfTools = createPDFTools(pdfFiles);
+        tools.compressPDF = pdfTools.compressPDF;
+        tools.mergePDFs = pdfTools.mergePDFs;
+      }
+      // Image generation tool
+      if (lowerToolName === "image" || lowerToolName === "image generator") {
+        tools.generateImage = imageTools.generateImage;
+      }
       // Add more tool mappings here as needed
     }
   } else {
@@ -165,9 +178,17 @@ export async function POST(req: Request) {
     ? " When the user asks to create/schedule a calendar event, ALWAYS call scheduleCalendarEvent immediately. Do not ask follow-up questions. Infer missing details, default duration to 1 hour, and let the user confirm in the UI before creating the event."
     : "";
 
+  const pdfGuidance = mentionedTools.includes("pdf")
+    ? " When the user asks to compress a PDF, call compressPDF immediately. When the user asks to merge PDFs, call mergePDFs immediately. If the tool returns requiresUpload=true, politely ask the user to upload the PDF file(s) needed. After successful processing, present the download link clearly to the user."
+    : "";
+
+  const imageGuidance = mentionedTools.some(t => t === "image" || t === "image generator")
+    ? " When the user asks to generate, create, or draw an image, call generateImage immediately with a detailed prompt. Enhance the user's prompt with artistic details, style, lighting, and composition to get the best results. After generation, let the user know they can download the image."
+    : "";
+
   const result = streamText({
     model: google(model),
-    system: `The current date and time is ${new Date().toLocaleString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit", timeZoneName: "short" })}. Use this to resolve relative date mentions like "today", "tomorrow", "next Monday", etc. If the user asks for "events today" or "schedule", assume the default time range starts now and ends at the end of the day or covers a reasonable period, do not ask for clarification unless necessary.${calendarGuidance}`,
+    system: `The current date and time is ${new Date().toLocaleString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit", timeZoneName: "short" })}. Use this to resolve relative date mentions like "today", "tomorrow", "next Monday", etc. If the user asks for "events today" or "schedule", assume the default time range starts now and ends at the end of the day or covers a reasonable period, do not ask for clarification unless necessary.${calendarGuidance}${pdfGuidance}${imageGuidance}`,
     messages: modelMessages,
     tools: hasTools ? tools : undefined,
     toolChoice: hasTools ? "auto" : "none",

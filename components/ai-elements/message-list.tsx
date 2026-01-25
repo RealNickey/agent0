@@ -36,6 +36,8 @@ import {
 import { CalendarDraft } from "@/components/ai-elements/calendar-draft";
 import { CalendarEvent } from "@/components/ai-elements/calendar-event";
 import { EventSchedulingConfirmation } from "@/components/ai-elements/event-scheduling-confirmation";
+import { PDFResult, isPDFToolResult } from "@/components/ai-elements/pdf-result";
+import { ImageResult, ImageLoading } from "@/components/ai-elements/image-result";
 import {
   CopyIcon,
   RefreshCwIcon,
@@ -285,6 +287,88 @@ export function MessageList({ messages, isLoading, status, onRegenerate, error }
                             </div>
                           );
                         }
+
+                        // Special rendering for Image Generation tool
+                        if (toolInvocation.toolName === "generateImage") {
+                          const isCompleted = toolInvocation.state === "result";
+                          const result = toolInvocation.result;
+                          const hasError = result?.error === true;
+                          
+                          return (
+                            <div key={toolInvocation.toolCallId} className="flex flex-col gap-2 w-full">
+                              <Tool defaultOpen={false}>
+                                <ToolHeader
+                                  title="Image Generation"
+                                  type={"tool-generateImage" as any}
+                                  state={
+                                    hasError
+                                      ? "output-error"
+                                      : isCompleted
+                                      ? "output-available"
+                                      : "input-available"
+                                  }
+                                />
+                                <ToolContent>
+                                  <ToolInput input={toolInvocation.args} />
+                                </ToolContent>
+                              </Tool>
+                              
+                              {/* Image Result UI rendered outside the Tool component */}
+                              <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.2 }}
+                                className="w-full"
+                              >
+                                {isCompleted ? (
+                                  <ImageResult {...result} />
+                                ) : (
+                                  <ImageLoading prompt={toolInvocation.args?.prompt} />
+                                )}
+                              </motion.div>
+                            </div>
+                          );
+                        }
+
+                        // Special rendering for PDF tools (compressPDF, mergePDFs)
+                        if (toolInvocation.toolName === "compressPDF" || toolInvocation.toolName === "mergePDFs") {
+                          const isCompleted = toolInvocation.state === "result";
+                          const result = toolInvocation.result;
+                          
+                          return (
+                            <div key={toolInvocation.toolCallId} className="flex flex-col gap-2 w-full">
+                              <Tool defaultOpen={false}>
+                                <ToolHeader
+                                  title={toolInvocation.toolName === "compressPDF" ? "Compress PDF" : "Merge PDFs"}
+                                  type={`tool-${toolInvocation.toolName}` as any}
+                                  state={
+                                    result?.success === false
+                                      ? "output-error"
+                                      : isCompleted
+                                      ? "output-available"
+                                      : "input-available"
+                                  }
+                                />
+                                <ToolContent>
+                                  <ToolInput input={toolInvocation.args} />
+                                </ToolContent>
+                              </Tool>
+                              
+                              {/* PDF Result UI rendered outside the Tool component */}
+                              {isCompleted && isPDFToolResult(result) && (
+                                <motion.div
+                                  initial={{ opacity: 0, y: 10 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ delay: 0.2 }}
+                                  className="w-full"
+                                >
+                                  <PDFResult {...result} />
+                                </motion.div>
+                              )}
+                            </div>
+                          );
+                        }
+
                         // Default tool rendering
                         return (
                           <Tool key={toolInvocation.toolCallId} defaultOpen={false}>

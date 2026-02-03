@@ -294,23 +294,35 @@ export function createPDFTools(pdfFiles: PDFFileInfo[]) {
 
 /**
  * Extract PDF files from UI messages
+ * 
+ * Only extracts PDFs from the most recent user message to ensure
+ * each PDF operation only uses files from the current request,
+ * not files from previous operations in the conversation.
  */
 export function extractPDFsFromMessages(messages: any[]): PDFFileInfo[] {
   const pdfs: PDFFileInfo[] = [];
 
-  for (const message of messages) {
-    if (message.parts && Array.isArray(message.parts)) {
-      for (const part of message.parts) {
-        if (
-          part.type === "file" &&
-          part.mediaType === "application/pdf" &&
-          part.url
-        ) {
-          pdfs.push({
-            url: part.url,
-            name: part.name || undefined,
-          });
-        }
+  // Find the last user message (most recent request)
+  let lastUserMessage = null;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === "user") {
+      lastUserMessage = messages[i];
+      break;
+    }
+  }
+
+  // Only extract PDFs from the last user message
+  if (lastUserMessage && lastUserMessage.parts && Array.isArray(lastUserMessage.parts)) {
+    for (const part of lastUserMessage.parts) {
+      if (
+        part.type === "file" &&
+        part.mediaType === "application/pdf" &&
+        part.url
+      ) {
+        pdfs.push({
+          url: part.url,
+          name: part.name || undefined,
+        });
       }
     }
   }

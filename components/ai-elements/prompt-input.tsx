@@ -1149,7 +1149,9 @@ export const PromptInputSpeechButton = ({
   onTranscriptionChange,
   ...props
 }: PromptInputSpeechButtonProps) => {
+  const [isSupported, setIsSupported] = useState(true);
   const [isListening, setIsListening] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [recognition, setRecognition] = useState<SpeechRecognition | null>(
     null
   );
@@ -1160,6 +1162,7 @@ export const PromptInputSpeechButton = ({
       typeof window !== "undefined" &&
       ("SpeechRecognition" in window || "webkitSpeechRecognition" in window)
     ) {
+      setIsSupported(true);
       const SpeechRecognition =
         window.SpeechRecognition || window.webkitSpeechRecognition;
       const speechRecognition = new SpeechRecognition();
@@ -1170,6 +1173,7 @@ export const PromptInputSpeechButton = ({
 
       speechRecognition.onstart = () => {
         setIsListening(true);
+        setErrorMessage(null);
       };
 
       speechRecognition.onend = () => {
@@ -1200,11 +1204,14 @@ export const PromptInputSpeechButton = ({
 
       speechRecognition.onerror = (event) => {
         console.error("Speech recognition error:", event.error);
+        setErrorMessage(event.error);
         setIsListening(false);
       };
 
       recognitionRef.current = speechRecognition;
       setRecognition(speechRecognition);
+    } else {
+      setIsSupported(false);
     }
 
     return () => {
@@ -1215,29 +1222,47 @@ export const PromptInputSpeechButton = ({
   }, [textareaRef, onTranscriptionChange]);
 
   const toggleListening = useCallback(() => {
-    if (!recognition) {
+    if (!recognition || !isSupported) {
       return;
     }
 
     if (isListening) {
       recognition.stop();
     } else {
+      setErrorMessage(null);
       recognition.start();
     }
-  }, [recognition, isListening]);
+  }, [recognition, isListening, isSupported]);
+
+  const tooltipText = !isSupported
+    ? "Voice input isn't supported in this browser"
+    : isListening
+      ? "Stop voice input"
+      : errorMessage
+        ? "Microphone access failed. Click to retry"
+        : "Start voice input";
 
   return (
     <PromptInputButton
       className={cn(
         "relative transition-all duration-200",
         isListening && "animate-pulse bg-accent text-accent-foreground",
+        errorMessage && "text-destructive",
         className
       )}
-      disabled={!recognition}
+      aria-pressed={isListening}
+      aria-label={tooltipText}
+      disabled={!recognition || !isSupported}
       onClick={toggleListening}
+      tooltip={tooltipText}
       {...props}
     >
-      <MicIcon className="size-4" />
+      {isListening ? (
+        <SquareIcon className="size-4" />
+      ) : (
+        <MicIcon className="size-4" />
+      )}
+      <span className="sr-only">{tooltipText}</span>
     </PromptInputButton>
   );
 };

@@ -203,7 +203,14 @@ export function PromptInputArea({
 
           <ButtonGroupSeparator className="h-6 mb-2 self-end!" />
 
-          <PromptInputSpeechButton className="rounded-none border-none shadow-none h-10 w-10 p-0 flex items-center justify-center shrink-0" />
+          <PromptInputSpeechButton
+            className="rounded-none border-none shadow-none h-10 w-10 p-0 flex items-center justify-center shrink-0"
+            textareaRef={textareaRef}
+            onTranscriptionChange={(text) => {
+              onChange(text);
+              textareaRef.current?.focus();
+            }}
+          />
 
           {/* Tool Pills inside input */}
           {mentionedTools.length > 0 && (

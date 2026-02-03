@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { CloudSun, Plus, Trash2, ExternalLink, Calendar, FileText } from "lucide-react";
+import { CloudSun, Plus, Trash2, ExternalLink, Calendar, FileText, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -45,6 +45,22 @@ const INTEGRATIONS = [
     icon: FileText,
     color: "text-orange-500",
     bgColor: "bg-orange-500/10",
+   },
+   {
+    id: "forms",
+    name: "Forms",
+    description: "Create surveys and forms, collect responses with Google Forms.",
+    icon: FileText,
+    color: "text-purple-500",
+    bgColor: "bg-purple-500/10",
+  },
+  {
+    id: "gmail",
+    name: "Gmail",
+    description: "Search, read, draft, and send emails through Gmail.",
+    icon: Mail,
+    color: "text-red-600",
+    bgColor: "bg-red-600/10",
   },
 ];
 

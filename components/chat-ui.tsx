@@ -60,6 +60,7 @@ export function ChatUI() {
   const [activeIntegration, setActiveIntegration] = useState<string | null>(null);
   const [addedIntegrations, setAddedIntegrations] = useState<string[]>([]);
   const [isCalendarConnected, setIsCalendarConnected] = useState(false);
+  const [isFormsConnected, setIsFormsConnected] = useState(false);
   
   // File input ref for native FileList handling
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -126,13 +127,15 @@ export function ChatUI() {
         })
         .catch((e) => console.error("Failed to fetch installed tools", e));
 
-      // Check Google auth status
+      // Check Google Calendar auth status
       fetch("/api/auth/google?action=status")
         .then((res) => res.json())
         .then((data) => {
           setIsCalendarConnected(!!data.connected);
+          // Forms uses the same tokens, check if forms scopes are authorized
+          setIsFormsConnected(!!data.hasFormsScopes);
         })
-        .catch((e) => console.error("Failed to check auth status", e));
+        .catch((e) => console.error("Failed to check calendar auth status", e));
     } catch (e) {
       console.error("Failed to load from localStorage", e);
     }
@@ -278,8 +281,12 @@ export function ChatUI() {
   useEffect(() => {
     const handleAuthMessage = (event: MessageEvent) => {
       if (event.data?.type === 'GOOGLE_AUTH_SUCCESS') {
-        console.log('Google Auth success received');
+        console.log('Google Calendar Auth success received');
         setIsCalendarConnected(true);
+      }
+      if (event.data?.type === 'GOOGLE_FORMS_AUTH_SUCCESS') {
+        console.log('Google Forms Auth success received');
+        setIsFormsConnected(true);
       }
     };
     window.addEventListener('message', handleAuthMessage);
@@ -379,12 +386,26 @@ export function ChatUI() {
            `width=${width},height=${height},left=${left},top=${top}`
          );
       }
+
+      // Special handling for Forms - use unified OAuth endpoint with forms scopes
+      if (id === "forms" && !isFormsConnected) {
+         const width = 600;
+         const height = 700;
+         const left = window.screen.width / 2 - width / 2;
+         const top = window.screen.height / 2 - height / 2;
+         
+         window.open(
+           "/api/auth/google?service=forms", 
+           "GoogleFormsAuth", 
+           `width=${width},height=${height},left=${left},top=${top}`
+         );
+      }
     } catch (error) {
       console.error("Failed to install tool", error);
       // Revert optimistic update
       setAddedIntegrations((prev) => prev.filter(i => i !== id));
     }
-  }, [addedIntegrations, isCalendarConnected]);
+  }, [addedIntegrations, isCalendarConnected, isFormsConnected]);
 
   // Handle opening an integration (adds @tool mention to chat)
   const handleOpenIntegration = useCallback((id: string) => {
@@ -418,6 +439,12 @@ export function ChatUI() {
       if (id === "calendar") {
         await fetch("/api/auth/google", { method: "DELETE" });
         setIsCalendarConnected(false);
+      }
+
+      // Special handling for Forms logout
+      if (id === "forms") {
+        await fetch("/api/auth/google-forms", { method: "DELETE" });
+        setIsFormsConnected(false);
       }
     } catch (error) {
       console.error("Failed to uninstall tool", error);
@@ -579,6 +606,7 @@ export function ChatUI() {
                 onFilesSelected={handleFileSelect}
                 mentionedTools={mentionedTools}
                 onToolMentionsChange={setMentionedTools}
+                addedIntegrations={addedIntegrations}
               />
             </motion.div>
 

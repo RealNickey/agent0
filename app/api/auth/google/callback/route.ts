@@ -7,12 +7,17 @@ import {
 // Default user ID for development (in production, get from auth session)
 const DEFAULT_USER_ID = "default-user";
 
-function getHtmlResponse(title: string, message: string, success: boolean, userId?: string) {
+function getHtmlResponse(title: string, message: string, success: boolean, userId?: string, service?: string) {
   const color = success ? "#16a34a" : "#dc2626";
+  // Send different message types based on which service was authorized
+  const messageType = service === 'forms' ? 'GOOGLE_FORMS_AUTH_SUCCESS' 
+    : service === 'all' ? 'GOOGLE_ALL_AUTH_SUCCESS'
+    : 'GOOGLE_AUTH_SUCCESS';
+  
   const script = success 
     ? `
       if (window.opener) {
-        window.opener.postMessage({ type: 'GOOGLE_AUTH_SUCCESS', userId: '${userId}' }, '*');
+        window.opener.postMessage({ type: '${messageType}', userId: '${userId}', service: '${service}' }, '*');
       }
       setTimeout(() => window.close(), 1500);
     `
@@ -78,14 +83,29 @@ export async function GET(request: Request) {
       return getHtmlResponse("Authentication Failed", "Failed to exchange authorization code for tokens.", false);
     }
 
+    // Parse userId and service from state (format: "userId:service")
+    let userId = DEFAULT_USER_ID;
+    let service = 'calendar';
+    
+    if (state) {
+      const parts = state.split(':');
+      if (parts.length >= 2) {
+        userId = parts[0] || DEFAULT_USER_ID;
+        service = parts[1] || 'calendar';
+      } else {
+        userId = state;
+      }
+    }
+
     // Store tokens for the user
-    // In production, get the actual user ID from session/state
-    const userId = state || DEFAULT_USER_ID;
     storeTokens(userId, tokens);
 
-    console.log("Google Calendar connected successfully for user:", userId);
+    const serviceName = service === 'forms' ? 'Google Forms' 
+      : service === 'all' ? 'Google Calendar & Forms'
+      : 'Google Calendar';
+    console.log(`${serviceName} connected successfully for user:`, userId);
 
-    return getHtmlResponse("Connected!", "You have successfully logged in with Google.", true, userId);
+    return getHtmlResponse("Connected!", `You have successfully connected ${serviceName}.`, true, userId, service);
   } catch (error) {
     console.error("OAuth callback error:", error);
     return getHtmlResponse("System Error", "An unexpected error occurred during authentication.", false);

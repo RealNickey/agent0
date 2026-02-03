@@ -1,19 +1,36 @@
 /**
- * Google Calendar API Configuration and Helpers
+ * Google API Configuration and Helpers
  * 
- * This module provides utilities for interacting with Google Calendar API
+ * This module provides utilities for interacting with Google APIs
  * including OAuth2 token management and API client initialization.
+ * Supports Google Calendar and Gmail APIs.
  */
 
 import fs from "fs";
 import path from "path";
 
-// Google Calendar API scopes
+// Google API scopes (Calendar + Gmail)
 export const GOOGLE_CALENDAR_SCOPES = [
+  // Calendar scopes
   "https://www.googleapis.com/auth/calendar",
   "https://www.googleapis.com/auth/calendar.events",
   "https://www.googleapis.com/auth/calendar.readonly",
+  // Gmail scopes
+  "https://www.googleapis.com/auth/gmail.modify",
+  "https://www.googleapis.com/auth/gmail.compose",
+  "https://www.googleapis.com/auth/gmail.readonly",
 ];
+
+// Google Forms API scopes
+export const GOOGLE_FORMS_SCOPES = [
+  "https://www.googleapis.com/auth/forms.body",
+  "https://www.googleapis.com/auth/forms.body.readonly",
+  "https://www.googleapis.com/auth/forms.responses.readonly",
+  "https://www.googleapis.com/auth/drive.file",
+];
+
+// Combined scopes for both Calendar and Forms
+export const GOOGLE_ALL_SCOPES = [...GOOGLE_CALENDAR_SCOPES, ...GOOGLE_FORMS_SCOPES];
 
 // Environment variables for Google OAuth
 export const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
@@ -170,16 +187,33 @@ export async function getValidAccessToken(userId: string): Promise<string | null
 
 /**
  * Generate OAuth2 authorization URL
+ * @param state - State parameter for CSRF protection
+ * @param service - Which service to authorize: 'calendar', 'forms', or 'all'
  */
-export function getAuthorizationUrl(state?: string): string {
+export function getAuthorizationUrl(state?: string, service: 'calendar' | 'forms' | 'all' = 'calendar'): string {
+  let scopes: string[];
+  switch (service) {
+    case 'forms':
+      scopes = GOOGLE_FORMS_SCOPES;
+      break;
+    case 'all':
+      scopes = GOOGLE_ALL_SCOPES;
+      break;
+    default:
+      scopes = GOOGLE_CALENDAR_SCOPES;
+  }
+
+  // Encode service in state for callback to know which service was authorized
+  const stateWithService = state ? `${state}:${service}` : service;
+
   const params = new URLSearchParams({
     client_id: GOOGLE_CLIENT_ID,
     redirect_uri: GOOGLE_REDIRECT_URI,
     response_type: "code",
-    scope: GOOGLE_CALENDAR_SCOPES.join(" "),
+    scope: scopes.join(" "),
     access_type: "offline",
     prompt: "consent",
-    ...(state && { state }),
+    state: stateWithService,
   });
 
   return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;

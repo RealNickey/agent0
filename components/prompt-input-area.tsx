@@ -9,6 +9,7 @@ import {
   PromptInputSpeechButton,
 } from "@/components/ai-elements/prompt-input";
 import { BrainIcon, CalendarIcon, CloudSunIcon, FileTextIcon, ImageIcon, PaperclipIcon, SearchIcon } from "lucide-react";
+import { BrainIcon, CalendarIcon, CloudSunIcon, FileTextIcon, PaperclipIcon, SearchIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ButtonGroup, ButtonGroupSeparator } from "@/components/ui/button-group";
 import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
@@ -46,6 +47,7 @@ export type PromptInputAreaProps = {
   onFilesSelected: (e: React.ChangeEvent<HTMLInputElement>) => void;
   mentionedTools?: string[];
   onToolMentionsChange?: (tools: string[]) => void;
+  addedIntegrations?: string[];
 };
 
 export function PromptInputArea({
@@ -61,6 +63,7 @@ export function PromptInputArea({
   onFilesSelected,
   mentionedTools = [],
   onToolMentionsChange,
+  addedIntegrations = [],
 }: PromptInputAreaProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -69,12 +72,12 @@ export function PromptInputArea({
   const [toolQuery, setToolQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
 
-  // Load available tools on mount
+  // Load available tools on mount and when integrations change
   useEffect(() => {
     fetchInstalledTools()
       .then((tools) => setAvailableTools(tools))
       .catch((err) => console.error("Failed to load tools:", err));
-  }, []);
+  }, [addedIntegrations]);
 
   // Parse tool mentions whenever value changes
   // useEffect(() => {
@@ -226,6 +229,12 @@ export function PromptInputArea({
             <div className="flex items-center gap-1 pl-2 py-2.5 select-none">
               {mentionedTools.map((tool) => {
                 const ToolIcon = getToolIcon(tool);
+                const toolLower = tool.toLowerCase();
+                const ToolIcon = toolLower === "calendar" 
+                  ? CalendarIcon 
+                  : toolLower === "forms" || toolLower === "survey"
+                  ? FileTextIcon
+                  : CloudSunIcon;
                 return (
                   <Badge 
                     key={tool} 

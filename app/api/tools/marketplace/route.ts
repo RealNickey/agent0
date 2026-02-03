@@ -31,6 +31,23 @@ const marketplaceTools = [
     icon: "file-text",
     enabled: true,
   },
+  {
+    id: "forms",
+    name: "Forms",
+    description: "Create surveys and forms, collect and analyze responses with Google Forms",
+    category: "productivity",
+    icon: "file-text",
+    enabled: true,
+  },
+  {
+    id: "gmail",
+    name: "Gmail",
+    description: "Search, read, draft, and send emails through Gmail",
+    category: "communication",
+    icon: "mail",
+    enabled: true,
+  },
+  // Add more tools here as needed
 ];
 
 export async function GET(request: Request) {

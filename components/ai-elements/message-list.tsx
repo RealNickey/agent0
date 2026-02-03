@@ -38,6 +38,9 @@ import { CalendarEvent } from "@/components/ai-elements/calendar-event";
 import { EventSchedulingConfirmation } from "@/components/ai-elements/event-scheduling-confirmation";
 import { PDFResult, isPDFToolResult } from "@/components/ai-elements/pdf-result";
 import { ImageResult, ImageLoading } from "@/components/ai-elements/image-result";
+import { FormCreationConfirmation } from "@/components/ai-elements/form-creation-confirmation";
+import { FormResponsesList } from "@/components/ai-elements/form-responses-list";
+import { FormSummaryCard } from "@/components/ai-elements/form-summary-card";
 import {
   CopyIcon,
   RefreshCwIcon,
@@ -245,6 +248,55 @@ export function MessageList({ messages, isLoading, status, onRegenerate, error }
                                  key={toolInvocation.toolCallId}
                                  {...toolInvocation.result}
                                />
+                            );
+                          }
+                        }
+
+                        // Create Survey Form (with human-in-the-loop confirmation)
+                        if (toolInvocation.toolName === "createSurveyForm" && isCompleted) {
+                          const result = toolInvocation.result;
+                          if (result.status === "pending_confirmation") {
+                            return (
+                              <FormCreationConfirmation
+                                key={toolInvocation.toolCallId}
+                                toolCallId={toolInvocation.toolCallId}
+                                formData={result.formData}
+                                reasoning={result.reasoning}
+                              />
+                            );
+                          }
+                        }
+
+                        // Fetch Form Responses
+                        if (toolInvocation.toolName === "fetchNewResponses" && isCompleted) {
+                          if (!hasError) {
+                            return (
+                              <FormResponsesList
+                                key={toolInvocation.toolCallId}
+                                formId={toolInvocation.result.formId}
+                                responseCount={toolInvocation.result.responseCount}
+                                responses={toolInvocation.result.responses}
+                                checkedAt={toolInvocation.result.checkedAt}
+                              />
+                            );
+                          }
+                        }
+
+                        // Get Response Summary
+                        if (toolInvocation.toolName === "getResponseSummary" && isCompleted) {
+                          if (!hasError) {
+                            return (
+                              <FormSummaryCard
+                                key={toolInvocation.toolCallId}
+                                formId={toolInvocation.result.formId}
+                                formTitle={toolInvocation.result.formTitle}
+                                totalResponses={toolInvocation.result.totalResponses}
+                                questionCount={toolInvocation.result.questionCount}
+                                responderUri={toolInvocation.result.responderUri}
+                                firstResponseAt={toolInvocation.result.firstResponseAt}
+                                lastResponseAt={toolInvocation.result.lastResponseAt}
+                                questionSummaries={toolInvocation.result.questionSummaries}
+                              />
                             );
                           }
                         }

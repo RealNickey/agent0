@@ -295,34 +295,32 @@ export function createPDFTools(pdfFiles: PDFFileInfo[]) {
 /**
  * Extract PDF files from UI messages
  * 
- * Only extracts PDFs from the most recent user message to ensure
- * each PDF operation only uses files from the current request,
- * not files from previous operations in the conversation.
+ * Extracts PDFs from ALL user messages in the conversation to support
+ * multi-turn interactions where the user uploads PDFs in one message
+ * and provides additional details (like filename) in a follow-up message.
+ * 
+ * PDFs are collected in chronological order (oldest first).
  */
 export function extractPDFsFromMessages(messages: any[]): PDFFileInfo[] {
   const pdfs: PDFFileInfo[] = [];
+  const seenUrls = new Set<string>(); // Avoid duplicates
 
-  // Find the last user message (most recent request)
-  let lastUserMessage = null;
-  for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i].role === "user") {
-      lastUserMessage = messages[i];
-      break;
-    }
-  }
-
-  // Only extract PDFs from the last user message
-  if (lastUserMessage && lastUserMessage.parts && Array.isArray(lastUserMessage.parts)) {
-    for (const part of lastUserMessage.parts) {
-      if (
-        part.type === "file" &&
-        part.mediaType === "application/pdf" &&
-        part.url
-      ) {
-        pdfs.push({
-          url: part.url,
-          name: part.name || undefined,
-        });
+  // Extract PDFs from all user messages in order
+  for (const message of messages) {
+    if (message.role === "user" && message.parts && Array.isArray(message.parts)) {
+      for (const part of message.parts) {
+        if (
+          part.type === "file" &&
+          part.mediaType === "application/pdf" &&
+          part.url &&
+          !seenUrls.has(part.url)
+        ) {
+          seenUrls.add(part.url);
+          pdfs.push({
+            url: part.url,
+            name: part.name || undefined,
+          });
+        }
       }
     }
   }

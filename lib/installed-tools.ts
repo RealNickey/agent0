@@ -54,6 +54,9 @@ export function getInstalledTools(): InstalledTool[] {
 }
 
 export function isToolInstalled(toolId: string): boolean {
+  // We use the memory cache which is initialized at module load
+  // and updated by getInstalledTools if needed.
+  // For safety in isToolInstalled, we use the current cache.
   return installedTools.has(toolId);
 }
 

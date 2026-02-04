@@ -22,6 +22,13 @@ export type Model = {
   provider: string;
   series: string;
   supportsThinking: boolean;
+  supportsTools: boolean;
+  supportsToolStreaming: boolean;
+  supportsGoogleSearch: boolean;
+  supportsUrlContext: boolean;
+  supportsImageInput: boolean;
+  supportsObjectGeneration: boolean;
+  supportsCodeExecution: boolean;
 };
 
 export type ModelSelectorControlProps = {
@@ -39,7 +46,34 @@ export function ModelSelectorControl({
   isOpen,
   onOpenChange,
 }: ModelSelectorControlProps) {
-  const model25Series = models.filter((m) => m.series === "2.5");
+  const modelsBySeries = models.reduce<Record<string, Model[]>>(
+    (acc, model) => {
+      if (!acc[model.series]) {
+        acc[model.series] = [];
+      }
+      acc[model.series].push(model);
+      return acc;
+    },
+    {},
+  );
+
+  const seriesOrder = Object.keys(modelsBySeries).sort((a, b) => {
+    const aNum = Number(a);
+    const bNum = Number(b);
+    if (!Number.isNaN(aNum) && !Number.isNaN(bNum)) return bNum - aNum;
+    if (!Number.isNaN(aNum)) return -1;
+    if (!Number.isNaN(bNum)) return 1;
+    return a.localeCompare(b);
+  });
+
+  const getSeriesLabel = (series: string) => {
+    if (series === "3") return "Gemini 3 (Thinking)";
+    if (series === "2.5") return "Gemini 2.5 (Thinking)";
+    if (series === "2.0") return "Gemini 2.0";
+    if (series === "1.5") return "Gemini 1.5";
+    if (series === "gemma") return "Gemma";
+    return `Series ${series}`;
+  };
 
   return (
     <ModelSelector open={isOpen} onOpenChange={onOpenChange}>
@@ -58,24 +92,26 @@ export function ModelSelectorControl({
         <ModelSelectorInput placeholder="Search Gemini models..." />
         <ModelSelectorList>
           <ModelSelectorEmpty>No model found.</ModelSelectorEmpty>
-          <ModelSelectorGroup heading="Gemini 2.5 (Thinking)">
-            {model25Series.map((model) => (
-              <ModelSelectorItem
-                key={model.id}
-                onSelect={() => {
-                  onSelectModel(model);
-                  onOpenChange(false);
-                }}
-                className="gap-2"
-              >
-                <ModelSelectorLogo provider={model.provider} />
-                <ModelSelectorName>{model.name}</ModelSelectorName>
-                {selectedModel.id === model.id && (
-                  <CheckIcon className="ml-auto size-4" />
-                )}
-              </ModelSelectorItem>
-            ))}
-          </ModelSelectorGroup>
+          {seriesOrder.map((series) => (
+            <ModelSelectorGroup key={series} heading={getSeriesLabel(series)}>
+              {modelsBySeries[series].map((model) => (
+                <ModelSelectorItem
+                  key={model.id}
+                  onSelect={() => {
+                    onSelectModel(model);
+                    onOpenChange(false);
+                  }}
+                  className="gap-2"
+                >
+                  <ModelSelectorLogo provider={model.provider} />
+                  <ModelSelectorName>{model.name}</ModelSelectorName>
+                  {selectedModel.id === model.id && (
+                    <CheckIcon className="ml-auto size-4" />
+                  )}
+                </ModelSelectorItem>
+              ))}
+            </ModelSelectorGroup>
+          ))}
         </ModelSelectorList>
       </ModelSelectorContent>
     </ModelSelector>

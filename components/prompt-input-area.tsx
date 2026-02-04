@@ -8,11 +8,30 @@ import {
   PromptInputButton,
   PromptInputSpeechButton,
 } from "@/components/ai-elements/prompt-input";
-import { BrainIcon, CalendarIcon, CloudSunIcon, FileTextIcon, PaperclipIcon, SearchIcon } from "lucide-react";
+import {
+  BrainIcon,
+  CalendarIcon,
+  CloudSunIcon,
+  FileTextIcon,
+  PaperclipIcon,
+  SearchIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ButtonGroup, ButtonGroupSeparator } from "@/components/ui/button-group";
-import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
-import { fetchInstalledTools, parseToolMentions, type InstalledTool } from "@/lib/tool-utils";
+import {
+  ButtonGroup,
+  ButtonGroupSeparator,
+} from "@/components/ui/button-group";
+import {
+  Command,
+  CommandGroup,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  fetchInstalledTools,
+  parseToolMentions,
+  type InstalledTool,
+} from "@/lib/tool-utils";
 import { Badge } from "@/components/ui/badge";
 
 export type PromptInputAreaProps = {
@@ -22,9 +41,12 @@ export type PromptInputAreaProps = {
   isLoading: boolean;
   enableSearch: boolean;
   onToggleSearch: () => void;
+  searchSupported?: boolean;
   enableThinking: boolean;
   onToggleThinking: () => void;
   thinkingSupported?: boolean;
+  toolsSupported?: boolean;
+  filesSupported?: boolean;
   onFilesSelected: (e: React.ChangeEvent<HTMLInputElement>) => void;
   mentionedTools?: string[];
   onToolMentionsChange?: (tools: string[]) => void;
@@ -38,9 +60,12 @@ export function PromptInputArea({
   isLoading,
   enableSearch,
   onToggleSearch,
+  searchSupported = true,
   enableThinking,
   onToggleThinking,
   thinkingSupported = true,
+  toolsSupported = true,
+  filesSupported = true,
   onFilesSelected,
   mentionedTools = [],
   onToolMentionsChange,
@@ -70,11 +95,16 @@ export function PromptInputArea({
 
   // Detect @ typing for tool suggestions
   useEffect(() => {
+    if (!toolsSupported) {
+      setShowToolSuggestions(false);
+      return;
+    }
+
     const lastAtIndex = value.lastIndexOf("@");
     if (lastAtIndex >= 0) {
       const afterAt = value.slice(lastAtIndex + 1);
       const hasSpace = afterAt.includes(" ");
-      
+
       if (!hasSpace) {
         setToolQuery(afterAt.toLowerCase());
         setShowToolSuggestions(true);
@@ -84,7 +114,7 @@ export function PromptInputArea({
     } else {
       setShowToolSuggestions(false);
     }
-  }, [value]);
+  }, [value, toolsSupported]);
 
   // Reset selected index when query changes
   useEffect(() => {
@@ -92,22 +122,24 @@ export function PromptInputArea({
   }, [toolQuery]);
 
   const handleToolSelect = (toolName: string) => {
+    if (!toolsSupported) return;
+
     const lastAtIndex = value.lastIndexOf("@");
     if (lastAtIndex >= 0) {
       const beforeAt = value.slice(0, lastAtIndex);
       const afterAt = value.slice(lastAtIndex + 1);
       const nextSpace = afterAt.indexOf(" ");
       const afterMention = nextSpace >= 0 ? afterAt.slice(nextSpace) : "";
-      
+
       // Remove the @mention from text and add to mentionedTools
       const newValue = `${beforeAt}${afterMention}`;
       onChange(newValue);
-      
+
       // Add tool to mentionedTools if not already present
       if (!mentionedTools.includes(toolName)) {
         onToolMentionsChange?.([...mentionedTools, toolName]);
       }
-      
+
       setShowToolSuggestions(false);
       textareaRef.current?.focus();
     }
@@ -117,12 +149,18 @@ export function PromptInputArea({
     (tool) =>
       toolQuery === "" ||
       tool.name.toLowerCase().includes(toolQuery) ||
-      tool.id.toLowerCase().includes(toolQuery)
+      tool.id.toLowerCase().includes(toolQuery),
   );
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "/" && !e.ctrlKey && !e.metaKey && !e.altKey && document.activeElement !== textareaRef.current) {
+      if (
+        e.key === "/" &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey &&
+        document.activeElement !== textareaRef.current
+      ) {
         e.preventDefault();
         textareaRef.current?.focus();
       }
@@ -148,12 +186,24 @@ export function PromptInputArea({
             onChange={onFilesSelected}
             accept="image/*,application/pdf,.txt,.md,.json,.csv"
             multiple
+            disabled={!filesSupported}
             className="hidden"
           />
           <PromptInputButton
-            tooltip="Attach file (images, PDF, text)"
-            onClick={() => fileInputRef.current?.click()}
-            className="rounded-l-3xl rounded-r-none border-none shadow-none h-10 w-10 p-0 flex items-center justify-center shrink-0"
+            tooltip={
+              filesSupported
+                ? "Attach file (images, PDF, text)"
+                : "File attachments are not supported by this model"
+            }
+            onClick={() => {
+              if (!filesSupported) return;
+              fileInputRef.current?.click();
+            }}
+            disabled={!filesSupported}
+            className={cn(
+              "rounded-l-3xl rounded-r-none border-none shadow-none h-10 w-10 p-0 flex items-center justify-center shrink-0",
+              !filesSupported && "opacity-50 cursor-not-allowed",
+            )}
           >
             <PaperclipIcon className="size-4" />
           </PromptInputButton>
@@ -163,18 +213,23 @@ export function PromptInputArea({
           {/* Google Search Toggle */}
           <PromptInputButton
             tooltip={
-              mentionedTools.length > 0
-                ? "Built-in tools disabled when using @tools"
-                : enableSearch
-                  ? "Disable Google Search"
-                  : "Enable Google Search"
+              !searchSupported
+                ? "Google Search is not supported by this model"
+                : mentionedTools.length > 0
+                  ? "Built-in tools disabled when using @tools"
+                  : enableSearch
+                    ? "Disable Google Search"
+                    : "Enable Google Search"
             }
             onClick={onToggleSearch}
-            disabled={mentionedTools.length > 0}
+            disabled={!searchSupported || mentionedTools.length > 0}
             className={cn(
               "rounded-none border-none shadow-none h-10 w-10 p-0 flex items-center justify-center shrink-0",
-              enableSearch && mentionedTools.length === 0 && "bg-primary/10 text-primary",
-              mentionedTools.length > 0 && "opacity-50 cursor-not-allowed"
+              enableSearch &&
+                mentionedTools.length === 0 &&
+                "bg-primary/10 text-primary",
+              (mentionedTools.length > 0 || !searchSupported) &&
+                "opacity-50 cursor-not-allowed",
             )}
           >
             <SearchIcon className="size-4" />
@@ -195,7 +250,9 @@ export function PromptInputArea({
             disabled={!thinkingSupported}
             className={cn(
               "rounded-none border-none shadow-none h-10 w-10 p-0 flex items-center justify-center shrink-0",
-              enableThinking && thinkingSupported && "bg-primary/10 text-primary"
+              enableThinking &&
+                thinkingSupported &&
+                "bg-primary/10 text-primary",
             )}
           >
             <BrainIcon className="size-4" />
@@ -206,23 +263,23 @@ export function PromptInputArea({
           <PromptInputSpeechButton className="rounded-none border-none shadow-none h-10 w-10 p-0 flex items-center justify-center shrink-0" />
 
           {/* Tool Pills inside input */}
-          {mentionedTools.length > 0 && (
+          {toolsSupported && mentionedTools.length > 0 && (
             <div className="flex items-center gap-1 pl-2 py-2.5 select-none">
               {mentionedTools.map((tool) => {
                 const toolLower = tool.toLowerCase();
-                const ToolIcon = toolLower === "calendar" 
-                  ? CalendarIcon 
-                  : toolLower === "forms" || toolLower === "survey"
-                  ? FileTextIcon
-                  : CloudSunIcon;
+                const ToolIcon =
+                  toolLower === "calendar"
+                    ? CalendarIcon
+                    : toolLower === "forms" || toolLower === "survey"
+                      ? FileTextIcon
+                      : CloudSunIcon;
                 return (
-                  <Badge 
-                    key={tool} 
-                    variant="secondary" 
+                  <Badge
+                    key={tool}
+                    variant="secondary"
                     className="text-xs h-6 px-2 gap-1 cursor-default whitespace-nowrap"
                   >
-                    <ToolIcon className="size-3" />
-                    @{tool}
+                    <ToolIcon className="size-3" />@{tool}
                   </Badge>
                 );
               })}
@@ -233,7 +290,13 @@ export function PromptInputArea({
             ref={textareaRef}
             autoFocus
             className="min-h-10 max-h-[200px] py-2.5 px-3 text-base sm:text-sm resize-none border-none shadow-none focus-visible:ring-0 transition-all duration-200"
-            placeholder={mentionedTools.length > 0 ? "Send a message..." : "Send a message... (type @ to mention tools)"}
+            placeholder={
+              toolsSupported
+                ? mentionedTools.length > 0
+                  ? "Send a message..."
+                  : "Send a message... (type @ to mention tools)"
+                : "Send a message..."
+            }
             value={value}
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={(e) => {
@@ -246,7 +309,10 @@ export function PromptInputArea({
                 }
                 if (e.key === "ArrowUp") {
                   e.preventDefault();
-                  setSelectedIndex((prev) => (prev - 1 + filteredTools.length) % filteredTools.length);
+                  setSelectedIndex(
+                    (prev) =>
+                      (prev - 1 + filteredTools.length) % filteredTools.length,
+                  );
                   return;
                 }
                 if (e.key === "Enter" || e.key === "Tab") {
@@ -262,7 +328,11 @@ export function PromptInputArea({
               }
 
               // Handle Backspace to remove tools
-              if (e.key === "Backspace" && value === "" && mentionedTools.length > 0) {
+              if (
+                e.key === "Backspace" &&
+                value === "" &&
+                mentionedTools.length > 0
+              ) {
                 e.preventDefault();
                 const newTools = [...mentionedTools];
                 newTools.pop();
@@ -285,7 +355,7 @@ export function PromptInputArea({
       </PromptInput>
 
       {/* Tool suggestions dropdown */}
-      {showToolSuggestions && filteredTools.length > 0 && (
+      {toolsSupported && showToolSuggestions && filteredTools.length > 0 && (
         <div className="absolute bottom-full left-0 mb-2 w-full max-w-md z-50">
           <div className="rounded-lg border border-border bg-popover shadow-lg">
             <div className="p-2">
@@ -302,7 +372,8 @@ export function PromptInputArea({
                       "w-full flex items-start gap-2 px-2 py-2 rounded-md text-left transition-colors",
                       "hover:bg-accent hover:text-accent-foreground",
                       "focus:bg-accent focus:text-accent-foreground focus:outline-none",
-                      index === selectedIndex && "bg-accent text-accent-foreground"
+                      index === selectedIndex &&
+                        "bg-accent text-accent-foreground",
                     )}
                   >
                     <CloudSunIcon className="h-4 w-4 mt-0.5 shrink-0" />

@@ -11,8 +11,14 @@ import type { MyUIMessage } from "@/types/chat";
 import { ChatHeader } from "@/components/chat-header";
 import { PromptInputArea } from "@/components/prompt-input-area";
 import { MessageList } from "@/components/ai-elements/message-list";
-import { AttachmentsPreview, FileAttachment } from "@/components/ai-elements/attachments-preview";
-import { FeatureBadgesRow, FeatureBadge } from "@/components/ai-elements/feature-badges-row";
+import {
+  AttachmentsPreview,
+  FileAttachment,
+} from "@/components/ai-elements/attachments-preview";
+import {
+  FeatureBadgesRow,
+  FeatureBadge,
+} from "@/components/ai-elements/feature-badges-row";
 import { ChatEmptyState } from "@/components/ai-elements/chat-empty-state";
 import { SuggestionsGrid } from "@/components/ai-elements/chat-suggestions-grid";
 import { Model } from "@/components/ai-elements/model-selector-control";
@@ -23,12 +29,168 @@ import { FileDropZone } from "@/components/file-drop-zone";
 
 // Gemini models with their capabilities
 const models: Model[] = [
+  // Gemini 3 Series
+  {
+    id: "gemini-3-pro-preview",
+    name: "Gemini 3 Pro Preview",
+    provider: "google",
+    series: "3",
+    supportsThinking: true,
+    supportsTools: true,
+    supportsToolStreaming: true,
+    supportsGoogleSearch: true,
+    supportsUrlContext: true,
+    supportsImageInput: true,
+    supportsObjectGeneration: true,
+    supportsCodeExecution: true,
+  },
+
+  {
+    id: "gemini-3-flash-preview",
+    name: "Gemini 3 Flash Preview",
+    provider: "google",
+    series: "3",
+    supportsThinking: true,
+    supportsTools: true,
+    supportsToolStreaming: true,
+    supportsGoogleSearch: true,
+    supportsUrlContext: true,
+    supportsImageInput: true,
+    supportsObjectGeneration: true,
+    supportsCodeExecution: true,
+  },
   // Gemini 2.5 Series
-  { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", provider: "google", series: "2.5", supportsThinking: true },
-  { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", provider: "google", series: "2.5", supportsThinking: true },
-  { id: "gemini-2.5-flash-lite", name: "Gemini 2.5 Flash Lite", provider: "google", series: "2.5", supportsThinking: true },
+  {
+    id: "gemini-2.5-pro",
+    name: "Gemini 2.5 Pro",
+    provider: "google",
+    series: "2.5",
+    supportsThinking: true,
+    supportsTools: true,
+    supportsToolStreaming: true,
+    supportsGoogleSearch: true,
+    supportsUrlContext: true,
+    supportsImageInput: true,
+    supportsObjectGeneration: true,
+    supportsCodeExecution: true,
+  },
+  {
+    id: "gemini-2.5-flash",
+    name: "Gemini 2.5 Flash",
+    provider: "google",
+    series: "2.5",
+    supportsThinking: true,
+    supportsTools: true,
+    supportsToolStreaming: true,
+    supportsGoogleSearch: true,
+    supportsUrlContext: true,
+    supportsImageInput: true,
+    supportsObjectGeneration: true,
+    supportsCodeExecution: true,
+  },
+  {
+    id: "gemini-2.5-flash-lite",
+    name: "Gemini 2.5 Flash Lite",
+    provider: "google",
+    series: "2.5",
+    supportsThinking: true,
+    supportsTools: true,
+    supportsToolStreaming: true,
+    supportsGoogleSearch: true,
+    supportsUrlContext: true,
+    supportsImageInput: true,
+    supportsObjectGeneration: true,
+    supportsCodeExecution: true,
+  },
+
   // Gemini 2.0 Series
-  { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", provider: "google", series: "2.0", supportsThinking: false },
+  {
+    id: "gemini-2.0-flash",
+    name: "Gemini 2.0 Flash",
+    provider: "google",
+    series: "2.0",
+    supportsThinking: false,
+    supportsTools: true,
+    supportsToolStreaming: true,
+    supportsGoogleSearch: true,
+    supportsUrlContext: true,
+    supportsImageInput: true,
+    supportsObjectGeneration: true,
+    supportsCodeExecution: true,
+  },
+  // Gemini 1.5 Series
+  {
+    id: "gemini-1.5-pro",
+    name: "Gemini 1.5 Pro",
+    provider: "google",
+    series: "1.5",
+    supportsThinking: false,
+    supportsTools: true,
+    supportsToolStreaming: true,
+    supportsGoogleSearch: true,
+    supportsUrlContext: false,
+    supportsImageInput: true,
+    supportsObjectGeneration: true,
+    supportsCodeExecution: false,
+  },
+  {
+    id: "gemini-1.5-pro-latest",
+    name: "Gemini 1.5 Pro Latest",
+    provider: "google",
+    series: "1.5",
+    supportsThinking: false,
+    supportsTools: true,
+    supportsToolStreaming: true,
+    supportsGoogleSearch: true,
+    supportsUrlContext: false,
+    supportsImageInput: true,
+    supportsObjectGeneration: true,
+    supportsCodeExecution: false,
+  },
+  {
+    id: "gemini-1.5-flash",
+    name: "Gemini 1.5 Flash",
+    provider: "google",
+    series: "1.5",
+    supportsThinking: false,
+    supportsTools: true,
+    supportsToolStreaming: true,
+    supportsGoogleSearch: true,
+    supportsUrlContext: false,
+    supportsImageInput: true,
+    supportsObjectGeneration: true,
+    supportsCodeExecution: false,
+  },
+
+  {
+    id: "gemini-1.5-flash-8b",
+    name: "Gemini 1.5 Flash 8B",
+    provider: "google",
+    series: "1.5",
+    supportsThinking: false,
+    supportsTools: true,
+    supportsToolStreaming: true,
+    supportsGoogleSearch: true,
+    supportsUrlContext: false,
+    supportsImageInput: true,
+    supportsObjectGeneration: true,
+    supportsCodeExecution: false,
+  },
+  {
+    id: "gemini-1.5-flash-8b-latest",
+    name: "Gemini 1.5 Flash 8B Latest",
+    provider: "google",
+    series: "1.5",
+    supportsThinking: false,
+    supportsTools: true,
+    supportsToolStreaming: true,
+    supportsGoogleSearch: true,
+    supportsUrlContext: false,
+    supportsImageInput: true,
+    supportsObjectGeneration: true,
+    supportsCodeExecution: false,
+  },
+
 ];
 
 const defaultSuggestions = [
@@ -54,41 +216,37 @@ export function ChatUI() {
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoaded, setIsLoaded] = useState(false);
-  
+
   // Integrations state
   const [isIntegrationsModalOpen, setIsIntegrationsModalOpen] = useState(false);
-  const [activeIntegration, setActiveIntegration] = useState<string | null>(null);
+  const [activeIntegration, setActiveIntegration] = useState<string | null>(
+    null,
+  );
   const [addedIntegrations, setAddedIntegrations] = useState<string[]>([]);
   const [isCalendarConnected, setIsCalendarConnected] = useState(false);
   const [isFormsConnected, setIsFormsConnected] = useState(false);
-  
+
   // File input ref for native FileList handling
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const {
-    messages,
-    sendMessage,
-    status,
-    error,
-    regenerate,
-    setMessages,
-  } = useChat<MyUIMessage>({
-    id: "gemini-chat",
-    transport: new DefaultChatTransport({
-      api: "/api/chat",
-    }),
-    experimental_throttle: 50, // Throttle UI updates for better performance
-    onFinish: () => {
-      setAttachments([]);
-      // Clear the file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-    },
-    onError: (error) => {
-      console.error("Chat error:", error);
-    },
-  });
+  const { messages, sendMessage, status, error, regenerate, setMessages } =
+    useChat<MyUIMessage>({
+      id: "gemini-chat",
+      transport: new DefaultChatTransport({
+        api: "/api/chat",
+      }),
+      experimental_throttle: 50, // Throttle UI updates for better performance
+      onFinish: () => {
+        setAttachments([]);
+        // Clear the file input
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+      },
+      onError: (error) => {
+        console.error("Chat error:", error);
+      },
+    });
 
   // Load state from local storage on mount
   useEffect(() => {
@@ -169,7 +327,10 @@ export function ChatUI() {
   useEffect(() => {
     if (isLoaded) {
       try {
-        localStorage.setItem(STORAGE_KEYS.INTEGRATIONS, JSON.stringify(addedIntegrations));
+        localStorage.setItem(
+          STORAGE_KEYS.INTEGRATIONS,
+          JSON.stringify(addedIntegrations),
+        );
       } catch (e) {
         console.error("Failed to save integrations to localStorage", e);
       }
@@ -182,6 +343,30 @@ export function ChatUI() {
       setEnableThinking(false);
     }
   }, [selectedModel, enableThinking]);
+
+  // If model doesn't support Google Search, force it off
+  useEffect(() => {
+    if (!selectedModel.supportsGoogleSearch && enableSearch) {
+      setEnableSearch(false);
+    }
+  }, [selectedModel, enableSearch]);
+
+  // If model doesn't support tools, clear mentioned tools
+  useEffect(() => {
+    if (!selectedModel.supportsTools && mentionedTools.length > 0) {
+      setMentionedTools([]);
+    }
+  }, [selectedModel, mentionedTools]);
+
+  // If model doesn't support image input, clear attachments
+  useEffect(() => {
+    if (!selectedModel.supportsImageInput && attachments.length > 0) {
+      setAttachments([]);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  }, [selectedModel, attachments]);
 
   // Save messages to local storage when they change
   useEffect(() => {
@@ -207,7 +392,10 @@ export function ChatUI() {
 
   // Listen for extension messages (screenshot + text context)
   useEffect(() => {
-    const setControlledTextareaValue = (textarea: HTMLTextAreaElement, value: string) => {
+    const setControlledTextareaValue = (
+      textarea: HTMLTextAreaElement,
+      value: string,
+    ) => {
       const proto = window.HTMLTextAreaElement.prototype;
       const descriptor = Object.getOwnPropertyDescriptor(proto, "value");
       const setter = descriptor?.set;
@@ -223,19 +411,20 @@ export function ChatUI() {
       // Only accept same-origin messages
       if (event.origin !== window.location.origin) return;
 
-      if (event.data?.type === 'AGENT0_SCREENSHOT') {
-        const { screenshot, pageUrl, pageTitle, selectedText } = event.data.data;
-        
-        const filename = `${pageTitle || 'Screenshot'}.png`;
+      if (event.data?.type === "AGENT0_SCREENSHOT") {
+        const { screenshot, pageUrl, pageTitle, selectedText } =
+          event.data.data;
+
+        const filename = `${pageTitle || "Screenshot"}.png`;
         const screenshotAttachment: FileAttachment = {
           name: filename,
-          type: 'image/png',
+          type: "image/png",
           size: screenshot.length,
           url: screenshot,
         };
-        
+
         setAttachments((prev) => [...prev, screenshotAttachment]);
-        
+
         if (selectedText) {
           setInputValue((prev) => {
             const context = `[Screenshot from: ${pageTitle}]\n${selectedText}\n\n${prev}`;
@@ -247,24 +436,29 @@ export function ChatUI() {
             return context;
           });
         }
-        
+
         setTimeout(() => {
-          const textarea = document.querySelector('textarea[placeholder="Send a message..."]') as HTMLTextAreaElement;
+          const textarea = document.querySelector(
+            'textarea[placeholder="Send a message..."]',
+          ) as HTMLTextAreaElement;
           textarea?.focus();
         }, 100);
-        
-        console.log('Screenshot received and attached:', {
+
+        console.log("Screenshot received and attached:", {
           pageTitle,
           pageUrl,
-          hasSelectedText: !!selectedText
+          hasSelectedText: !!selectedText,
         });
-      } else if (event.data?.type === 'AGENT0_CONTEXT_TEXT') {
+      } else if (event.data?.type === "AGENT0_CONTEXT_TEXT") {
         const data = event.data?.data || {};
-        const selectedText = typeof data.selectedText === "string" ? data.selectedText.trim() : "";
+        const selectedText =
+          typeof data.selectedText === "string" ? data.selectedText.trim() : "";
         if (!selectedText) return;
 
         const context = `${selectedText}\n\n`;
-        const textarea = document.querySelector('textarea[placeholder="Send a message..."]') as HTMLTextAreaElement | null;
+        const textarea = document.querySelector(
+          'textarea[placeholder="Send a message..."]',
+        ) as HTMLTextAreaElement | null;
         if (!textarea) return;
 
         const existing = textarea.value || "";
@@ -272,54 +466,57 @@ export function ChatUI() {
         textarea.focus();
       }
     };
-    
-    window.addEventListener('message', handleExtensionMessage);
-    return () => window.removeEventListener('message', handleExtensionMessage);
+
+    window.addEventListener("message", handleExtensionMessage);
+    return () => window.removeEventListener("message", handleExtensionMessage);
   }, []);
 
   // Listen for Google Auth callback
   useEffect(() => {
     const handleAuthMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'GOOGLE_AUTH_SUCCESS') {
-        console.log('Google Calendar Auth success received');
+      if (event.data?.type === "GOOGLE_AUTH_SUCCESS") {
+        console.log("Google Calendar Auth success received");
         setIsCalendarConnected(true);
       }
-      if (event.data?.type === 'GOOGLE_FORMS_AUTH_SUCCESS') {
-        console.log('Google Forms Auth success received');
+      if (event.data?.type === "GOOGLE_FORMS_AUTH_SUCCESS") {
+        console.log("Google Forms Auth success received");
         setIsFormsConnected(true);
       }
     };
-    window.addEventListener('message', handleAuthMessage);
-    return () => window.removeEventListener('message', handleAuthMessage);
+    window.addEventListener("message", handleAuthMessage);
+    return () => window.removeEventListener("message", handleAuthMessage);
   }, []);
 
   const isLoading = status === "streaming" || status === "submitted";
 
   // File selection handler - now using native FileList
-  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
+  const handleFileSelect = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files;
+      if (!files) return;
 
-    // Convert FileList to FileAttachment array for preview
-    const filePromises = Array.from(files).map((file) => {
-      return new Promise<FileAttachment>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          resolve({
-            name: file.name,
-            type: file.type,
-            size: file.size,
-            url: reader.result as string,
-          });
-        };
-        reader.readAsDataURL(file);
+      // Convert FileList to FileAttachment array for preview
+      const filePromises = Array.from(files).map((file) => {
+        return new Promise<FileAttachment>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            resolve({
+              name: file.name,
+              type: file.type,
+              size: file.size,
+              url: reader.result as string,
+            });
+          };
+          reader.readAsDataURL(file);
+        });
       });
-    });
 
-    Promise.all(filePromises).then((newAttachments) => {
-      setAttachments((prev) => [...prev, ...newAttachments]);
-    });
-  }, []);
+      Promise.all(filePromises).then((newAttachments) => {
+        setAttachments((prev) => [...prev, ...newAttachments]);
+      });
+    },
+    [],
+  );
 
   // Handler for drag-and-drop files (from FileDropZone)
   const handleFilesDropped = useCallback((files: File[]) => {
@@ -358,104 +555,115 @@ export function ChatUI() {
     }
   }, [setMessages]);
 
-  const handleAddIntegration = useCallback(async (id: string) => {
-    // Optimistic update
-    if (!addedIntegrations.includes(id)) {
-      setAddedIntegrations((prev) => [...prev, id]);
-    }
-    setActiveIntegration(id);
-
-    // Backend sync
-    try {
-      await fetch("/api/tools/install", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ toolId: id }),
-      });
-      
-      // Special handling for Calendar
-      if (id === "calendar" && !isCalendarConnected) {
-         const width = 600;
-         const height = 700;
-         const left = window.screen.width / 2 - width / 2;
-         const top = window.screen.height / 2 - height / 2;
-         
-         window.open(
-           "/api/auth/google", 
-           "GoogleAuth", 
-           `width=${width},height=${height},left=${left},top=${top}`
-         );
+  const handleAddIntegration = useCallback(
+    async (id: string) => {
+      // Optimistic update
+      if (!addedIntegrations.includes(id)) {
+        setAddedIntegrations((prev) => [...prev, id]);
       }
+      setActiveIntegration(id);
 
-      // Special handling for Forms - use unified OAuth endpoint with forms scopes
-      if (id === "forms" && !isFormsConnected) {
-         const width = 600;
-         const height = 700;
-         const left = window.screen.width / 2 - width / 2;
-         const top = window.screen.height / 2 - height / 2;
-         
-         window.open(
-           "/api/auth/google?service=forms", 
-           "GoogleFormsAuth", 
-           `width=${width},height=${height},left=${left},top=${top}`
-         );
+      // Backend sync
+      try {
+        await fetch("/api/tools/install", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ toolId: id }),
+        });
+
+        // Special handling for Calendar
+        if (id === "calendar" && !isCalendarConnected) {
+          const width = 600;
+          const height = 700;
+          const left = window.screen.width / 2 - width / 2;
+          const top = window.screen.height / 2 - height / 2;
+
+          window.open(
+            "/api/auth/google",
+            "GoogleAuth",
+            `width=${width},height=${height},left=${left},top=${top}`,
+          );
+        }
+
+        // Special handling for Forms - use unified OAuth endpoint with forms scopes
+        if (id === "forms" && !isFormsConnected) {
+          const width = 600;
+          const height = 700;
+          const left = window.screen.width / 2 - width / 2;
+          const top = window.screen.height / 2 - height / 2;
+
+          window.open(
+            "/api/auth/google?service=forms",
+            "GoogleFormsAuth",
+            `width=${width},height=${height},left=${left},top=${top}`,
+          );
+        }
+      } catch (error) {
+        console.error("Failed to install tool", error);
+        // Revert optimistic update
+        setAddedIntegrations((prev) => prev.filter((i) => i !== id));
       }
-    } catch (error) {
-      console.error("Failed to install tool", error);
-      // Revert optimistic update
-      setAddedIntegrations((prev) => prev.filter(i => i !== id));
-    }
-  }, [addedIntegrations, isCalendarConnected, isFormsConnected]);
+    },
+    [addedIntegrations, isCalendarConnected, isFormsConnected],
+  );
 
-  const handleRemoveIntegration = useCallback(async (id: string) => {
-    setAddedIntegrations((prev) => prev.filter((i) => i !== id));
-    if (activeIntegration === id) {
-      setActiveIntegration(null);
-    }
-     try {
-      await fetch("/api/tools/install", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ toolId: id }),
-      });
-
-      // Special handling for Calendar logout
-      if (id === "calendar") {
-        await fetch("/api/auth/google", { method: "DELETE" });
-        setIsCalendarConnected(false);
+  const handleRemoveIntegration = useCallback(
+    async (id: string) => {
+      setAddedIntegrations((prev) => prev.filter((i) => i !== id));
+      if (activeIntegration === id) {
+        setActiveIntegration(null);
       }
+      try {
+        await fetch("/api/tools/install", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ toolId: id }),
+        });
 
-      // Special handling for Forms logout
-      if (id === "forms") {
-        await fetch("/api/auth/google-forms", { method: "DELETE" });
-        setIsFormsConnected(false);
+        // Special handling for Calendar logout
+        if (id === "calendar") {
+          await fetch("/api/auth/google", { method: "DELETE" });
+          setIsCalendarConnected(false);
+        }
+
+        // Special handling for Forms logout
+        if (id === "forms") {
+          await fetch("/api/auth/google-forms", { method: "DELETE" });
+          setIsFormsConnected(false);
+        }
+      } catch (error) {
+        console.error("Failed to uninstall tool", error);
+        // Revert optimistic update
+        setAddedIntegrations((prev) => [...prev, id]);
       }
-    } catch (error) {
-      console.error("Failed to uninstall tool", error);
-      // Revert optimistic update
-      setAddedIntegrations((prev) => [...prev, id]);
-    }
-  }, [activeIntegration]);
+    },
+    [activeIntegration],
+  );
 
   // Simplified handleSubmit using AI SDK's new API
   const handleSubmit = async (value: { text: string; files: any[] }) => {
     if (!value.text.trim() && attachments.length === 0) return;
 
     // Build parts array for the message
-    const parts: Array<{ type: "text"; text: string } | { type: "file"; url: string; mediaType: string }> = [];
-    
+    const parts: Array<
+      | { type: "text"; text: string }
+      | { type: "file"; url: string; mediaType: string }
+    > = [];
+
     // Add text part
     if (value.text.trim()) {
       parts.push({ type: "text", text: value.text });
     }
 
     // Add file parts from attachments (using url for FileUIPart)
-    for (const att of attachments) {
-      parts.push({
-        type: "file",
-        url: att.url,
-        mediaType: att.type,
-      });
+    if (selectedModel.supportsImageInput) {
+      for (const att of attachments) {
+        parts.push({
+          type: "file",
+          url: att.url,
+          mediaType: att.type,
+        });
+      }
     }
 
     // Use parts-based message for multi-modal content
@@ -467,13 +675,17 @@ export function ChatUI() {
       {
         body: {
           model: selectedModel.id,
-          enableSearch,
-          enableThinking: selectedModel.supportsThinking ? enableThinking : false,
-          enableUrlContext: true,
-          enableCodeExecution: true,
-          mentionedTools,
+          enableSearch: selectedModel.supportsGoogleSearch
+            ? enableSearch
+            : false,
+          enableThinking: selectedModel.supportsThinking
+            ? enableThinking
+            : false,
+          enableUrlContext: selectedModel.supportsUrlContext,
+          enableCodeExecution: selectedModel.supportsCodeExecution,
+          mentionedTools: selectedModel.supportsTools ? mentionedTools : [],
         },
-      }
+      },
     );
 
     setInputValue("");
@@ -489,35 +701,61 @@ export function ChatUI() {
     regenerate({
       body: {
         model: selectedModel.id,
-        enableSearch,
+        enableSearch: selectedModel.supportsGoogleSearch ? enableSearch : false,
         enableThinking: selectedModel.supportsThinking ? enableThinking : false,
-        enableUrlContext: true,
-        enableCodeExecution: true,
-        mentionedTools,
+        enableUrlContext: selectedModel.supportsUrlContext,
+        enableCodeExecution: selectedModel.supportsCodeExecution,
+        mentionedTools: selectedModel.supportsTools ? mentionedTools : [],
       },
     });
   }, [regenerate, selectedModel, enableSearch, enableThinking, mentionedTools]);
 
-  const handleSuggestionClick = useCallback((suggestion: string) => {
-    setInputValue(suggestion);
-    if (suggestion.includes("Search")) setEnableSearch(true);
-  }, []);
+  const handleSuggestionClick = useCallback(
+    (suggestion: string) => {
+      setInputValue(suggestion);
+      if (suggestion.includes("Search") && selectedModel.supportsGoogleSearch) {
+        setEnableSearch(true);
+      }
+    },
+    [selectedModel.supportsGoogleSearch],
+  );
 
   // Prevent hydration mismatch by not rendering until loaded
   if (!isLoaded) return null;
 
   const isStarted = messages.length > 0;
-  const hasCustomTools = mentionedTools.length > 0;
-  
+  const effectiveMentionedTools = selectedModel.supportsTools
+    ? mentionedTools
+    : [];
+  const hasCustomTools = effectiveMentionedTools.length > 0;
+
   const featureBadges: FeatureBadge[] = [
-    { label: "Google Search", enabled: enableSearch && !hasCustomTools, color: "blue" },
-    ...(selectedModel.supportsThinking
-      ? [{ label: "Thinking", enabled: enableThinking, color: "amber" as const }]
+    ...(selectedModel.supportsGoogleSearch
+      ? [
+          {
+            label: "Google Search",
+            enabled: enableSearch && !hasCustomTools,
+            color: "blue" as const,
+          },
+        ]
       : []),
-    { label: "URL Context", enabled: !hasCustomTools, color: "green" },
-    { label: "Code Execution", enabled: !hasCustomTools, color: "purple" },
+    ...(selectedModel.supportsThinking
+      ? [
+          {
+            label: "Thinking",
+            enabled: enableThinking,
+            color: "amber" as const,
+          },
+        ]
+      : []),
+    ...(selectedModel.supportsUrlContext
+      ? [{ label: "URL Context", enabled: !hasCustomTools, color: "green" as const }]
+      : []),
+    ...(selectedModel.supportsCodeExecution
+      ? [{ label: "Code Execution", enabled: !hasCustomTools, color: "purple" as const }]
+      : []),
     ...(hasCustomTools
-      ? mentionedTools.map((tool) => ({
+      ? effectiveMentionedTools.map((tool) => ({
           label: `@${tool}`,
           enabled: true,
           color: "cyan" as const,
@@ -539,88 +777,104 @@ export function ChatUI() {
           onOpenIntegrations={() => setIsIntegrationsModalOpen(true)}
         />
 
-      {/* Main Content Area */}
-      <div className="flex-1 overflow-hidden relative flex flex-col">
-        <TableOfContents messages={messages} />
-        
-        {/* Conversation Area */}
-        <div className={cn("flex-1 overflow-hidden relative", !isStarted && "hidden")}>
-          <MessageList 
-            messages={messages} 
-            isLoading={isLoading} 
-            onRegenerate={handleRegenerate}
-            status={status}
-            error={error}
-          />
+        {/* Main Content Area */}
+        <div className="flex-1 overflow-hidden relative flex flex-col">
+          <TableOfContents messages={messages} />
+
+          {/* Conversation Area */}
+          <div
+            className={cn(
+              "flex-1 overflow-hidden relative",
+              !isStarted && "hidden",
+            )}
+          >
+            <MessageList
+              messages={messages}
+              isLoading={isLoading}
+              onRegenerate={handleRegenerate}
+              status={status}
+              error={error}
+            />
+          </div>
+
+          {/* Input Area Container */}
+          <motion.div
+            className={cn(
+              "w-full px-4",
+              isStarted
+                ? "border-t bg-background/80 backdrop-blur-sm pb-6 pt-4"
+                : "flex-1 flex flex-col items-center justify-center pb-20",
+            )}
+            layout
+            transition={{ duration: 0.5, ease: "easeInOut" }}
+          >
+            <div className="max-w-3xl mx-auto w-full space-y-8">
+              {/* Empty State */}
+              {!isStarted && <ChatEmptyState />}
+
+              {/* Attachments Preview */}
+              <AttachmentsPreview
+                attachments={attachments}
+                onRemove={removeAttachment}
+              />
+
+              {/* Prompt Input */}
+              <motion.div layout className="w-full">
+                <PromptInputArea
+                  value={inputValue}
+                  onChange={setInputValue}
+                  onSubmit={handleSubmit}
+                  isLoading={isLoading}
+                  enableSearch={
+                    selectedModel.supportsGoogleSearch ? enableSearch : false
+                  }
+                  onToggleSearch={() => {
+                    if (!selectedModel.supportsGoogleSearch) return;
+                    setEnableSearch(!enableSearch);
+                  }}
+                  searchSupported={selectedModel.supportsGoogleSearch}
+                  enableThinking={enableThinking}
+                  thinkingSupported={selectedModel.supportsThinking}
+                  onToggleThinking={() => {
+                    if (!selectedModel.supportsThinking) return;
+                    setEnableThinking((prev) => !prev);
+                  }}
+                  onFilesSelected={handleFileSelect}
+                  mentionedTools={effectiveMentionedTools}
+                  toolsSupported={selectedModel.supportsTools}
+                  filesSupported={selectedModel.supportsImageInput}
+                  onToolMentionsChange={setMentionedTools}
+                  addedIntegrations={addedIntegrations}
+                />
+              </motion.div>
+
+              {/* Feature Indicators - only show when chat hasn't started */}
+              {!isStarted && <FeatureBadgesRow badges={featureBadges} />}
+
+              {/* Suggestions Grid - only show when chat hasn't started */}
+              {!isStarted && (
+                <SuggestionsGrid
+                  suggestions={defaultSuggestions}
+                  onSuggestionClick={handleSuggestionClick}
+                />
+              )}
+            </div>
+          </motion.div>
         </div>
 
-        {/* Input Area Container */}
-        <motion.div
-          className={cn(
-            "w-full px-4",
-            isStarted
-              ? "border-t bg-background/80 backdrop-blur-sm pb-6 pt-4"
-              : "flex-1 flex flex-col items-center justify-center pb-20"
-          )}
-          layout
-          transition={{ duration: 0.5, ease: "easeInOut" }}
-        >
-          <div className="max-w-3xl mx-auto w-full space-y-8">
-            {/* Empty State */}
-            {!isStarted && <ChatEmptyState />}
+        <IntegrationsModal
+          isOpen={isIntegrationsModalOpen}
+          onOpenChange={setIsIntegrationsModalOpen}
+          onAddIntegration={handleAddIntegration}
+          onRemoveIntegration={handleRemoveIntegration}
+          addedIntegrations={addedIntegrations}
+        />
 
-            {/* Attachments Preview */}
-            <AttachmentsPreview attachments={attachments} onRemove={removeAttachment} />
-
-            {/* Prompt Input */}
-            <motion.div layout className="w-full">
-              <PromptInputArea
-                value={inputValue}
-                onChange={setInputValue}
-                onSubmit={handleSubmit}
-                isLoading={isLoading}
-                enableSearch={enableSearch}
-                onToggleSearch={() => setEnableSearch(!enableSearch)}
-                enableThinking={enableThinking}
-                thinkingSupported={selectedModel.supportsThinking}
-                onToggleThinking={() => {
-                  if (!selectedModel.supportsThinking) return;
-                  setEnableThinking((prev) => !prev);
-                }}
-                onFilesSelected={handleFileSelect}
-                mentionedTools={mentionedTools}
-                onToolMentionsChange={setMentionedTools}
-                addedIntegrations={addedIntegrations}
-              />
-            </motion.div>
-
-            {/* Feature Indicators - only show when chat hasn't started */}
-            {!isStarted && <FeatureBadgesRow badges={featureBadges} />}
-
-            {/* Suggestions Grid - only show when chat hasn't started */}
-            {!isStarted && (
-              <SuggestionsGrid
-                suggestions={defaultSuggestions}
-                onSuggestionClick={handleSuggestionClick}
-              />
-            )}
-          </div>
-        </motion.div>
-      </div>
-
-      <IntegrationsModal
-        isOpen={isIntegrationsModalOpen}
-        onOpenChange={setIsIntegrationsModalOpen}
-        onAddIntegration={handleAddIntegration}
-        onRemoveIntegration={handleRemoveIntegration}
-        addedIntegrations={addedIntegrations}
-      />
-
-      <IntegrationPanel
-        isOpen={!!activeIntegration}
-        onClose={() => setActiveIntegration(null)}
-        integrationId={activeIntegration}
-      />
+        <IntegrationPanel
+          isOpen={!!activeIntegration}
+          onClose={() => setActiveIntegration(null)}
+          integrationId={activeIntegration}
+        />
       </div>
     </FileDropZone>
   );

@@ -11,7 +11,8 @@ import {
   AlignLeftIcon,
   SparklesIcon,
   BrainIcon,
-  ExternalLinkIcon
+  ExternalLinkIcon,
+  SaveIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -40,18 +41,22 @@ interface SentEmailResult {
   subject: string;
   messageId?: string;
   threadId?: string;
+  draftId?: string;
 }
 
 interface EmailDraftConfirmationProps {
   toolCallId: string;
   emailDetails: EmailDetails;
   reasoning: string;
+  // Optional: Explicitly specify the intent if known
+  intent?: "send" | "draft" | "both";
 }
 
 export function EmailDraftConfirmation({
   toolCallId,
   emailDetails,
   reasoning,
+  intent,
 }: EmailDraftConfirmationProps) {
   const [formData, setFormData] = useState({
     to: emailDetails.to || "",
@@ -62,9 +67,43 @@ export function EmailDraftConfirmation({
   });
   
   // Internal state management
-  const [status, setStatus] = useState<"pending" | "sending" | "sent" | "cancelled" | "error">("pending");
+  const [status, setStatus] = useState<"pending" | "sending" | "sent" | "saving" | "saved" | "cancelled" | "error">("pending");
+  const [actionType, setActionType] = useState<"send" | "draft" | null>(null);
   const [sentEmail, setSentEmail] = useState<SentEmailResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Determine which buttons to show based on intent or content
+  const determineButtons = (): { showSend: boolean; showDraft: boolean } => {
+    // If intent is explicitly provided, use it
+    if (intent === "send") return { showSend: true, showDraft: false };
+    if (intent === "draft") return { showSend: false, showDraft: true };
+    if (intent === "both") return { showSend: true, showDraft: true };
+
+    // Intelligent decision based on content and reasoning
+    const reasoningLower = reasoning.toLowerCase();
+    const isDraftIntent = 
+      reasoningLower.includes("draft") || 
+      reasoningLower.includes("save for later") ||
+      reasoningLower.includes("prepare");
+    
+    const isSendIntent = 
+      reasoningLower.includes("send") || 
+      reasoningLower.includes("deliver") ||
+      reasoningLower.includes("transmit") ||
+      formData.to.trim() !== ""; // Has recipient = likely wants to send
+
+    // If both or unclear, show both buttons
+    if ((isDraftIntent && isSendIntent) || (!isDraftIntent && !isSendIntent)) {
+      return { showSend: true, showDraft: true };
+    }
+
+    return {
+      showSend: isSendIntent,
+      showDraft: isDraftIntent,
+    };
+  };
+
+  const buttons = determineButtons();
 
   const handleChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -72,6 +111,7 @@ export function EmailDraftConfirmation({
 
   const handleSend = async () => {
     setStatus("sending");
+    setActionType("send");
     setErrorMessage(null);
 
     try {
@@ -109,11 +149,50 @@ export function EmailDraftConfirmation({
     }
   };
 
+  const handleSaveDraft = async () => {
+    setStatus("saving");
+    setActionType("draft");
+    setErrorMessage(null);
+
+    try {
+      // Call the API to create a draft
+      const response = await fetch("/api/gmail/create-draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: formData.to || undefined,
+          subject: formData.subject || undefined,
+          body: formData.body || undefined,
+          cc: formData.cc || undefined,
+          bcc: formData.bcc || undefined,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.error) {
+        setStatus("error");
+        setErrorMessage(result.message || "Failed to save draft");
+      } else {
+        setStatus("saved");
+        setSentEmail({
+          to: formData.to,
+          subject: formData.subject,
+          draftId: result.draftId,
+        });
+      }
+    } catch (err) {
+      setStatus("error");
+      setErrorMessage(err instanceof Error ? err.message : "Failed to save draft");
+    }
+  };
+
   const handleCancel = () => {
     setStatus("cancelled");
   };
 
-  const isValid = formData.to && formData.subject && formData.body;
+  const isValidForSend = formData.to && formData.subject && formData.body;
+  const isValidForDraft = formData.subject || formData.body; // Draft can be saved with less validation
 
   // Show sent email success state
   if (status === "sent" && sentEmail) {
@@ -151,7 +230,70 @@ export function EmailDraftConfirmation({
             </div>
             {sentEmail.messageId && (
               <div className="pt-2">
-                <p className="text-xs text-muted-foreground">Message ID: {sentEmail.messageId}</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => window.open(`https://mail.google.com/mail/u/0/#sent/${sentEmail.messageId}`, '_blank')}
+                >
+                  <ExternalLinkIcon className="h-3.5 w-3.5 mr-2" />
+                  View in Gmail
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
+
+  // Show saved draft success state
+  if (status === "saved" && sentEmail) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        className="w-full max-w-lg my-4 not-prose"
+      >
+        <div className="rounded-xl border border-blue-500/20 bg-gradient-to-br from-blue-500/5 via-blue-500/3 to-transparent backdrop-blur-sm shadow-lg overflow-hidden">
+          <div className="border-b border-blue-500/10 bg-gradient-to-br from-blue-500/5 to-transparent p-4">
+            <div className="flex items-center gap-3">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", stiffness: 200 }}
+                className="p-2 rounded-lg bg-blue-500/10 text-blue-600 ring-1 ring-blue-500/20"
+              >
+                <SaveIcon className="w-5 h-5" />
+              </motion.div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-base text-blue-700 dark:text-blue-400">Draft Saved Successfully</h3>
+                <p className="text-xs text-blue-600/70 dark:text-blue-500/70 mt-0.5">Your draft has been saved to Gmail</p>
+              </div>
+            </div>
+          </div>
+          <div className="p-5 space-y-3">
+            {sentEmail.to && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">To</p>
+                <p className="font-medium">{sentEmail.to}</p>
+              </div>
+            )}
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Subject</p>
+              <p className="font-semibold text-lg">{sentEmail.subject || "(No Subject)"}</p>
+            </div>
+            {sentEmail.draftId && (
+              <div className="pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => window.open(`https://mail.google.com/mail/u/0/#drafts/${sentEmail.draftId}`, '_blank')}
+                >
+                  <ExternalLinkIcon className="h-3.5 w-3.5 mr-2" />
+                  Open Draft in Gmail
+                </Button>
               </div>
             )}
           </div>
@@ -197,7 +339,9 @@ export function EmailDraftConfirmation({
               <XIcon className="w-5 h-5" />
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold text-red-700 dark:text-red-400">Failed to Send Email</h3>
+              <h3 className="font-semibold text-red-700 dark:text-red-400">
+                {actionType === "draft" ? "Failed to Save Draft" : "Failed to Send Email"}
+              </h3>
               <p className="text-xs text-red-600/70 dark:text-red-500/70">{errorMessage}</p>
             </div>
           </div>
@@ -346,29 +490,55 @@ export function EmailDraftConfirmation({
             <Button
               variant="outline"
               onClick={handleCancel}
-              disabled={status === "sending"}
+              disabled={status === "sending" || status === "saving"}
               className="flex-1 h-11 gap-2"
             >
               <XIcon className="h-4 w-4" />
               Cancel
             </Button>
-            <Button
-              onClick={handleSend}
-              disabled={!isValid || status === "sending"}
-              className="flex-1 h-11 gap-2"
-            >
-              {status === "sending" ? (
-                <>
-                  <Loader2Icon className="h-4 w-4 animate-spin" />
-                  Sending...
-                </>
-              ) : (
-                <>
-                  <SendIcon className="h-4 w-4" />
-                  Send Email
-                </>
-              )}
-            </Button>
+            
+            {/* Show Save to Draft button if enabled */}
+            {buttons.showDraft && (
+              <Button
+                variant="secondary"
+                onClick={handleSaveDraft}
+                disabled={!isValidForDraft || status === "sending" || status === "saving"}
+                className="flex-1 h-11 gap-2"
+              >
+                {status === "saving" ? (
+                  <>
+                    <Loader2Icon className="h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <SaveIcon className="h-4 w-4" />
+                    Save to Draft
+                  </>
+                )}
+              </Button>
+            )}
+            
+            {/* Show Send Email button if enabled */}
+            {buttons.showSend && (
+              <Button
+                onClick={handleSend}
+                disabled={!isValidForSend || status === "sending" || status === "saving"}
+                className="flex-1 h-11 gap-2"
+              >
+                {status === "sending" ? (
+                  <>
+                    <Loader2Icon className="h-4 w-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <SendIcon className="h-4 w-4" />
+                    Send Email
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         </div>
       </motion.div>

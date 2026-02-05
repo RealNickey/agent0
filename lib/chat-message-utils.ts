@@ -7,6 +7,13 @@ export function getToolTitle(toolName: string): string {
     url_context: "URL Context",
     code_execution: "Code Execution",
     displayWeather: "Weather",
+    searchEmails: "Search Emails",
+    getThread: "Email Thread",
+    getMessageContent: "Email Message",
+    createDraft: "Create Draft",
+    sendMessage: "Send Email",
+    composeEmail: "Compose Email",
+    confirmSendEmail: "Confirm Send Email",
   };
   return titles[toolName] || toolName;
 }

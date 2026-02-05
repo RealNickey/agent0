@@ -37,6 +37,10 @@ import { CalendarDraft } from "@/components/ai-elements/calendar-draft";
 import { CalendarEvent } from "@/components/ai-elements/calendar-event";
 import { EventSchedulingConfirmation } from "@/components/ai-elements/event-scheduling-confirmation";
 import { EmailDraftConfirmation } from "@/components/ai-elements/email-draft-confirmation";
+import { EmailMessage } from "@/components/ai-elements/email-message";
+import { EmailThread } from "@/components/ai-elements/email-thread";
+import { EmailSearchResults } from "@/components/ai-elements/email-search-results";
+import { EmailSentSuccess } from "@/components/ai-elements/email-sent-success";
 import { FormCreationConfirmation } from "@/components/ai-elements/form-creation-confirmation";
 import { FormResponsesList } from "@/components/ai-elements/form-responses-list";
 import { FormSummaryCard } from "@/components/ai-elements/form-summary-card";
@@ -268,6 +272,7 @@ export function MessageList({ messages, isLoading, status, onRegenerate, error }
                                 toolCallId={toolInvocation.toolCallId}
                                 emailDetails={result.emailDetails}
                                 reasoning={result.reasoning}
+                                intent={result.intent}
                               />
                             );
                           }
@@ -279,6 +284,71 @@ export function MessageList({ messages, isLoading, status, onRegenerate, error }
                             // Show a success message - the UI already shows it in EmailDraftConfirmation
                             // We can render a simple success indicator here if needed
                             return null; // The component handles the success state
+                          }
+                        }
+
+                        // Search Emails - Display search results in a compact list
+                        if (toolInvocation.toolName === "searchEmails" && isCompleted) {
+                          if (!hasError && toolInvocation.result?.messages) {
+                            return (
+                              <EmailSearchResults
+                                key={toolInvocation.toolCallId}
+                                query={toolInvocation.args?.query || ""}
+                                messages={toolInvocation.result.messages}
+                                messageCount={toolInvocation.result.messageCount || 0}
+                              />
+                            );
+                          }
+                        }
+
+                        // Get Thread - Display full email conversation
+                        if (toolInvocation.toolName === "getThread" && isCompleted) {
+                          if (!hasError && toolInvocation.result?.messages) {
+                            return (
+                              <EmailThread
+                                key={toolInvocation.toolCallId}
+                                threadId={toolInvocation.result.threadId}
+                                messages={toolInvocation.result.messages}
+                                messageCount={toolInvocation.result.messageCount || 0}
+                              />
+                            );
+                          }
+                        }
+
+                        // Get Message Content - Display detailed email message
+                        if (toolInvocation.toolName === "getMessageContent" && isCompleted) {
+                          if (!hasError && toolInvocation.result?.id) {
+                            return (
+                              <EmailMessage
+                                key={toolInvocation.toolCallId}
+                                id={toolInvocation.result.id}
+                                from={toolInvocation.result.from || ""}
+                                to={toolInvocation.result.to || ""}
+                                subject={toolInvocation.result.subject || "(No Subject)"}
+                                date={toolInvocation.result.date}
+                                snippet={toolInvocation.result.snippet}
+                                textContent={toolInvocation.result.textContent}
+                                htmlContent={toolInvocation.result.htmlContent}
+                                cc={toolInvocation.result.cc}
+                                attachments={toolInvocation.result.attachments}
+                                labelIds={toolInvocation.result.labelIds}
+                              />
+                            );
+                          }
+                        }
+
+                        // Send Message - Display success message (direct send without HITL)
+                        if (toolInvocation.toolName === "sendMessage" && isCompleted) {
+                          if (!hasError && !toolInvocation.result?.error) {
+                            return (
+                              <EmailSentSuccess
+                                key={toolInvocation.toolCallId}
+                                to={toolInvocation.result.to || toolInvocation.args?.to || ""}
+                                subject={toolInvocation.result.subject || toolInvocation.args?.subject || ""}
+                                messageId={toolInvocation.result.messageId}
+                                threadId={toolInvocation.result.threadId}
+                              />
+                            );
                           }
                         }
 

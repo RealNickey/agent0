@@ -560,18 +560,47 @@ export const composeEmailTool = tool({
 - Extract recipient(s), subject, and body from the user's request
 - If replying to a thread, include the thread_id
 - Always generate the form immediately, the user can edit before sending
+- Detect if user wants to "create a draft" vs "send email" and set intent accordingly
 
-Use this tool IMMEDIATELY when the user mentions composing, writing, sending, or replying to an email.`,
+Use this tool IMMEDIATELY when the user mentions composing, writing, sending, drafting, or replying to an email.`,
   inputSchema: z.object({
-    to: z.string().describe("Recipient email address(es), comma-separated for multiple. ALWAYS extract from context."),
+    to: z.string().describe("Recipient email address(es), comma-separated for multiple. ALWAYS extract from context. Can be empty for drafts."),
     subject: z.string().describe("Email subject line. Infer from context if not explicitly provided."),
     body: z.string().describe("Email body content (plain text). Compose based on user's intent."),
     cc: z.string().optional().describe("CC email address(es), comma-separated if mentioned"),
     bcc: z.string().optional().describe("BCC email address(es), comma-separated if mentioned"),
     thread_id: z.string().optional().describe("Thread ID if this is a reply to an existing conversation"),
-    reasoning: z.string().describe("Brief explanation of how you composed this email"),
+    intent: z.enum(["send", "draft", "both"]).optional().describe("User's intent: 'send' for immediate send, 'draft' for saving as draft, 'both' if unclear. Detect from phrases like 'create a draft', 'save as draft' vs 'send email', 'email to'."),
+    reasoning: z.string().describe("Brief explanation of how you composed this email and why you chose the intent"),
   }),
-  execute: async ({ to, subject, body, cc, bcc, thread_id, reasoning }) => {
+  execute: async ({ to, subject, body, cc, bcc, thread_id, intent, reasoning }) => {
+    // Determine intent if not explicitly provided
+    let finalIntent = intent;
+    if (!finalIntent) {
+      const reasoningLower = reasoning.toLowerCase();
+      const bodyLower = body.toLowerCase();
+      const subjectLower = subject.toLowerCase();
+      
+      const isDraftKeyword = 
+        reasoningLower.includes("draft") || 
+        reasoningLower.includes("save") ||
+        bodyLower.includes("draft") ||
+        subjectLower.includes("draft");
+      
+      const isSendKeyword = 
+        reasoningLower.includes("send") || 
+        reasoningLower.includes("email to") ||
+        to.trim() !== ""; // Has recipient
+      
+      if (isDraftKeyword && !isSendKeyword) {
+        finalIntent = "draft";
+      } else if (isSendKeyword && !isDraftKeyword) {
+        finalIntent = "send";
+      } else {
+        finalIntent = "both"; // Show both options if unclear
+      }
+    }
+
     return {
       status: "pending_confirmation",
       emailDetails: {
@@ -582,8 +611,13 @@ Use this tool IMMEDIATELY when the user mentions composing, writing, sending, or
         bcc: bcc || "",
         thread_id: thread_id || "",
       },
+      intent: finalIntent,
       reasoning,
-      message: "Please review the email and confirm to send.",
+      message: finalIntent === "draft" 
+        ? "Please review the draft and save it to Gmail." 
+        : finalIntent === "send"
+        ? "Please review the email and confirm to send."
+        : "Please review the email and choose to send or save as draft.",
     };
   },
 });

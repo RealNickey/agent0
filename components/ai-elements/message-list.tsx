@@ -36,7 +36,7 @@ import {
 import { CalendarDraft } from "@/components/ai-elements/calendar-draft";
 import { CalendarEvent } from "@/components/ai-elements/calendar-event";
 import { EventSchedulingConfirmation } from "@/components/ai-elements/event-scheduling-confirmation";
-import { PDFResult, isPDFToolResult } from "@/components/ai-elements/pdf-result";
+import { PDFResult, PDFLoading, isPDFToolResult } from "@/components/ai-elements/pdf-result";
 import { ImageResult, ImageLoading } from "@/components/ai-elements/image-result";
 import { FormCreationConfirmation } from "@/components/ai-elements/form-creation-confirmation";
 import { FormResponsesList } from "@/components/ai-elements/form-responses-list";
@@ -193,11 +193,12 @@ export function MessageList({ messages, isLoading, status, onRegenerate, error }
                           state: state,
                           args: t.args || t.input,
                           result: t.result || t.output,
+                          errorText: t.errorText,
                         };
                       });
                       return normalizedToolInvocations.map((toolInvocation: any) => {
                         const isCompleted = toolInvocation.state === "result";
-                        const hasError = toolInvocation.result?.error === true;
+                        const hasError = toolInvocation.result?.error === true || toolInvocation.state === "output-error" || Boolean(toolInvocation.errorText);
 
                         // Schedule Calendar Event (with human-in-the-loop confirmation)
                         if (toolInvocation.toolName === "scheduleCalendarEvent" && isCompleted) {
@@ -384,8 +385,13 @@ export function MessageList({ messages, isLoading, status, onRegenerate, error }
 
                         // Special rendering for PDF tools (compressPDF, mergePDFs)
                         if (toolInvocation.toolName === "compressPDF" || toolInvocation.toolName === "mergePDFs") {
-                          const isCompleted = toolInvocation.state === "result";
                           const result = toolInvocation.result;
+                          const operation = toolInvocation.toolName === "compressPDF" ? "compress" : "merge";
+                          const isPdfCompleted = toolInvocation.state === "result" || toolInvocation.state === "output-error";
+                          const fallbackErrorResult = toolInvocation.errorText
+                            ? { success: false, error: toolInvocation.errorText }
+                            : undefined;
+                          const pdfResult = isPDFToolResult(result) ? result : fallbackErrorResult;
                           
                           return (
                             <div key={toolInvocation.toolCallId} className="flex flex-col gap-2 w-full">
@@ -394,9 +400,9 @@ export function MessageList({ messages, isLoading, status, onRegenerate, error }
                                   title={toolInvocation.toolName === "compressPDF" ? "Compress PDF" : "Merge PDFs"}
                                   type={`tool-${toolInvocation.toolName}` as any}
                                   state={
-                                    result?.success === false
+                                    toolInvocation.state === "output-error" || result?.success === false
                                       ? "output-error"
-                                      : isCompleted
+                                      : isPdfCompleted
                                       ? "output-available"
                                       : "input-available"
                                   }
@@ -407,14 +413,23 @@ export function MessageList({ messages, isLoading, status, onRegenerate, error }
                               </Tool>
                               
                               {/* PDF Result UI rendered outside the Tool component */}
-                              {isCompleted && isPDFToolResult(result) && (
+                              {isPdfCompleted ? (
                                 <motion.div
                                   initial={{ opacity: 0, y: 10 }}
                                   animate={{ opacity: 1, y: 0 }}
                                   transition={{ delay: 0.2 }}
                                   className="w-full"
                                 >
-                                  <PDFResult {...result} />
+                                  {pdfResult && <PDFResult {...pdfResult} operation={operation} />}
+                                </motion.div>
+                              ) : (
+                                <motion.div
+                                  initial={{ opacity: 0, y: 10 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ delay: 0.2 }}
+                                  className="w-full"
+                                >
+                                  <PDFLoading operation={operation} />
                                 </motion.div>
                               )}
                             </div>

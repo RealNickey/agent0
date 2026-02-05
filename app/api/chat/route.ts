@@ -236,8 +236,7 @@ export async function POST(req: Request) {
   hour: "2-digit",
   minute: "2-digit",
   timeZoneName: "short"
-})}. Use this to resolve relative date mentions like "today", "tomorrow", "next Monday", etc. If the user asks for "events today" or "schedule", assume the default time range starts now and ends at the end of the day or covers a reasonable period, do not ask for clarification unless necessary.${calendarGuidance}${pdfGuidance}${formsGuidance}`
-
+})}. Use this to resolve relative date mentions like "today", "tomorrow", "next Monday", etc. If the user asks for "events today" or "schedule", assume the default time range starts now and ends at the end of the day or covers a reasonable period, do not ask for clarification unless necessary.${calendarGuidance}${pdfGuidance}${formsGuidance}`,
     messages: modelMessages,
     tools: hasTools ? tools : undefined,
     toolChoice: hasTools ? "auto" : "none",

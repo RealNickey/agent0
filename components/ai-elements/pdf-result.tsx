@@ -2,7 +2,14 @@
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { DownloadIcon, FileTextIcon, CheckCircle2Icon, AlertCircleIcon } from "lucide-react";
+import {
+  DownloadIcon,
+  FileTextIcon,
+  CheckCircle2Icon,
+  AlertCircleIcon,
+  ExternalLinkIcon,
+  Loader2Icon,
+} from "lucide-react";
 import { motion } from "motion/react";
 
 export type PDFResultData = {
@@ -25,6 +32,7 @@ export type PDFResultProps = {
   message?: string;
   error?: string;
   requiresUpload?: boolean;
+  operation?: "compress" | "merge";
   className?: string;
 };
 
@@ -34,6 +42,7 @@ export function PDFResult({
   message,
   error,
   requiresUpload,
+  operation,
   className,
 }: PDFResultProps) {
   const handleDownload = () => {
@@ -48,6 +57,17 @@ export function PDFResult({
     document.body.removeChild(link);
   };
 
+  const handleOpen = () => {
+    if (!data?.dataUrl) return;
+    window.open(data.dataUrl, "_blank", "noopener,noreferrer");
+  };
+
+  const title = operation === "compress"
+    ? "Compressed PDF"
+    : operation === "merge"
+    ? "Merged PDF"
+    : "PDF Ready";
+
   if (!success) {
     return (
       <motion.div
@@ -58,9 +78,17 @@ export function PDFResult({
           className
         )}
       >
-        <AlertCircleIcon className="size-5 text-amber-500 shrink-0 mt-0.5" />
+        <div className="p-2 rounded-lg bg-amber-500/10">
+          <AlertCircleIcon className="size-5 text-amber-500" />
+        </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-amber-700 dark:text-amber-400">
+          <div className="flex items-center gap-2">
+            <FileTextIcon className="size-4 text-amber-500" />
+            <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+              {title} failed
+            </p>
+          </div>
+          <p className="text-sm text-amber-700/80 dark:text-amber-400/80 mt-1">
             {message || error || "An error occurred while processing the PDF."}
           </p>
           {requiresUpload && (
@@ -83,22 +111,44 @@ export function PDFResult({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
-        "flex flex-col gap-3 p-4 rounded-lg border border-green-500/20 bg-green-500/5",
+        "flex flex-col gap-3 rounded-xl border border-green-500/20 bg-green-500/5 overflow-hidden",
         className
       )}
     >
-      {/* Success Header */}
-      <div className="flex items-start gap-3">
-        <CheckCircle2Icon className="size-5 text-green-500 shrink-0 mt-0.5" />
-        <div className="flex-1 min-w-0">
-          <p className="text-sm text-green-700 dark:text-green-400">
-            {message || "PDF processed successfully!"}
-          </p>
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3 p-4 border-b border-green-500/20 bg-green-500/10">
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 rounded-lg bg-green-500/15 text-green-600">
+            <FileTextIcon className="size-5" />
+          </div>
+          <div className="space-y-0.5">
+            <p className="text-sm font-medium text-green-700 dark:text-green-400">
+              {title}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {message || "PDF processed successfully"}
+            </p>
+          </div>
+        </div>
+        <CheckCircle2Icon className="size-5 text-green-500" />
+      </div>
+
+      {/* Preview */}
+      <div className="px-4">
+        <div className="rounded-lg border bg-background/40 overflow-hidden">
+          <iframe
+            src={data.dataUrl}
+            title={data.filename}
+            className="h-56 w-full"
+          />
         </div>
       </div>
 
       {/* Stats */}
-      <div className="flex flex-wrap gap-4 text-xs text-muted-foreground pl-8">
+      <div className="flex flex-wrap gap-4 text-xs text-muted-foreground px-4">
+        <div>
+          <span className="font-medium">Filename:</span> {data.filename}
+        </div>
         {isCompression && (
           <>
             <div>
@@ -133,7 +183,7 @@ export function PDFResult({
       </div>
 
       {/* Download Button */}
-      <div className="pl-8">
+      <div className="flex flex-wrap gap-2 px-4 pb-4">
         <Button
           onClick={handleDownload}
           variant="default"
@@ -141,8 +191,47 @@ export function PDFResult({
           className="gap-2"
         >
           <DownloadIcon className="size-4" />
-          Download {data.filename}
+          Download
         </Button>
+        <Button
+          onClick={handleOpen}
+          variant="outline"
+          size="sm"
+          className="gap-2"
+        >
+          <ExternalLinkIcon className="size-4" />
+          Open
+        </Button>
+      </div>
+    </motion.div>
+  );
+}
+
+export function PDFLoading({ operation }: { operation?: "compress" | "merge" }) {
+  const title = operation === "compress"
+    ? "Compressing PDF..."
+    : operation === "merge"
+    ? "Merging PDFs..."
+    : "Processing PDF...";
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="w-full rounded-xl border bg-card overflow-hidden"
+    >
+      <div className="flex items-center gap-2 p-4 border-b bg-muted/30">
+        <div className="p-2 rounded-lg bg-primary/10 text-primary">
+          <FileTextIcon className="size-4" />
+        </div>
+        <span className="text-sm font-medium">{title}</span>
+        <Loader2Icon className="size-4 animate-spin text-muted-foreground ml-auto" />
+      </div>
+      <div className="px-4 py-6">
+        <div className="h-40 rounded-lg bg-muted/30 animate-pulse" />
+      </div>
+      <div className="px-4 pb-4">
+        <div className="h-3 w-48 rounded bg-muted/40 animate-pulse" />
       </div>
     </motion.div>
   );

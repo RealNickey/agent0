@@ -9,7 +9,6 @@ import {
   PromptInputSpeechButton,
 } from "@/components/ai-elements/prompt-input";
 import { BrainIcon, CalendarIcon, CloudSunIcon, FileTextIcon, ImageIcon, PaperclipIcon, SearchIcon } from "lucide-react";
-import { BrainIcon, CalendarIcon, CloudSunIcon, FileTextIcon, PaperclipIcon, SearchIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ButtonGroup, ButtonGroupSeparator } from "@/components/ui/button-group";
 import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
@@ -228,13 +227,12 @@ export function PromptInputArea({
           {mentionedTools.length > 0 && (
             <div className="flex items-center gap-1 pl-2 py-2.5 select-none">
               {mentionedTools.map((tool) => {
-                const ToolIcon = getToolIcon(tool);
                 const toolLower = tool.toLowerCase();
                 const ToolIcon = toolLower === "calendar" 
                   ? CalendarIcon 
                   : toolLower === "forms" || toolLower === "survey"
                   ? FileTextIcon
-                  : CloudSunIcon;
+                  : getToolIcon(tool);
                 return (
                   <Badge 
                     key={tool} 

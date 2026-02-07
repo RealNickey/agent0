@@ -7,7 +7,7 @@ import {
   PromptInputSubmit,
   PromptInputButton,
 } from "@/components/ai-elements/prompt-input";
-import { BrainIcon, CalendarIcon, CloudSunIcon, FileTextIcon, PaperclipIcon, SearchIcon, NetworkIcon } from "lucide-react";
+import { BrainIcon, CalendarIcon, CloudSunIcon, FileTextIcon, PaperclipIcon, SearchIcon, NetworkIcon, ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ButtonGroup, ButtonGroupSeparator } from "@/components/ui/button-group";
 import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
@@ -236,6 +236,8 @@ export function PromptInputArea({
                   ? FileTextIcon
                   : toolLower === "mermaid"
                   ? NetworkIcon
+                  : toolLower === "image" || toolLower === "imagine" || toolLower === "flux"
+                  ? ImageIcon
                   : CloudSunIcon;
                 return (
                   <Badge 
@@ -323,6 +325,8 @@ export function PromptInputArea({
                     ? FileTextIcon
                     : toolLower === "mermaid"
                     ? NetworkIcon
+                    : toolLower === "image" || toolLower === "imagine" || toolLower === "flux"
+                    ? ImageIcon
                     : CloudSunIcon;
                   return (
                   <button

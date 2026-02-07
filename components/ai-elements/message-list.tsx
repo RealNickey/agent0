@@ -64,6 +64,7 @@ import {
 import type { MyUIMessage } from "@/types/chat";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { Weather, WeatherLoading } from "@/components/weather";
+import { GeneratedImageDialog } from "@/components/ai-elements/generated-image-dialog";
 
 type ChatStatus = UseChatHelpers<MyUIMessage>["status"];
 
@@ -435,6 +436,50 @@ const normalizedToolInvocations = toolInvocations.reduce((acc: any[], ti: any, t
                               />
                             );
                           }
+                        }
+
+                        // Image Generation
+                        if (toolInvocation.toolName === "generateImage") {
+                          return (
+                            <motion.div
+                              key={toolInvocation.toolCallId}
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: 0.1, type: "spring", bounce: 0.3 }}
+                              className="w-full"
+                            >
+                              {isCompleted ? (
+                                hasError || toolInvocation.result?.error ? (
+                                  <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive">
+                                    <p className="font-medium mb-1">Image generation failed</p>
+                                    <p className="text-xs opacity-90">
+                                      {toolInvocation.result?.message || "The model may be busy or unavailable. Please try again."}
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <GeneratedImageDialog
+                                    base64={toolInvocation.result.base64}
+                                    mediaType={toolInvocation.result.mediaType || "image/png"}
+                                    prompt={toolInvocation.result.prompt}
+                                    width={toolInvocation.result.width}
+                                    height={toolInvocation.result.height}
+                                    seed={toolInvocation.result.seed}
+                                    isGenerating={false}
+                                  />
+                                )
+                              ) : (
+                                <GeneratedImageDialog
+                                  base64=""
+                                  mediaType="image/png"
+                                  prompt={toolInvocation.args?.prompt || "Generating..."}
+                                  width={toolInvocation.args?.width || 1024}
+                                  height={toolInvocation.args?.height || 1024}
+                                  seed={toolInvocation.args?.seed}
+                                  isGenerating={true}
+                                />
+                              )}
+                            </motion.div>
+                          );
                         }
 
                         // Special rendering for Weather tool - wrapped in Tool UI

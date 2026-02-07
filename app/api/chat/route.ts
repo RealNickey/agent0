@@ -9,6 +9,7 @@ import { calendarTools } from "@/ai/calendar-tools";
 import { formsTools } from "@/ai/forms-tools";
 import { gmailTools } from "@/ai/gmail-tools";
 import { tasksTools } from "@/ai/tasks-tools";
+import { imageTools } from "@/ai/image-tools";
 import { GMAIL_AGENT_PROMPT } from "@/ai/prompts/gmail";
 import { isToolInstalled } from "@/lib/installed-tools";
 import { getNextFallbackModel, isRateLimitError, type ModelRetryMetadata } from "@/lib/model-fallback";
@@ -369,6 +370,10 @@ Remember: Return ONLY the markdown code block with mermaid syntax. No additional
         } else {
           console.warn("Tasks tool mentioned but not installed");
         }
+      }
+      // Image generation tool
+      if (lowerToolName === "image" || lowerToolName === "imagine" || lowerToolName === "flux") {
+        tools.generateImage = imageTools.generateImage;
       }
       // Add more tool mappings here as needed
     }

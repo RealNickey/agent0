@@ -170,7 +170,14 @@ export const ReasoningContent = memo(
       )}
       {...props}
     >
-      <Streamdown {...props}>{children}</Streamdown>
+      <Streamdown
+        components={{
+          co: (props: any) => <span {...props} />,
+        } as any}
+        {...props}
+      >
+        {children}
+      </Streamdown>
     </CollapsibleContent>
   )
 );

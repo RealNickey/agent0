@@ -32,6 +32,8 @@ export function getToolTitle(toolName: string): string {
     confirmCreateForm: "Confirm Form",
     fetchNewResponses: "Fetch Responses",
     getResponseSummary: "Response Summary",
+    // Image tools
+    generateImage: "Generate Image",
     // Gmail tools
     searchEmails: "Search Emails",
     getThread: "Get Thread",
@@ -67,10 +69,14 @@ function isSourcePart(part: UIMessagePart): boolean {
 // Helper to extract text content from message parts
 export function getMessageTextContent(message: MyUIMessage): string {
   if (!message.parts) return "";
-  return message.parts
+  const textContent = message.parts
     .filter(isTextPart)
     .map((part) => part.text)
     .join("");
+  
+  // Strip markdown image syntax with base64 data URLs to prevent horizontal scroll
+  // Matches: ![alt text](data:image/...;base64,... or ![alt](^long-base64-string)
+  return textContent.replace(/!\[([^\]]*)\]\([^\)]{100,}\)/g, "").trim();
 }
 
 // Helper to extract reasoning from message parts

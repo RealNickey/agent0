@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { CloudSun, Plus, Trash2, ExternalLink, Calendar, FileText, Mail, ListTodo, Network } from "lucide-react";
+import { CloudSun, Plus, Trash2, ExternalLink, Calendar, FileText, Mail, ListTodo, Network, ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -69,6 +69,14 @@ const INTEGRATIONS = [
     color: "text-cyan-500",
     bgColor: "bg-cyan-500/10",
   },
+  {
+    id: "image",
+    name: "Image",
+    description: "Generate images from text descriptions using FLUX.2-dev AI model.",
+    icon: ImageIcon,
+    color: "text-pink-500",
+    bgColor: "bg-pink-500/10",
+  },
 ];
 
 export function IntegrationsModal({
@@ -80,7 +88,7 @@ export function IntegrationsModal({
 }: IntegrationsModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Integrations</DialogTitle>
           <DialogDescription>

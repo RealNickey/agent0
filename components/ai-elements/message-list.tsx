@@ -519,6 +519,9 @@ const normalizedToolInvocations = toolInvocations.reduce((acc: any[], ti: any, t
                                 attribution={toolInvocation.result.attribution}
                                 failedImages={toolInvocation.result.failedImages}
                                 message={toolInvocation.result.message}
+                                themeName={toolInvocation.result.themeName}
+                                imageAttemptedCount={toolInvocation.result.imageAttemptedCount}
+                                imageInsertedCount={toolInvocation.result.imageInsertedCount}
                               />
                             );
                           }

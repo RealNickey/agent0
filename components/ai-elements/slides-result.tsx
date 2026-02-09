@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, Image as ImageIcon, Presentation, ChevronDown, ChevronUp } from "lucide-react";
+import { ExternalLink, Image as ImageIcon, Presentation, ChevronDown, ChevronUp, Palette, Sparkles } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -29,6 +29,9 @@ export interface SlidesResultProps {
   message?: string;
   error?: boolean;
   errorMessage?: string;
+  themeName?: string;
+  imageAttemptedCount?: number;
+  imageInsertedCount?: number;
 }
 
 export function SlidesResult({
@@ -37,14 +40,17 @@ export function SlidesResult({
   url,
   slides,
   imageCredits,
-  attribution,
   failedImages,
   message,
   error,
   errorMessage,
+  themeName,
+  imageAttemptedCount,
+  imageInsertedCount,
 }: SlidesResultProps) {
   const [showOutline, setShowOutline] = useState(false);
   const [showCredits, setShowCredits] = useState(false);
+  const [showFailures, setShowFailures] = useState(false);
 
   if (error) {
     return (
@@ -61,33 +67,46 @@ export function SlidesResult({
     );
   }
 
+  const attemptedImages = imageAttemptedCount ?? imageCredits?.length ?? 0;
+  const insertedImages = imageInsertedCount ?? Math.max(attemptedImages - (failedImages?.length || 0), 0);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className="w-full rounded-xl border bg-card overflow-hidden"
     >
-      {/* Header */}
-      <div className="flex items-center gap-3 p-4 border-b bg-yellow-500/5">
-        <div className="p-2 rounded-lg bg-yellow-500/10">
+      {/* Header with gradient accent */}
+      <div className="relative flex items-center gap-3 p-4 border-b bg-gradient-to-r from-yellow-500/5 via-orange-500/5 to-yellow-500/5">
+        <div className="p-2.5 rounded-xl bg-gradient-to-br from-yellow-500/15 to-orange-500/15 ring-1 ring-yellow-500/20">
           <Presentation className="size-5 text-yellow-500" />
         </div>
         <div className="flex-1 min-w-0">
           <h4 className="font-semibold text-sm truncate">{title}</h4>
-          <p className="text-xs text-muted-foreground">
-            {slideCount} slide{slideCount !== 1 ? "s" : ""} created
-            {imageCredits && imageCredits.length > 0 && (
-              <span className="ml-1">
-                · {imageCredits.length} image{imageCredits.length !== 1 ? "s" : ""}
+          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+            <span className="flex items-center gap-1">
+              <Sparkles className="size-3" />
+              {slideCount} slide{slideCount !== 1 ? "s" : ""}
+            </span>
+            {themeName && (
+              <span className="flex items-center gap-1">
+                <Palette className="size-3" />
+                {themeName}
               </span>
             )}
-          </p>
+            {attemptedImages > 0 && (
+              <span className="flex items-center gap-1">
+                <ImageIcon className="size-3" />
+                {insertedImages}/{attemptedImages} image{attemptedImages !== 1 ? "s" : ""}
+              </span>
+            )}
+          </div>
         </div>
         <a
           href={url}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-yellow-500 text-white text-xs font-medium hover:bg-yellow-600 transition-colors shrink-0"
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-xs font-semibold hover:from-yellow-600 hover:to-orange-600 transition-all shadow-sm shadow-yellow-500/20 shrink-0"
         >
           <ExternalLink className="size-3.5" />
           Open in Slides
@@ -96,7 +115,7 @@ export function SlidesResult({
 
       {/* Message */}
       {message && (
-        <div className="px-4 py-2 text-xs text-muted-foreground border-b">
+        <div className="px-4 py-2.5 text-xs text-muted-foreground border-b bg-muted/30">
           {message}
         </div>
       )}
@@ -106,7 +125,7 @@ export function SlidesResult({
         onClick={() => setShowOutline((v) => !v)}
         className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-medium text-muted-foreground hover:bg-accent/50 transition-colors"
       >
-        <span>Slide Outline</span>
+        <span>Slide Outline ({slides.length})</span>
         {showOutline ? (
           <ChevronUp className="size-3.5" />
         ) : (
@@ -124,14 +143,18 @@ export function SlidesResult({
             {slides.map((slide, i) => (
               <li
                 key={slide.objectId}
-                className="flex items-center gap-3 px-4 py-2 text-xs"
+                className={cn(
+                  "flex items-center gap-3 px-4 py-2 text-xs",
+                  i === 0 && "bg-yellow-500/5",
+                  i === slides.length - 1 && "bg-yellow-500/5"
+                )}
               >
                 <span className="text-muted-foreground font-mono w-5 text-right shrink-0">
                   {i + 1}
                 </span>
                 <span className="flex-1 truncate">{slide.title}</span>
                 {slide.hasImage && (
-                  <ImageIcon className="size-3.5 text-muted-foreground shrink-0" />
+                  <ImageIcon className="size-3.5 text-green-500 shrink-0" />
                 )}
               </li>
             ))}
@@ -189,9 +212,33 @@ export function SlidesResult({
 
       {/* Failed Images Warning */}
       {failedImages && failedImages.length > 0 && (
-        <div className="px-4 py-2 border-t text-xs text-amber-500">
-          {failedImages.length} image{failedImages.length !== 1 ? "s" : ""} could
-          not be loaded. The deck was created without them.
+        <div className="border-t">
+          <button
+            onClick={() => setShowFailures((v) => !v)}
+            className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-medium text-amber-500 hover:bg-accent/50 transition-colors"
+          >
+            <span>
+              {failedImages.length} image{failedImages.length !== 1 ? "s" : ""} could not be loaded
+            </span>
+            {showFailures ? (
+              <ChevronUp className="size-3.5" />
+            ) : (
+              <ChevronDown className="size-3.5" />
+            )}
+          </button>
+
+          {showFailures && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              className="px-4 pb-3 text-xs text-amber-500 space-y-1"
+            >
+              {failedImages.map((item, i) => (
+                <div key={i}>{item}</div>
+              ))}
+              <div className="text-amber-500/80">The deck was created without these images.</div>
+            </motion.div>
+          )}
         </div>
       )}
     </motion.div>
@@ -206,7 +253,7 @@ export function SlidesLoading({ topic }: { topic?: string }) {
       className="w-full rounded-xl border bg-card overflow-hidden"
     >
       <div className="flex items-center gap-3 p-4">
-        <div className="p-2 rounded-lg bg-yellow-500/10">
+        <div className="p-2.5 rounded-xl bg-gradient-to-br from-yellow-500/15 to-orange-500/15 ring-1 ring-yellow-500/20">
           <Presentation className="size-5 text-yellow-500 animate-pulse" />
         </div>
         <div className="flex-1">
@@ -214,8 +261,24 @@ export function SlidesLoading({ topic }: { topic?: string }) {
           <div className="h-3 w-32 bg-muted animate-pulse rounded mt-1.5" />
         </div>
       </div>
-      <div className="px-4 pb-4 text-xs text-muted-foreground animate-pulse">
-        Creating presentation{topic ? ` about "${topic}"` : ""}...
+      <div className="px-4 pb-4 space-y-2">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground animate-pulse">
+          <Sparkles className="size-3.5 text-yellow-500" />
+          <span>Creating presentation{topic ? ` about "${topic}"` : ""}...</span>
+        </div>
+        <div className="flex gap-1">
+          {[...Array(5)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="h-1 flex-1 rounded-full bg-yellow-500/20"
+              animate={{ opacity: [0.3, 1, 0.3] }}
+              transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.2 }}
+            />
+          ))}
+        </div>
+        <p className="text-[10px] text-muted-foreground/60">
+          Generating slides, fetching images, applying theme & styling...
+        </p>
       </div>
     </motion.div>
   );

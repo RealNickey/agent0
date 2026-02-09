@@ -527,7 +527,7 @@ Remember: Return ONLY the markdown code block with mermaid syntax. No additional
     : "";
 
   const slidesGuidance = mentionedTools.some(t => ["slides", "presentation", "deck"].includes(t.toLowerCase()))
-    ? " When the user wants to create a presentation or slide deck, use createSlidesPresentation immediately. Infer a topic from the request, generate a suitable slide count (default 6), and auto-derive image search prompts from slide headings. If the user provides content or an outline, pass it as the content parameter. CRITICAL: After calling createSlidesPresentation, DO NOT provide additional text — the generative UI will display the result with a link to open the deck."
+    ? ` When the user wants to create a presentation or slide deck, use createSlidesPresentation immediately. Infer a topic from the request, generate 8-10 slides for comprehensive coverage, and ALWAYS provide the 'content' parameter with DETAILED, RICH text — NOT generic outlines. Structure content as sections separated by double newlines, each with a heading and 3-5 detailed bullet points containing real facts, explanations, examples, and statistics relevant to the topic. Choose a colorTheme that matches the topic mood (e.g., OCEAN for tech/business, SUNSET for creative/marketing, FOREST for sustainability/nature, ROYAL for luxury/education, MODERN for startups/design). Provide vivid imagePrompts for each slide (e.g., 'modern office team collaboration', 'data analytics dashboard technology'). CRITICAL: After calling createSlidesPresentation, DO NOT provide additional text — the generative UI will display the result with a link to open the deck.`
     : "";
 
   // PDF guidance removed — PDF operations are handled client-side

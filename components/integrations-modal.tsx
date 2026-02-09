@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { CloudSun, Plus, Trash2, ExternalLink, Calendar, FileText, Mail, ListTodo, Network, FileStack } from "lucide-react";
+import { CloudSun, Plus, Trash2, ExternalLink, Calendar, FileText, Mail, ListTodo, Network, FileStack, Presentation } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -76,6 +76,14 @@ const INTEGRATIONS = [
     icon: Network,
     color: "text-cyan-500",
     bgColor: "bg-cyan-500/10",
+  },
+  {
+    id: "slides",
+    name: "Slides",
+    description: "Create Google Slides presentations with auto-generated content and images.",
+    icon: Presentation,
+    color: "text-yellow-500",
+    bgColor: "bg-yellow-500/10",
   },
 ];
 

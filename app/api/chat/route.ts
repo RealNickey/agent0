@@ -9,6 +9,7 @@ import { calendarTools } from "@/ai/calendar-tools";
 import { formsTools } from "@/ai/forms-tools";
 import { gmailTools } from "@/ai/gmail-tools";
 import { tasksTools } from "@/ai/tasks-tools";
+import { slidesTools } from "@/ai/slides-tools";
 // PDF tools removed — handled entirely client-side to avoid tool part serialization issues
 import { GMAIL_AGENT_PROMPT } from "@/ai/prompts/gmail";
 import { isToolInstalled } from "@/lib/installed-tools";
@@ -481,6 +482,14 @@ Remember: Return ONLY the markdown code block with mermaid syntax. No additional
       }
       // PDF tools — handled entirely client-side (no LLM involvement)
       // The @pdf mention is intercepted in chat-ui.tsx before reaching this route
+      // Slides tools
+      if (lowerToolName === "slides" || lowerToolName === "presentation" || lowerToolName === "deck") {
+        if (isToolInstalled("slides")) {
+          tools.createSlidesPresentation = slidesTools.createSlidesPresentation;
+        } else {
+          console.warn("Slides tool mentioned but not installed");
+        }
+      }
       // Add more tool mappings here as needed
     }
   } else {
@@ -515,6 +524,10 @@ Remember: Return ONLY the markdown code block with mermaid syntax. No additional
 
   const tasksGuidance = mentionedTools.some(t => ["tasks", "task", "todo", "todos"].includes(t.toLowerCase()))
     ? " When the user wants to create a task/todo, use scheduleTask to present the task details for confirmation. For listing tasks, use listTasks. To mark tasks complete, use completeTask. For updating task details, use updateTask. For deleting tasks, use deleteTask (which requires confirmation). Always parse relative dates like 'tomorrow', 'next week' into proper ISO dates. CRITICAL: After calling any task tool (scheduleTask, createTask, updateTask, deleteTask, completeTask, listTasks), DO NOT provide any additional text explanation. The generative UI component displays all necessary information to the user. ONLY provide additional text if you need clarification from the user (e.g., asking which task to update if there are multiple matches)."
+    : "";
+
+  const slidesGuidance = mentionedTools.some(t => ["slides", "presentation", "deck"].includes(t.toLowerCase()))
+    ? " When the user wants to create a presentation or slide deck, use createSlidesPresentation immediately. Infer a topic from the request, generate a suitable slide count (default 6), and auto-derive image search prompts from slide headings. If the user provides content or an outline, pass it as the content parameter. CRITICAL: After calling createSlidesPresentation, DO NOT provide additional text — the generative UI will display the result with a link to open the deck."
     : "";
 
   // PDF guidance removed — PDF operations are handled client-side
@@ -573,7 +586,7 @@ Remember: Return ONLY the markdown code block with mermaid syntax. No additional
 
       const result = streamText({
         model: modelInstance,
-        system: `${systemPrompt}${calendarGuidance}${formsGuidance}${tasksGuidance}`,
+        system: `${systemPrompt}${calendarGuidance}${formsGuidance}${tasksGuidance}${slidesGuidance}`,
         messages: modelMessages,
         tools: hasCurrentTools ? currentTools : undefined,
         toolChoice: hasCurrentTools ? "auto" : "none",

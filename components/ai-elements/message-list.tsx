@@ -47,6 +47,7 @@ import { TaskDeleteConfirmation } from "@/components/ai-elements/task-delete-con
 import { TaskUpdateConfirmation } from "@/components/ai-elements/task-update-confirmation";
 import { TaskCompleteDisplay } from "@/components/ai-elements/task-complete-display";
 import { PdfResult, PdfLoading } from "@/components/ai-elements/pdf-result";
+import { SlidesResult, SlidesLoading } from "@/components/ai-elements/slides-result";
 import {
   CopyIcon,
   RefreshCwIcon,
@@ -487,6 +488,46 @@ const normalizedToolInvocations = toolInvocations.reduce((acc: any[], ti: any, t
                         // Skip any legacy PDF tool parts that may still be in history
                         if (toolInvocation.toolName === "mergePDFs" || toolInvocation.toolName === "compressPDF") {
                           return null;
+                        }
+
+                        // Create Slides Presentation
+                        if (toolInvocation.toolName === "createSlidesPresentation") {
+                          if (isCompleted) {
+                            if (hasError || toolInvocation.result?.error) {
+                              return (
+                                <SlidesResult
+                                  key={toolInvocation.toolCallId}
+                                  presentationId=""
+                                  title=""
+                                  slideCount={0}
+                                  url=""
+                                  slides={[]}
+                                  error={true}
+                                  errorMessage={toolInvocation.result?.message || "Failed to create presentation"}
+                                />
+                              );
+                            }
+                            return (
+                              <SlidesResult
+                                key={toolInvocation.toolCallId}
+                                presentationId={toolInvocation.result.presentationId}
+                                title={toolInvocation.result.title}
+                                slideCount={toolInvocation.result.slideCount}
+                                url={toolInvocation.result.url}
+                                slides={toolInvocation.result.slides || []}
+                                imageCredits={toolInvocation.result.imageCredits}
+                                attribution={toolInvocation.result.attribution}
+                                failedImages={toolInvocation.result.failedImages}
+                                message={toolInvocation.result.message}
+                              />
+                            );
+                          }
+                          return (
+                            <SlidesLoading
+                              key={toolInvocation.toolCallId}
+                              topic={toolInvocation.args?.topic}
+                            />
+                          );
                         }
 
                         // Special rendering for Weather tool - wrapped in Tool UI

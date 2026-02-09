@@ -8,6 +8,7 @@ interface UseIntegrationHandlersProps {
   setIsCalendarConnected: React.Dispatch<React.SetStateAction<boolean>>;
   setIsFormsConnected: React.Dispatch<React.SetStateAction<boolean>>;
   setIsTasksConnected: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsSlidesConnected?: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export function useIntegrationHandlers({
@@ -18,6 +19,7 @@ export function useIntegrationHandlers({
   setIsCalendarConnected,
   setIsFormsConnected,
   setIsTasksConnected,
+  setIsSlidesConnected,
 }: UseIntegrationHandlersProps) {
   const reloadIntegrations = useCallback(async () => {
     try {
@@ -73,13 +75,22 @@ export function useIntegrationHandlers({
       } else if (id === "tasks") {
         setIsTasksConnected(true);
       }
+
+      if (id === "slides" && !authData.hasSlidesScopes) {
+        const width = 600, height = 700;
+        const left = window.screen.width / 2 - width / 2;
+        const top = window.screen.height / 2 - height / 2;
+        window.open("/api/auth/google?service=slides", "GoogleSlidesAuth", `width=${width},height=${height},left=${left},top=${top}`);
+      } else if (id === "slides") {
+        setIsSlidesConnected?.(true);
+      }
       
       await reloadIntegrations();
     } catch (error) {
       console.error("Failed to install tool", error);
       setAddedIntegrations((prev) => prev.filter(i => i !== id));
     }
-  }, [addedIntegrations, reloadIntegrations, setAddedIntegrations, setActiveIntegration, setIsCalendarConnected, setIsFormsConnected, setIsTasksConnected]);
+  }, [addedIntegrations, reloadIntegrations, setAddedIntegrations, setActiveIntegration, setIsCalendarConnected, setIsFormsConnected, setIsTasksConnected, setIsSlidesConnected]);
 
   const handleRemoveIntegration = useCallback(async (id: string) => {
     setAddedIntegrations((prev) => prev.filter((i) => i !== id));
@@ -108,13 +119,18 @@ export function useIntegrationHandlers({
         await fetch("/api/auth/google", { method: "DELETE" });
         setIsTasksConnected(false);
       }
+
+      if (id === "slides") {
+        await fetch("/api/auth/google", { method: "DELETE" });
+        setIsSlidesConnected?.(false);
+      }
       
       await reloadIntegrations();
     } catch (error) {
       console.error("Failed to uninstall tool", error);
       setAddedIntegrations((prev) => [...prev, id]);
     }
-  }, [activeIntegration, reloadIntegrations, setAddedIntegrations, setActiveIntegration, setIsCalendarConnected, setIsFormsConnected, setIsTasksConnected]);
+  }, [activeIntegration, reloadIntegrations, setAddedIntegrations, setActiveIntegration, setIsCalendarConnected, setIsFormsConnected, setIsTasksConnected, setIsSlidesConnected]);
 
   return {
     reloadIntegrations,

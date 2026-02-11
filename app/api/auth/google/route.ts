@@ -13,7 +13,7 @@ const DEFAULT_USER_ID = "default-user";
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const action = searchParams.get("action");
-  const service = (searchParams.get("service") as 'calendar' | 'forms' | 'tasks' | 'all') || 'calendar';
+  const service = (searchParams.get("service") as 'calendar' | 'forms' | 'tasks' | 'slides' | 'all') || 'calendar';
 
   // Check connection status
   if (action === "status") {
@@ -35,7 +35,9 @@ export async function GET(request: Request) {
 
   // Redirect to Google OAuth with appropriate scopes
   const state = DEFAULT_USER_ID; // In production, use a secure state token
-  const authUrl = getAuthorizationUrl(state, service);
+  // Slides uses the same forms scopes (drive.file) for uploading to Drive
+  const authService = service === 'slides' ? 'forms' : service;
+  const authUrl = getAuthorizationUrl(state, authService);
 
   return NextResponse.redirect(authUrl);
 }

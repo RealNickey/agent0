@@ -47,6 +47,9 @@ import { TaskDeleteConfirmation } from "@/components/ai-elements/task-delete-con
 import { TaskUpdateConfirmation } from "@/components/ai-elements/task-update-confirmation";
 import { TaskCompleteDisplay } from "@/components/ai-elements/task-complete-display";
 import { PdfResult, PdfLoading } from "@/components/ai-elements/pdf-result";
+import { SlideOutlineEditor } from "@/components/ai-elements/slide-outline-editor";
+import { SlidesResult } from "@/components/ai-elements/slides-result";
+import { SlidesApproval } from "@/components/ai-elements/slides-approval";
 import {
   CopyIcon,
   RefreshCwIcon,
@@ -76,9 +79,11 @@ export type MessageListProps = {
   status: ChatStatus;
   onRegenerate: () => void;
   error?: Error | undefined;
+  addToolOutput?: (params: { toolCallId: string; output: string }) => void;
+  addToolApprovalResponse?: (params: { id: string; approved: boolean; reason?: string }) => void;
 };
 
-export function MessageList({ messages, isLoading, status, onRegenerate, error }: MessageListProps) {
+export function MessageList({ messages, isLoading, status, onRegenerate, error, addToolOutput, addToolApprovalResponse }: MessageListProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -228,6 +233,7 @@ const normalizedToolInvocations = toolInvocations.reduce((acc: any[], ti: any, t
       state,
       args: t.args || t.input || {},
       result: t.result || t.output || null,
+      approval: t.approval || null,
     });
   }
 
@@ -487,6 +493,97 @@ const normalizedToolInvocations = toolInvocations.reduce((acc: any[], ti: any, t
                         // Skip any legacy PDF tool parts that may still be in history
                         if (toolInvocation.toolName === "mergePDFs" || toolInvocation.toolName === "compressPDF") {
                           return null;
+                        }
+
+                        // reviewSlideOutline — Client-side tool (outline editor)
+                        if (toolInvocation.toolName === "reviewSlideOutline") {
+                          // Show outline editor when tool is pending (client-side tool, no execute)
+                          // or when the result is available (already confirmed)
+                          if (!isCompleted && addToolOutput) {
+                            return (
+                              <SlideOutlineEditor
+                                key={toolInvocation.toolCallId}
+                                toolCallId={toolInvocation.toolCallId}
+                                outline={toolInvocation.args}
+                                addToolOutput={addToolOutput}
+                              />
+                            );
+                          }
+                          // Already confirmed — show a summary
+                          if (isCompleted && toolInvocation.result) {
+                            const result = typeof toolInvocation.result === "string"
+                              ? JSON.parse(toolInvocation.result)
+                              : toolInvocation.result;
+                            if (result.rejected) {
+                              return (
+                                <div key={toolInvocation.toolCallId} className="text-sm text-muted-foreground italic">
+                                  Outline rejected — regenerating...
+                                </div>
+                              );
+                            }
+                            return (
+                              <div key={toolInvocation.toolCallId} className="text-sm text-muted-foreground italic">
+                                Outline confirmed — {result.slides?.length || "?"} slides
+                              </div>
+                            );
+                          }
+                          return null;
+                        }
+
+                        // searchUnsplashImages — show small loading/result indicator
+                        if (toolInvocation.toolName === "searchUnsplashImages") {
+                          if (isCompleted && !hasError && toolInvocation.result?.results) {
+                            const results = toolInvocation.result.results;
+                            const totalImages = results.reduce((sum: number, r: any) => sum + (r.images?.length || 0), 0);
+                            return (
+                              <div key={toolInvocation.toolCallId} className="text-sm text-muted-foreground italic">
+                                Found {totalImages} images for {results.length} slides
+                              </div>
+                            );
+                          }
+                          return (
+                            <div key={toolInvocation.toolCallId} className="text-sm text-muted-foreground italic animate-pulse">
+                              Searching for images...
+                            </div>
+                          );
+                        }
+
+                        // createGoogleSlidesPresentation — approval or result
+                        if (toolInvocation.toolName === "createGoogleSlidesPresentation") {
+                          // If completed with result, show SlidesResult
+                          if (isCompleted && !hasError) {
+                            return (
+                              <SlidesResult
+                                key={toolInvocation.toolCallId}
+                                result={toolInvocation.result}
+                              />
+                            );
+                          }
+                          // If pending (approval requested), show SlidesApproval
+                          if (!isCompleted && toolInvocation.approval?.id && addToolApprovalResponse) {
+                            return (
+                              <SlidesApproval
+                                key={toolInvocation.toolCallId}
+                                approvalId={toolInvocation.approval.id}
+                                outline={toolInvocation.args?.outline || toolInvocation.args}
+                                addToolApprovalResponse={addToolApprovalResponse}
+                              />
+                            );
+                          }
+                          if (hasError) {
+                            return (
+                              <SlidesResult
+                                key={toolInvocation.toolCallId}
+                                result={{ status: "error", error: toolInvocation.result?.error || "Unknown error" }}
+                              />
+                            );
+                          }
+                          // Intermediate state (approved, executing)
+                          return (
+                            <div key={toolInvocation.toolCallId} className="text-sm text-muted-foreground italic animate-pulse">
+                              Generating and uploading presentation...
+                            </div>
+                          );
                         }
 
                         // Special rendering for Weather tool - wrapped in Tool UI

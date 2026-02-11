@@ -56,6 +56,8 @@ export function ChatUI() {
     error,
     regenerate,
     setMessages,
+    addToolOutput: sdkAddToolOutput,
+    addToolApprovalResponse: sdkAddToolApprovalResponse,
   } = useChat<MyUIMessage>({
     id: "gemini-chat",
     transport: new DefaultChatTransport({
@@ -73,6 +75,24 @@ export function ChatUI() {
       console.error("Chat error:", error);
     },
   });
+
+  // Wrappers to adapt the SDK's full addToolOutput/addToolApprovalResponse
+  // signatures to the simpler prop types the child components expect
+  const handleAddToolOutput = useCallback(
+    ({ toolCallId, output }: { toolCallId: string; output: string }) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (sdkAddToolOutput as any)({ tool: "reviewSlideOutline", toolCallId, output });
+    },
+    [sdkAddToolOutput],
+  );
+
+  const handleAddToolApprovalResponse = useCallback(
+    ({ id, approved, reason }: { id: string; approved: boolean; reason?: string }) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (sdkAddToolApprovalResponse as any)({ id, approved, reason });
+    },
+    [sdkAddToolApprovalResponse],
+  );
 
   // Hooks for state management
   const { dedupedMessages } = useLocalStorageSync({
@@ -436,6 +456,8 @@ export function ChatUI() {
             onRegenerate={handleRegenerate}
             status={status}
             error={error}
+            addToolOutput={handleAddToolOutput}
+            addToolApprovalResponse={handleAddToolApprovalResponse}
           />
         </div>
 

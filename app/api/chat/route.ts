@@ -9,8 +9,10 @@ import { calendarTools } from "@/ai/calendar-tools";
 import { formsTools } from "@/ai/forms-tools";
 import { gmailTools } from "@/ai/gmail-tools";
 import { tasksTools } from "@/ai/tasks-tools";
+import { slidesTools } from "@/ai/slides-tools";
 // PDF tools removed — handled entirely client-side to avoid tool part serialization issues
 import { GMAIL_AGENT_PROMPT } from "@/ai/prompts/gmail";
+import { SLIDES_AGENT_PROMPT } from "@/ai/prompts/slides";
 import { isToolInstalled } from "@/lib/installed-tools";
 import { getNextFallbackModel, isRateLimitError, type ModelRetryMetadata } from "@/lib/model-fallback";
 
@@ -481,6 +483,17 @@ Remember: Return ONLY the markdown code block with mermaid syntax. No additional
       }
       // PDF tools — handled entirely client-side (no LLM involvement)
       // The @pdf mention is intercepted in chat-ui.tsx before reaching this route
+      
+      // Slides tools
+      if (lowerToolName === "slides" || lowerToolName === "presentation" || lowerToolName === "ppt") {
+        if (isToolInstalled("slides")) {
+          tools.reviewSlideOutline = slidesTools.reviewSlideOutline;
+          tools.searchUnsplashImages = slidesTools.searchUnsplashImages;
+          tools.createGoogleSlidesPresentation = slidesTools.createGoogleSlidesPresentation;
+        } else {
+          console.warn("Slides tool mentioned but not installed");
+        }
+      }
       // Add more tool mappings here as needed
     }
   } else {
@@ -515,6 +528,10 @@ Remember: Return ONLY the markdown code block with mermaid syntax. No additional
 
   const tasksGuidance = mentionedTools.some(t => ["tasks", "task", "todo", "todos"].includes(t.toLowerCase()))
     ? " When the user wants to create a task/todo, use scheduleTask to present the task details for confirmation. For listing tasks, use listTasks. To mark tasks complete, use completeTask. For updating task details, use updateTask. For deleting tasks, use deleteTask (which requires confirmation). Always parse relative dates like 'tomorrow', 'next week' into proper ISO dates. CRITICAL: After calling any task tool (scheduleTask, createTask, updateTask, deleteTask, completeTask, listTasks), DO NOT provide any additional text explanation. The generative UI component displays all necessary information to the user. ONLY provide additional text if you need clarification from the user (e.g., asking which task to update if there are multiple matches)."
+    : "";
+
+  const slidesGuidance = mentionedTools.some(t => ["slides", "presentation", "ppt"].includes(t.toLowerCase()))
+    ? " " + SLIDES_AGENT_PROMPT
     : "";
 
   // PDF guidance removed — PDF operations are handled client-side
@@ -573,7 +590,7 @@ Remember: Return ONLY the markdown code block with mermaid syntax. No additional
 
       const result = streamText({
         model: modelInstance,
-        system: `${systemPrompt}${calendarGuidance}${formsGuidance}${tasksGuidance}`,
+        system: `${systemPrompt}${calendarGuidance}${formsGuidance}${tasksGuidance}${slidesGuidance}`,
         messages: modelMessages,
         tools: hasCurrentTools ? currentTools : undefined,
         toolChoice: hasCurrentTools ? "auto" : "none",

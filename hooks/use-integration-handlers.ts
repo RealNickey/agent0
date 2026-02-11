@@ -75,6 +75,14 @@ export function useIntegrationHandlers({
       } else if (id === "tasks") {
         setIsTasksConnected(true);
       }
+
+      // Slides uses drive.file scope (shared with Forms)
+      if (id === "slides" && !authData.hasFormsScopes) {
+        const width = 600, height = 700;
+        const left = window.screen.width / 2 - width / 2;
+        const top = window.screen.height / 2 - height / 2;
+        window.open("/api/auth/google?service=slides", "GoogleSlidesAuth", `width=${width},height=${height},left=${left},top=${top}`);
+      }
       
       await reloadIntegrations();
       

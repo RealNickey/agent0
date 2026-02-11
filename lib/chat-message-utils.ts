@@ -38,6 +38,10 @@ export function getToolTitle(toolName: string): string {
     createDraft: "Create Draft",
     sendMessage: "Send Email",
     getMessageContent: "Get Message",
+    // Slides tools
+    reviewSlideOutline: "Review Outline",
+    searchUnsplashImages: "Search Images",
+    createGoogleSlidesPresentation: "Create Slides",
   };
   return titles[toolName] || toolName;
 }

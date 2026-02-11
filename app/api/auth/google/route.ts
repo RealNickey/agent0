@@ -8,12 +8,12 @@ const DEFAULT_USER_ID = "default-user";
  * GET /api/auth/google - Initiate Google OAuth flow or check status
  * Query params:
  *   - action=status: Check if connected
- *   - service=calendar|forms|tasks|all: Which service to authorize (default: calendar)
+ *   - service=calendar|forms|tasks|slides|all: Which service to authorize (default: calendar)
  */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const action = searchParams.get("action");
-  const service = (searchParams.get("service") as 'calendar' | 'forms' | 'tasks' | 'all') || 'calendar';
+  const service = (searchParams.get("service") as 'calendar' | 'forms' | 'tasks' | 'slides' | 'all') || 'calendar';
 
   // Check connection status
   if (action === "status") {
@@ -22,6 +22,7 @@ export async function GET(request: Request) {
     const hasCalendarScopes = tokens?.scope?.includes("calendar");
     const hasFormsScopes = tokens?.scope?.includes("forms.body");
     const hasTasksScopes = tokens?.scope?.includes("tasks");
+    const hasSlidesScopes = tokens?.scope?.includes("drive.file");
     
     return Response.json({
       connected: !!tokens,
@@ -29,6 +30,7 @@ export async function GET(request: Request) {
       hasCalendarScopes,
       hasFormsScopes,
       hasTasksScopes,
+      hasSlidesScopes,
       scopes: tokens?.scope,
     });
   }

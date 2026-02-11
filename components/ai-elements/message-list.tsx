@@ -47,6 +47,9 @@ import { TaskDeleteConfirmation } from "@/components/ai-elements/task-delete-con
 import { TaskUpdateConfirmation } from "@/components/ai-elements/task-update-confirmation";
 import { TaskCompleteDisplay } from "@/components/ai-elements/task-complete-display";
 import { PdfResult, PdfLoading } from "@/components/ai-elements/pdf-result";
+import { SlideOutlineEditor } from "@/components/ai-elements/slide-outline-editor";
+import { SlidesResult } from "@/components/ai-elements/slides-result";
+import { SlidesApproval } from "@/components/ai-elements/slides-approval";
 import {
   CopyIcon,
   RefreshCwIcon,
@@ -76,9 +79,11 @@ export type MessageListProps = {
   status: ChatStatus;
   onRegenerate: () => void;
   error?: Error | undefined;
+  addToolOutput?: (arg: { toolCallId: string; output: string }) => void;
+  addToolApprovalResponse?: (arg: { id: string; approved: boolean }) => void;
 };
 
-export function MessageList({ messages, isLoading, status, onRegenerate, error }: MessageListProps) {
+export function MessageList({ messages, isLoading, status, onRegenerate, error, addToolOutput, addToolApprovalResponse }: MessageListProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -228,6 +233,7 @@ const normalizedToolInvocations = toolInvocations.reduce((acc: any[], ti: any, t
       state,
       args: t.args || t.input || {},
       result: t.result || t.output || null,
+      approval: t.approval,
     });
   }
 
@@ -430,6 +436,52 @@ const normalizedToolInvocations = toolInvocations.reduce((acc: any[], ti: any, t
                                 completedAt={toolInvocation.result.completedAt}
                               />
                             );
+                          }
+                        }
+
+                        if (toolInvocation.toolName === "reviewSlideOutline") {
+                          if (toolInvocation.state === "call" || toolInvocation.state === "input-available") {
+                            return (
+                              <SlideOutlineEditor
+                                key={toolInvocation.toolCallId}
+                                toolCallId={toolInvocation.toolCallId}
+                                input={toolInvocation.args}
+                                addToolOutput={addToolOutput}
+                              />
+                            );
+                          }
+                        }
+
+                        if (toolInvocation.toolName === "searchUnsplashImages") {
+                          if (!isCompleted) {
+                            return <div key={toolInvocation.toolCallId} className="text-xs text-muted-foreground">Searching Unsplash images…</div>;
+                          }
+
+                          const allImages = (toolInvocation.result?.results || []).flatMap((r: any) => r.images || []);
+                          if (allImages.length > 0) {
+                            return (
+                              <div key={toolInvocation.toolCallId} className="grid grid-cols-3 gap-2">
+                                {allImages.slice(0, 6).map((image: any, idx: number) => (
+                                  <img key={`${image.id || idx}`} src={image.thumbUrl || image.url} alt={image.altDescription || "Unsplash"} className="rounded-md border" />
+                                ))}
+                              </div>
+                            );
+                          }
+                        }
+
+                        if (toolInvocation.toolName === "createGoogleSlidesPresentation") {
+                          if (toolInvocation.state === "approval-requested") {
+                            return (
+                              <SlidesApproval
+                                key={toolInvocation.toolCallId}
+                                part={toolInvocation}
+                                addToolApprovalResponse={addToolApprovalResponse}
+                              />
+                            );
+                          }
+
+                          if (isCompleted) {
+                            return <SlidesResult key={toolInvocation.toolCallId} result={toolInvocation.result} />;
                           }
                         }
 

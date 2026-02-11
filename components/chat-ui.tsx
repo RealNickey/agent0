@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo } from "react";
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport } from "ai";
+import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import type { MyUIMessage, PdfOperationResult } from "@/types/chat";
@@ -56,12 +56,15 @@ export function ChatUI() {
     error,
     regenerate,
     setMessages,
+    addToolOutput,
+    addToolApprovalResponse,
   } = useChat<MyUIMessage>({
     id: "gemini-chat",
     transport: new DefaultChatTransport({
       api: "/api/chat",
     }),
     experimental_throttle: 50, // Throttle UI updates for better performance
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
     onFinish: () => {
       setAttachments([]);
       // Clear the file input
@@ -436,6 +439,8 @@ export function ChatUI() {
             onRegenerate={handleRegenerate}
             status={status}
             error={error}
+            addToolOutput={addToolOutput}
+            addToolApprovalResponse={addToolApprovalResponse}
           />
         </div>
 

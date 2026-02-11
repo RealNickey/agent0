@@ -12,6 +12,7 @@ function getHtmlResponse(title: string, message: string, success: boolean, userI
   // Send different message types based on which service was authorized
   const messageType = service === 'forms' ? 'GOOGLE_FORMS_AUTH_SUCCESS' 
     : service === 'tasks' ? 'GOOGLE_TASKS_AUTH_SUCCESS'
+    : service === 'slides' ? 'GOOGLE_SLIDES_AUTH_SUCCESS'
     : service === 'all' ? 'GOOGLE_ALL_AUTH_SUCCESS'
     : 'GOOGLE_AUTH_SUCCESS';
   
@@ -102,6 +103,7 @@ export async function GET(request: Request) {
     storeTokens(userId, tokens);
 
     const serviceName = service === 'forms' ? 'Google Forms' 
+      : service === 'slides' ? 'Google Slides'
       : service === 'all' ? 'Google Calendar & Forms'
       : 'Google Calendar';
     console.log(`${serviceName} connected successfully for user:`, userId);

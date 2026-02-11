@@ -8,6 +8,7 @@ interface UseIntegrationHandlersProps {
   setIsCalendarConnected: React.Dispatch<React.SetStateAction<boolean>>;
   setIsFormsConnected: React.Dispatch<React.SetStateAction<boolean>>;
   setIsTasksConnected: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsGithubConnected: React.Dispatch<React.SetStateAction<boolean>>;
   onIntegrationsChange?: () => void; // New callback
 }
 
@@ -19,6 +20,7 @@ export function useIntegrationHandlers({
   setIsCalendarConnected,
   setIsFormsConnected,
   setIsTasksConnected,
+  setIsGithubConnected,
   onIntegrationsChange,
 }: UseIntegrationHandlersProps) {
   const reloadIntegrations = useCallback(async () => {
@@ -75,6 +77,20 @@ export function useIntegrationHandlers({
       } else if (id === "tasks") {
         setIsTasksConnected(true);
       }
+
+      // GitHub uses its own OAuth provider
+      if (id === "github") {
+        const ghStatus = await fetch("/api/auth/github?action=status");
+        const ghData = await ghStatus.json();
+        if (!ghData.connected) {
+          const width = 600, height = 700;
+          const left = window.screen.width / 2 - width / 2;
+          const top = window.screen.height / 2 - height / 2;
+          window.open("/api/auth/github", "GitHubAuth", `width=${width},height=${height},left=${left},top=${top}`);
+        } else {
+          setIsGithubConnected(true);
+        }
+      }
       
       await reloadIntegrations();
       
@@ -84,7 +100,7 @@ export function useIntegrationHandlers({
       console.error("Failed to install tool", error);
       setAddedIntegrations((prev) => prev.filter(i => i !== id));
     }
-  }, [addedIntegrations, reloadIntegrations, setAddedIntegrations, setActiveIntegration, setIsCalendarConnected, setIsFormsConnected, setIsTasksConnected, onIntegrationsChange]);
+  }, [addedIntegrations, reloadIntegrations, setAddedIntegrations, setActiveIntegration, setIsCalendarConnected, setIsFormsConnected, setIsTasksConnected, setIsGithubConnected, onIntegrationsChange]);
 
   const handleRemoveIntegration = useCallback(async (id: string) => {
     setAddedIntegrations((prev) => prev.filter((i) => i !== id));
@@ -113,6 +129,11 @@ export function useIntegrationHandlers({
         await fetch("/api/auth/google", { method: "DELETE" });
         setIsTasksConnected(false);
       }
+
+      if (id === "github") {
+        await fetch("/api/auth/github", { method: "DELETE" });
+        setIsGithubConnected(false);
+      }
       
       await reloadIntegrations();
       
@@ -122,7 +143,7 @@ export function useIntegrationHandlers({
       console.error("Failed to uninstall tool", error);
       setAddedIntegrations((prev) => [...prev, id]);
     }
-  }, [activeIntegration, reloadIntegrations, setAddedIntegrations, setActiveIntegration, setIsCalendarConnected, setIsFormsConnected, setIsTasksConnected, onIntegrationsChange]);
+  }, [activeIntegration, reloadIntegrations, setAddedIntegrations, setActiveIntegration, setIsCalendarConnected, setIsFormsConnected, setIsTasksConnected, setIsGithubConnected, onIntegrationsChange]);
 
   return {
     reloadIntegrations,

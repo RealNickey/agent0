@@ -46,6 +46,7 @@ export function ChatUI() {
     isCalendarConnected, setIsCalendarConnected,
     isFormsConnected, setIsFormsConnected,
     isTasksConnected, setIsTasksConnected,
+    isGithubConnected, setIsGithubConnected,
     fileInputRef,
   } = state;
 
@@ -98,7 +99,8 @@ export function ChatUI() {
     setIsCalendarConnected,
     setIsFormsConnected,
     setIsTasksConnected,
-    setEnableSearch
+    setEnableSearch,
+    setIsGithubConnected
   );
 
   const { handleAddIntegration, handleRemoveIntegration } = useIntegrationHandlers({
@@ -109,6 +111,7 @@ export function ChatUI() {
     setIsCalendarConnected,
     setIsFormsConnected,
     setIsTasksConnected,
+    setIsGithubConnected,
   });
 
   const isLoading = status === "streaming" || status === "submitted";

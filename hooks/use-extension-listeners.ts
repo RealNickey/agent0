@@ -7,7 +7,8 @@ export function useExtensionListeners(
   setIsCalendarConnected: React.Dispatch<React.SetStateAction<boolean>>,
   setIsFormsConnected: React.Dispatch<React.SetStateAction<boolean>>,
   setIsTasksConnected: React.Dispatch<React.SetStateAction<boolean>>,
-  setEnableSearch: React.Dispatch<React.SetStateAction<boolean>>
+  setEnableSearch: React.Dispatch<React.SetStateAction<boolean>>,
+  setIsGithubConnected: React.Dispatch<React.SetStateAction<boolean>>
 ) {
   useEffect(() => {
     console.log('Setting up extension message listener');
@@ -142,6 +143,10 @@ export function useExtensionListeners(
         console.log('Google Tasks Auth success received');
         setIsTasksConnected(true);
       }
+      if (event.data?.type === 'GITHUB_AUTH_SUCCESS') {
+        console.log('GitHub Auth success received');
+        setIsGithubConnected(true);
+      }
     };
     
     console.log('Adding message event listener');
@@ -173,5 +178,5 @@ export function useExtensionListeners(
       window.removeEventListener('message', handleExtensionMessage);
       window.removeEventListener('message', handleAuthMessage);
     };
-  }, [setAttachments, setInputValue, setIsCalendarConnected, setIsFormsConnected, setIsTasksConnected, setEnableSearch]);
+  }, [setAttachments, setInputValue, setIsCalendarConnected, setIsFormsConnected, setIsTasksConnected, setEnableSearch, setIsGithubConnected]);
 }

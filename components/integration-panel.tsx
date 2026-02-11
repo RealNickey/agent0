@@ -85,6 +85,17 @@ const INTEGRATION_DETAILS: Record<string, { name: string; description: string; f
       { name: "createSequenceDiagram", description: "Create sequence diagrams for interactions" },
       { name: "createGanttChart", description: "Create Gantt charts for project timelines" }
     ]
+  },
+  github: {
+    name: "GitHub",
+    description: "Browse repositories, issues, pull requests, and read files from GitHub.",
+    functions: [
+      { name: "listRepos", description: "List repos for the authenticated user or any user/org" },
+      { name: "getRepoSummary", description: "Get repo summary with README, stats, and languages" },
+      { name: "listIssues", description: "List and filter issues in a repository" },
+      { name: "getPullRequests", description: "List and filter pull requests in a repository" },
+      { name: "readGitHubFile", description: "Read file contents or list directory in a repository" }
+    ]
   }
 };
 

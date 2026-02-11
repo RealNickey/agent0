@@ -1,7 +1,13 @@
 import { google, GoogleGenerativeAIProviderOptions } from "@ai-sdk/google";
 import { cohere } from "@ai-sdk/cohere";
 import { createOpenAI } from "@ai-sdk/openai";
-import { streamText, convertToModelMessages, stepCountIs } from "ai";
+import {
+  streamText,
+  convertToModelMessages,
+  stepCountIs,
+  InvalidToolInputError,
+  parsePartialJson,
+} from "ai";
 import { z } from "zod";
 import type { MyUIMessage } from "@/types/chat";
 import { tools as weatherTools } from "@/ai/tools";
@@ -9,8 +15,10 @@ import { calendarTools } from "@/ai/calendar-tools";
 import { formsTools } from "@/ai/forms-tools";
 import { gmailTools } from "@/ai/gmail-tools";
 import { tasksTools } from "@/ai/tasks-tools";
+import { slidesTools } from "@/ai/slides-tools";
 // PDF tools removed — handled entirely client-side to avoid tool part serialization issues
 import { GMAIL_AGENT_PROMPT } from "@/ai/prompts/gmail";
+import { SLIDES_AGENT_PROMPT } from "@/ai/prompts/slides";
 import { isToolInstalled } from "@/lib/installed-tools";
 import { getNextFallbackModel, isRateLimitError, type ModelRetryMetadata } from "@/lib/model-fallback";
 
@@ -120,6 +128,14 @@ function sanitizeToolParts(messages: MyUIMessage[]): MyUIMessage[] {
       };
     })
     .filter((msg) => msg.parts && msg.parts.length > 0);
+}
+
+async function repairToolCallInput(toolCallInput: string): Promise<string | null> {
+  const parseResult = await parsePartialJson(toolCallInput);
+  if (parseResult.state === "successful-parse" || parseResult.state === "repaired-parse") {
+    return JSON.stringify(parseResult.value ?? {});
+  }
+  return null;
 }
 
 // Helper function to get model instance and provider options
@@ -410,6 +426,9 @@ Remember: Return ONLY the markdown code block with mermaid syntax. No additional
   // Build tools object based on mentioned tools and enabled features
   let tools: Record<string, any> = {};
   const hasCustomTools = mentionedTools.length > 0;
+  const hasSlidesTools = mentionedTools.some((tool) =>
+    ["slides", "presentation", "ppt"].includes(tool.toLowerCase())
+  );
 
   // Add @mentioned custom tools (like weather)
   // When custom tools are mentioned, ONLY use those tools (disable provider tools)
@@ -479,6 +498,16 @@ Remember: Return ONLY the markdown code block with mermaid syntax. No additional
           console.warn("Tasks tool mentioned but not installed");
         }
       }
+      // Slides tools
+      if (lowerToolName === "slides" || lowerToolName === "presentation" || lowerToolName === "ppt") {
+        if (isToolInstalled("slides")) {
+          tools.reviewSlideOutline = slidesTools.reviewSlideOutline;
+          tools.searchUnsplashImages = slidesTools.searchUnsplashImages;
+          tools.createGoogleSlidesPresentation = slidesTools.createGoogleSlidesPresentation;
+        } else {
+          console.warn("Slides tool mentioned but not installed");
+        }
+      }
       // PDF tools — handled entirely client-side (no LLM involvement)
       // The @pdf mention is intercepted in chat-ui.tsx before reaching this route
       // Add more tool mappings here as needed
@@ -516,6 +545,8 @@ Remember: Return ONLY the markdown code block with mermaid syntax. No additional
   const tasksGuidance = mentionedTools.some(t => ["tasks", "task", "todo", "todos"].includes(t.toLowerCase()))
     ? " When the user wants to create a task/todo, use scheduleTask to present the task details for confirmation. For listing tasks, use listTasks. To mark tasks complete, use completeTask. For updating task details, use updateTask. For deleting tasks, use deleteTask (which requires confirmation). Always parse relative dates like 'tomorrow', 'next week' into proper ISO dates. CRITICAL: After calling any task tool (scheduleTask, createTask, updateTask, deleteTask, completeTask, listTasks), DO NOT provide any additional text explanation. The generative UI component displays all necessary information to the user. ONLY provide additional text if you need clarification from the user (e.g., asking which task to update if there are multiple matches)."
     : "";
+
+  const slidesGuidance = hasSlidesTools ? ` ${SLIDES_AGENT_PROMPT}` : "";
 
   // PDF guidance removed — PDF operations are handled client-side
 
@@ -573,13 +604,24 @@ Remember: Return ONLY the markdown code block with mermaid syntax. No additional
 
       const result = streamText({
         model: modelInstance,
-        system: `${systemPrompt}${calendarGuidance}${formsGuidance}${tasksGuidance}`,
+        system: `${systemPrompt}${calendarGuidance}${formsGuidance}${tasksGuidance}${slidesGuidance}`,
         messages: modelMessages,
         tools: hasCurrentTools ? currentTools : undefined,
         toolChoice: hasCurrentTools ? "auto" : "none",
         providerOptions,
         // Use stopWhen for multi-step tool calls when custom tools are mentioned
         ...(mentionedTools.length > 0 && { stopWhen: stepCountIs(5) }),
+        ...(hasSlidesTools && {
+          experimental_repairToolCall: async ({ toolCall, error }) => {
+            if (InvalidToolInputError.isInstance(error)) {
+              const repairedInput = await repairToolCallInput(error.toolInput || toolCall.input);
+              if (repairedInput) {
+                return { ...toolCall, input: repairedInput };
+              }
+            }
+            return null;
+          },
+        }),
         onError: (error) => {
           console.error("Stream error:", error);
         },

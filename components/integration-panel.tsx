@@ -85,6 +85,15 @@ const INTEGRATION_DETAILS: Record<string, { name: string; description: string; f
       { name: "createSequenceDiagram", description: "Create sequence diagrams for interactions" },
       { name: "createGanttChart", description: "Create Gantt charts for project timelines" }
     ]
+  },
+  slides: {
+    name: "Slides",
+    description: "Generate AI-powered presentations and upload them to Google Slides.",
+    functions: [
+      { name: "reviewSlideOutline", description: "Draft and edit a presentation outline" },
+      { name: "searchUnsplashImages", description: "Find imagery for slides via Unsplash" },
+      { name: "createGoogleSlidesPresentation", description: "Generate and upload the final presentation" }
+    ]
   }
 };
 

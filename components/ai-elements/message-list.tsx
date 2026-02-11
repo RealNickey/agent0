@@ -47,6 +47,9 @@ import { TaskDeleteConfirmation } from "@/components/ai-elements/task-delete-con
 import { TaskUpdateConfirmation } from "@/components/ai-elements/task-update-confirmation";
 import { TaskCompleteDisplay } from "@/components/ai-elements/task-complete-display";
 import { PdfResult, PdfLoading } from "@/components/ai-elements/pdf-result";
+import { SlideOutlineEditor } from "@/components/ai-elements/slide-outline-editor";
+import { SlidesApproval } from "@/components/ai-elements/slides-approval";
+import { SlidesResult } from "@/components/ai-elements/slides-result";
 import {
   CopyIcon,
   RefreshCwIcon,
@@ -76,9 +79,19 @@ export type MessageListProps = {
   status: ChatStatus;
   onRegenerate: () => void;
   error?: Error | undefined;
+  addToolOutput: UseChatHelpers<MyUIMessage>["addToolOutput"];
+  addToolApprovalResponse: UseChatHelpers<MyUIMessage>["addToolApprovalResponse"];
 };
 
-export function MessageList({ messages, isLoading, status, onRegenerate, error }: MessageListProps) {
+export function MessageList({
+  messages,
+  isLoading,
+  status,
+  onRegenerate,
+  error,
+  addToolOutput,
+  addToolApprovalResponse,
+}: MessageListProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -191,7 +204,7 @@ export function MessageList({ messages, isLoading, status, onRegenerate, error }
 
                     {message.role === "assistant" && (() => {
 const seenIds = new Set();
-const normalizedToolInvocations = toolInvocations.reduce((acc: any[], ti: any, toolIndex: number) => {
+    const normalizedToolInvocations = toolInvocations.reduce((acc: any[], ti: any, toolIndex: number) => {
   // Handle nested toolInvocation property or direct tool part
   const t = ti?.toolInvocation || ti;
   if (!t || typeof t !== "object") return acc;
@@ -207,7 +220,7 @@ const normalizedToolInvocations = toolInvocations.reduce((acc: any[], ti: any, t
   }
 
   // Normalize state - be defensive about undefined
-  let state = t.state;
+  let state = t.state || ti?.state;
   if (state === "output-available") state = "result";
   if (state === "input-available") state = "call";
   if (!state || typeof state !== "string") {
@@ -228,6 +241,7 @@ const normalizedToolInvocations = toolInvocations.reduce((acc: any[], ti: any, t
       state,
       args: t.args || t.input || {},
       result: t.result || t.output || null,
+      approval: t.approval || ti?.approval,
     });
   }
 
@@ -487,6 +501,101 @@ const normalizedToolInvocations = toolInvocations.reduce((acc: any[], ti: any, t
                         // Skip any legacy PDF tool parts that may still be in history
                         if (toolInvocation.toolName === "mergePDFs" || toolInvocation.toolName === "compressPDF") {
                           return null;
+                        }
+
+                        if (toolInvocation.toolName === "reviewSlideOutline") {
+                          return (
+                            <SlideOutlineEditor
+                              key={toolInvocation.toolCallId}
+                              toolCallId={toolInvocation.toolCallId}
+                              outline={toolInvocation.args}
+                              result={toolInvocation.result}
+                              state={toolInvocation.state}
+                              addToolOutput={addToolOutput}
+                            />
+                          );
+                        }
+
+                        if (toolInvocation.toolName === "searchUnsplashImages") {
+                          const imageResults = toolInvocation.result?.results || [];
+                          return (
+                            <Tool key={toolInvocation.toolCallId} defaultOpen={false}>
+                              <ToolHeader
+                                title="Unsplash Images"
+                                type="tool-searchUnsplashImages"
+                                state={isCompleted ? "output-available" : "input-available"}
+                              />
+                              <ToolContent>
+                                <ToolInput input={toolInvocation.args} />
+                                {isCompleted ? (
+                                  imageResults.length > 0 ? (
+                                    <div className="grid grid-cols-3 gap-2 pt-3">
+                                      {imageResults.flatMap((result: any) =>
+                                        (result.images || []).slice(0, 3).map((image: any) => (
+                                          <div
+                                            key={`${result.slideId}-${image.id}`}
+                                            className="rounded-md overflow-hidden border bg-muted/40"
+                                          >
+                                            <img
+                                              src={image.thumbUrl}
+                                              alt={image.altDescription || "Unsplash image"}
+                                              className="h-20 w-full object-cover"
+                                            />
+                                          </div>
+                                        ))
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <div className="pt-3 text-xs text-muted-foreground">
+                                      No images found for these queries.
+                                    </div>
+                                  )
+                                ) : (
+                                  <div className="pt-3 text-xs text-muted-foreground">Searching for images...</div>
+                                )}
+                              </ToolContent>
+                            </Tool>
+                          );
+                        }
+
+                        if (toolInvocation.toolName === "createGoogleSlidesPresentation") {
+                          if (toolInvocation.state === "approval-requested") {
+                            return (
+                              <SlidesApproval
+                                key={toolInvocation.toolCallId}
+                                approval={toolInvocation.approval}
+                                outline={toolInvocation.args?.outline}
+                                addToolApprovalResponse={addToolApprovalResponse}
+                              />
+                            );
+                          }
+
+                          if (toolInvocation.state === "approval-responded" && !isCompleted) {
+                            return (
+                              <Tool key={toolInvocation.toolCallId} defaultOpen={false}>
+                                <ToolHeader
+                                  title="Creating Google Slides"
+                                  type="tool-createGoogleSlidesPresentation"
+                                  state="output-available"
+                                />
+                                <ToolContent>
+                                  <div className="text-xs text-muted-foreground">
+                                    Upload in progress...
+                                  </div>
+                                </ToolContent>
+                              </Tool>
+                            );
+                          }
+
+                          if (isCompleted || toolInvocation.state === "output-denied") {
+                            return (
+                              <SlidesResult
+                                key={toolInvocation.toolCallId}
+                                result={toolInvocation.result}
+                                denied={toolInvocation.state === "output-denied"}
+                              />
+                            );
+                          }
                         }
 
                         // Special rendering for Weather tool - wrapped in Tool UI

@@ -7,6 +7,7 @@ export function useExtensionListeners(
   setIsCalendarConnected: React.Dispatch<React.SetStateAction<boolean>>,
   setIsFormsConnected: React.Dispatch<React.SetStateAction<boolean>>,
   setIsTasksConnected: React.Dispatch<React.SetStateAction<boolean>>,
+  setIsSlidesConnected: React.Dispatch<React.SetStateAction<boolean>>,
   setEnableSearch: React.Dispatch<React.SetStateAction<boolean>>
 ) {
   useEffect(() => {
@@ -142,6 +143,10 @@ export function useExtensionListeners(
         console.log('Google Tasks Auth success received');
         setIsTasksConnected(true);
       }
+      if (event.data?.type === 'GOOGLE_SLIDES_AUTH_SUCCESS') {
+        console.log('Google Slides Auth success received');
+        setIsSlidesConnected(true);
+      }
     };
     
     console.log('Adding message event listener');
@@ -173,5 +178,13 @@ export function useExtensionListeners(
       window.removeEventListener('message', handleExtensionMessage);
       window.removeEventListener('message', handleAuthMessage);
     };
-  }, [setAttachments, setInputValue, setIsCalendarConnected, setIsFormsConnected, setIsTasksConnected, setEnableSearch]);
+  }, [
+    setAttachments,
+    setInputValue,
+    setIsCalendarConnected,
+    setIsFormsConnected,
+    setIsTasksConnected,
+    setIsSlidesConnected,
+    setEnableSearch,
+  ]);
 }

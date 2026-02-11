@@ -47,6 +47,14 @@ const marketplaceTools = [
     icon: "mail",
     enabled: true,
   },
+  {
+    id: "slides",
+    name: "Slides",
+    description: "Generate presentations and upload them to Google Slides",
+    category: "productivity",
+    icon: "presentation",
+    enabled: true,
+  },
   // Add more tools here as needed
 ];
 

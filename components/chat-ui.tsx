@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useMemo } from "react";
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport } from "ai";
+import {
+  DefaultChatTransport,
+  lastAssistantMessageIsCompleteWithApprovalResponses,
+  lastAssistantMessageIsCompleteWithToolCalls,
+} from "ai";
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import type { MyUIMessage, PdfOperationResult } from "@/types/chat";
@@ -46,6 +50,7 @@ export function ChatUI() {
     isCalendarConnected, setIsCalendarConnected,
     isFormsConnected, setIsFormsConnected,
     isTasksConnected, setIsTasksConnected,
+    setIsSlidesConnected,
     fileInputRef,
   } = state;
 
@@ -56,12 +61,17 @@ export function ChatUI() {
     error,
     regenerate,
     setMessages,
+    addToolOutput,
+    addToolApprovalResponse,
   } = useChat<MyUIMessage>({
     id: "gemini-chat",
     transport: new DefaultChatTransport({
       api: "/api/chat",
     }),
     experimental_throttle: 50, // Throttle UI updates for better performance
+    sendAutomaticallyWhen: ({ messages }) =>
+      lastAssistantMessageIsCompleteWithToolCalls({ messages }) ||
+      lastAssistantMessageIsCompleteWithApprovalResponses({ messages }),
     onFinish: () => {
       setAttachments([]);
       // Clear the file input
@@ -86,6 +96,7 @@ export function ChatUI() {
     setIsCalendarConnected,
     setIsFormsConnected,
     setIsTasksConnected,
+    setIsSlidesConnected,
     isLoaded,
     setIsLoaded: state.setIsLoaded,
   });
@@ -98,6 +109,7 @@ export function ChatUI() {
     setIsCalendarConnected,
     setIsFormsConnected,
     setIsTasksConnected,
+    setIsSlidesConnected,
     setEnableSearch
   );
 
@@ -109,6 +121,7 @@ export function ChatUI() {
     setIsCalendarConnected,
     setIsFormsConnected,
     setIsTasksConnected,
+    setIsSlidesConnected,
   });
 
   const isLoading = status === "streaming" || status === "submitted";
@@ -430,13 +443,15 @@ export function ChatUI() {
         
         {/* Conversation Area */}
         <div className={cn("flex-1 overflow-hidden relative", !isStarted && "hidden")}>
-          <MessageList 
-            messages={dedupedMessages} 
-            isLoading={isLoading} 
-            onRegenerate={handleRegenerate}
-            status={status}
-            error={error}
-          />
+            <MessageList 
+              messages={dedupedMessages} 
+              isLoading={isLoading} 
+              onRegenerate={handleRegenerate}
+              status={status}
+              error={error}
+              addToolOutput={addToolOutput}
+              addToolApprovalResponse={addToolApprovalResponse}
+            />
         </div>
 
         {/* Input Area Container */}

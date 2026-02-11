@@ -20,6 +20,7 @@ export function useChatState() {
   const [isCalendarConnected, setIsCalendarConnected] = useState(false);
   const [isFormsConnected, setIsFormsConnected] = useState(false);
   const [isTasksConnected, setIsTasksConnected] = useState(false);
+  const [isSlidesConnected, setIsSlidesConnected] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -52,6 +53,8 @@ export function useChatState() {
     setIsFormsConnected,
     isTasksConnected,
     setIsTasksConnected,
+    isSlidesConnected,
+    setIsSlidesConnected,
     fileInputRef,
   };
 }

@@ -1,0 +1,34 @@
+
+> agent0@0.1.0 dev
+> next dev
+
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.2:3000
+- Experiments (use with caution):
+  · serverActions
+
+✓ Starting...
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+✓ Ready in 2.1s
+○ Compiling / ...
+ GET / 200 in 30.0s (compile: 27.9s, proxy.ts: 395ms, render: 1646ms)
+
+[35m
+[Clerk]:[0m You are running in keyless mode.
+You can [35mclaim your keys[0m by visiting https://dashboard.clerk.com/apps/claim?token=1d5r0knlatq4d2bx2d9fogxmqqbq6dlh1s4waua8&return_url=http%3A%2F%2Flocalhost%3A3000%2F
+
+ GET / 200 in 121ms (compile: 16ms, proxy.ts: 19ms, render: 86ms)
+ POST / 200 in 144ms (compile: 77ms, proxy.ts: 23ms, render: 45ms)
+ GET / 200 in 204ms (compile: 18ms, proxy.ts: 86ms, render: 100ms)
+ POST / 303 in 535ms (compile: 96ms, proxy.ts: 20ms, render: 418ms)
+ GET / 200 in 125ms (compile: 22ms, proxy.ts: 65ms, render: 38ms)
+ GET /api/auth/google?action=status 200 in 1781ms (compile: 1727ms, proxy.ts: 32ms, render: 22ms)
+ GET /api/tools/installed 200 in 1863ms (compile: 1802ms, proxy.ts: 52ms, render: 9ms)
+ GET /api/tools/installed 200 in 40ms (compile: 26ms, proxy.ts: 7ms, render: 7ms)
+ GET /api/tools/installed 200 in 17ms (compile: 5ms, proxy.ts: 6ms, render: 6ms)
+ GET /api/tools/installed 200 in 23ms (compile: 4ms, proxy.ts: 11ms, render: 8ms)

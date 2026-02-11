@@ -30,6 +30,7 @@ interface UseLocalStorageSyncProps {
   setIsCalendarConnected: (connected: boolean) => void;
   setIsFormsConnected: (connected: boolean) => void;
   setIsTasksConnected: (connected: boolean) => void;
+  setIsSlidesConnected: (connected: boolean) => void;
   isLoaded: boolean;
   setIsLoaded: (loaded: boolean) => void;
 }
@@ -45,6 +46,7 @@ export function useLocalStorageSync({
   setIsCalendarConnected,
   setIsFormsConnected,
   setIsTasksConnected,
+  setIsSlidesConnected,
   isLoaded,
   setIsLoaded,
 }: UseLocalStorageSyncProps) {
@@ -94,13 +96,14 @@ export function useLocalStorageSync({
           setIsCalendarConnected(!!data.connected);
           setIsFormsConnected(!!data.hasFormsScopes);
           setIsTasksConnected(!!data.hasTasksScopes);
+          setIsSlidesConnected(!!data.hasSlidesScopes);
         })
         .catch((e) => console.error("Failed to check calendar auth status", e));
     } catch (e) {
       console.error("Failed to load from localStorage", e);
     }
     setIsLoaded(true);
-  }, [setMessages, setSelectedModel, setEnableThinking, setAddedIntegrations, setIsCalendarConnected, setIsFormsConnected, setIsTasksConnected, setIsLoaded]);
+  }, [setMessages, setSelectedModel, setEnableThinking, setAddedIntegrations, setIsCalendarConnected, setIsFormsConnected, setIsTasksConnected, setIsSlidesConnected, setIsLoaded]);
 
   // Save model to local storage when it changes
   useEffect(() => {

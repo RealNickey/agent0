@@ -46,6 +46,9 @@ import { TaskSchedulingConfirmation } from "@/components/ai-elements/task-schedu
 import { TaskDeleteConfirmation } from "@/components/ai-elements/task-delete-confirmation";
 import { TaskUpdateConfirmation } from "@/components/ai-elements/task-update-confirmation";
 import { TaskCompleteDisplay } from "@/components/ai-elements/task-complete-display";
+import { SlideOutlineEditor } from "@/components/ai-elements/slide-outline-editor";
+import { SlidesResult } from "@/components/ai-elements/slides-result";
+import { SlidesApproval } from "@/components/ai-elements/slides-approval";
 import { PdfResult, PdfLoading } from "@/components/ai-elements/pdf-result";
 import {
   CopyIcon,
@@ -76,9 +79,10 @@ export type MessageListProps = {
   status: ChatStatus;
   onRegenerate: () => void;
   error?: Error | undefined;
+  addToolResult?: (args: { toolCallId: string; result: any }) => void;
 };
 
-export function MessageList({ messages, isLoading, status, onRegenerate, error }: MessageListProps) {
+export function MessageList({ messages, isLoading, status, onRegenerate, error, addToolResult }: MessageListProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -481,6 +485,59 @@ const normalizedToolInvocations = toolInvocations.reduce((acc: any[], ti: any, t
                           if (!hasError && result.deleted) {
                             return null;
                           }
+                        }
+
+                        // Review Slide Outline (Client-side tool)
+                        if (toolInvocation.toolName === "reviewSlideOutline") {
+                           if (toolInvocation.state === "call" && addToolResult) {
+                             return (
+                               <SlideOutlineEditor
+                                 key={toolInvocation.toolCallId}
+                                 toolCallId={toolInvocation.toolCallId}
+                                 outline={toolInvocation.args}
+                                 addToolOutput={addToolResult}
+                               />
+                             );
+                           }
+                           // Show simplified confirmation when done
+                           if (toolInvocation.state === "result") {
+                              return (
+                                <div key={toolInvocation.toolCallId} className="p-4 bg-muted/20 rounded-lg border text-sm text-muted-foreground flex items-center gap-2">
+                                  <ThumbsUpIcon className="w-4 h-4 text-green-500" />
+                                  Presentation outline confirmed.
+                                </div>
+                              );
+                           }
+                        }
+
+                        // Create Presentation (Client-side trigger -> Server API)
+                        if (toolInvocation.toolName === "createGoogleSlidesPresentation") {
+                           if (toolInvocation.state === "call" && addToolResult) {
+                             return (
+                               <SlidesApproval
+                                 key={toolInvocation.toolCallId}
+                                 toolCallId={toolInvocation.toolCallId}
+                                 outline={toolInvocation.args.outline}
+                                 addToolApprovalResponse={addToolResult}
+                               />
+                             );
+                           }
+                           if (toolInvocation.state === "result") {
+                              const result = toolInvocation.result;
+                              return (
+                                <SlidesResult
+                                  key={toolInvocation.toolCallId}
+                                  status={result.status || (result.error ? "error" : "created")}
+                                  slidesUrl={result.slidesUrl}
+                                  fileId={result.fileId}
+                                  slideCount={result.slideCount}
+                                  title={result.title}
+                                  thumbnailLink={result.thumbnailLink}
+                                  error={result.error}
+                                  message={result.message}
+                                />
+                              );
+                           }
                         }
 
                         // PDF tools are now rendered from message.metadata.pdfResult (see below)

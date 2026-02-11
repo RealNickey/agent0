@@ -46,6 +46,7 @@ export function ChatUI() {
     isCalendarConnected, setIsCalendarConnected,
     isFormsConnected, setIsFormsConnected,
     isTasksConnected, setIsTasksConnected,
+    isSlidesConnected, setIsSlidesConnected,
     fileInputRef,
   } = state;
 
@@ -56,11 +57,13 @@ export function ChatUI() {
     error,
     regenerate,
     setMessages,
+    addToolResult,
   } = useChat<MyUIMessage>({
     id: "gemini-chat",
     transport: new DefaultChatTransport({
       api: "/api/chat",
     }),
+    maxSteps: 5, // Enable multi-step tool calls
     experimental_throttle: 50, // Throttle UI updates for better performance
     onFinish: () => {
       setAttachments([]);
@@ -86,6 +89,7 @@ export function ChatUI() {
     setIsCalendarConnected,
     setIsFormsConnected,
     setIsTasksConnected,
+    setIsSlidesConnected,
     isLoaded,
     setIsLoaded: state.setIsLoaded,
   });
@@ -109,6 +113,7 @@ export function ChatUI() {
     setIsCalendarConnected,
     setIsFormsConnected,
     setIsTasksConnected,
+    setIsSlidesConnected,
   });
 
   const isLoading = status === "streaming" || status === "submitted";
@@ -436,6 +441,7 @@ export function ChatUI() {
             onRegenerate={handleRegenerate}
             status={status}
             error={error}
+            addToolResult={addToolResult}
           />
         </div>
 

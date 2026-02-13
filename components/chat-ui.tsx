@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport } from "ai";
+import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import type { MyUIMessage, PdfOperationResult } from "@/types/chat";
@@ -49,6 +49,37 @@ export function ChatUI() {
     fileInputRef,
   } = state;
 
+  // Use refs so the transport body function always reads current state,
+  // even when sendAutomaticallyWhen triggers an auto-resend after addToolOutput
+  // (AI SDK docs: "use useRef for component state that changes over time")
+  const bodyValuesRef = useRef({
+    model: selectedModel.id,
+    enableSearch,
+    enableThinking: selectedModel.supportsThinking ? enableThinking : false,
+    enableUrlContext: true,
+    enableCodeExecution: true,
+    mentionedTools,
+  });
+  // Sync ref every render (synchronous — no useEffect delay)
+  bodyValuesRef.current = {
+    model: selectedModel.id,
+    enableSearch,
+    enableThinking: selectedModel.supportsThinking ? enableThinking : false,
+    enableUrlContext: true,
+    enableCodeExecution: true,
+    mentionedTools,
+  };
+
+  // Stable transport: created once, body reads from ref
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: "/api/chat",
+        body: () => bodyValuesRef.current,
+      }),
+    [],
+  );
+
   const {
     messages,
     sendMessage,
@@ -60,9 +91,8 @@ export function ChatUI() {
     addToolApprovalResponse: sdkAddToolApprovalResponse,
   } = useChat<MyUIMessage>({
     id: "gemini-chat",
-    transport: new DefaultChatTransport({
-      api: "/api/chat",
-    }),
+    transport,
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
     experimental_throttle: 50, // Throttle UI updates for better performance
     onFinish: () => {
       setAttachments([]);
@@ -80,8 +110,14 @@ export function ChatUI() {
   // signatures to the simpler prop types the child components expect
   const handleAddToolOutput = useCallback(
     ({ toolCallId, output }: { toolCallId: string; output: string }) => {
+      console.log("[chat-ui] Submitting client-side tool output", {
+        toolCallId,
+        outputLength: output.length,
+        currentModel: bodyValuesRef.current.model,
+        mentionedTools: bodyValuesRef.current.mentionedTools,
+      });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (sdkAddToolOutput as any)({ tool: "reviewSlideOutline", toolCallId, output });
+      (sdkAddToolOutput as any)({ toolCallId, output });
     },
     [sdkAddToolOutput],
   );
@@ -369,16 +405,7 @@ export function ChatUI() {
         role: "user",
         parts,
       },
-      {
-        body: {
-          model: selectedModel.id,
-          enableSearch,
-          enableThinking: selectedModel.supportsThinking ? enableThinking : false,
-          enableUrlContext: true,
-          enableCodeExecution: true,
-          mentionedTools,
-        },
-      }
+      // Body values come from transport (bodyValuesRef), no need to duplicate
     );
 
     setInputValue("");
@@ -391,17 +418,9 @@ export function ChatUI() {
 
   // Handle regenerate/reload
   const handleRegenerate = useCallback(() => {
-    regenerate({
-      body: {
-        model: selectedModel.id,
-        enableSearch,
-        enableThinking: selectedModel.supportsThinking ? enableThinking : false,
-        enableUrlContext: true,
-        enableCodeExecution: true,
-        mentionedTools,
-      },
-    });
-  }, [regenerate, selectedModel, enableSearch, enableThinking, mentionedTools]);
+    // Body values come from transport (bodyValuesRef), no need to duplicate
+    regenerate();
+  }, [regenerate]);
 
   const handleSuggestionClick = useCallback((suggestion: string) => {
     setInputValue(suggestion);

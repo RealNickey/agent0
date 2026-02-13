@@ -202,6 +202,7 @@ function getErrorMessage(error: unknown): string {
 }
 
 export async function POST(req: Request) {
+  const requestId = `chat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   let parsedBody;
 
   try {
@@ -488,8 +489,7 @@ Remember: Return ONLY the markdown code block with mermaid syntax. No additional
       if (lowerToolName === "slides" || lowerToolName === "presentation" || lowerToolName === "ppt") {
         if (isToolInstalled("slides")) {
           tools.reviewSlideOutline = slidesTools.reviewSlideOutline;
-          tools.searchUnsplashImages = slidesTools.searchUnsplashImages;
-          tools.createGoogleSlidesPresentation = slidesTools.createGoogleSlidesPresentation;
+          tools.createPresentation = slidesTools.createPresentation;
         } else {
           console.warn("Slides tool mentioned but not installed");
         }
@@ -516,6 +516,19 @@ Remember: Return ONLY the markdown code block with mermaid syntax. No additional
   }
 
   const hasTools = Object.keys(tools).length > 0;
+  const isSlidesRequest = mentionedTools.some((t) =>
+    ["slides", "presentation", "ppt"].includes(t.toLowerCase())
+  );
+
+  if (isSlidesRequest) {
+    console.log(`[chat:${requestId}] Slides request detected`, {
+      model,
+      messageCount: uiMessages.length,
+      mentionedTools,
+      enabledTools: Object.keys(tools),
+      hasTools,
+    });
+  }
 
   // Build guidance strings outside the retry loop to avoid redeclaration
   const calendarGuidance = mentionedTools.some(t => t.toLowerCase() === "calendar")
@@ -597,6 +610,22 @@ Remember: Return ONLY the markdown code block with mermaid syntax. No additional
         providerOptions,
         // Use stopWhen for multi-step tool calls when custom tools are mentioned
         ...(mentionedTools.length > 0 && { stopWhen: stepCountIs(5) }),
+        onStepFinish: (step) => {
+          if (!isSlidesRequest) return;
+          console.log(`[chat:${requestId}] Step finished`, {
+            finishReason: step.finishReason,
+            toolCalls: step.toolCalls?.map((call: any) => call.toolName) ?? [],
+            toolResults: step.toolResults?.map((result: any) => result.toolName) ?? [],
+            usage: step.usage,
+          });
+        },
+        onFinish: (event) => {
+          if (!isSlidesRequest) return;
+          console.log(`[chat:${requestId}] Stream finished`, {
+            finishReason: event.finishReason,
+            totalUsage: event.totalUsage,
+          });
+        },
         onError: (error) => {
           console.error("Stream error:", error);
         },

@@ -40,8 +40,7 @@ export function getToolTitle(toolName: string): string {
     getMessageContent: "Get Message",
     // Slides tools
     reviewSlideOutline: "Review Outline",
-    searchUnsplashImages: "Search Images",
-    createGoogleSlidesPresentation: "Create Slides",
+    createPresentation: "Create Presentation",
   };
   return titles[toolName] || toolName;
 }

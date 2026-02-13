@@ -49,7 +49,7 @@ import { TaskCompleteDisplay } from "@/components/ai-elements/task-complete-disp
 import { PdfResult, PdfLoading } from "@/components/ai-elements/pdf-result";
 import { SlideOutlineEditor } from "@/components/ai-elements/slide-outline-editor";
 import { SlidesResult } from "@/components/ai-elements/slides-result";
-import { SlidesApproval } from "@/components/ai-elements/slides-approval";
+import { SlidesCreating } from "@/components/ai-elements/slides-creating";
 import {
   CopyIcon,
   RefreshCwIcon,
@@ -57,6 +57,7 @@ import {
   ThumbsDownIcon,
   FileIcon,
   AlertCircleIcon,
+  Loader2Icon,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
@@ -498,60 +499,128 @@ const normalizedToolInvocations = toolInvocations.reduce((acc: any[], ti: any, t
                         // reviewSlideOutline — Client-side tool (outline editor)
                         if (toolInvocation.toolName === "reviewSlideOutline") {
                           // Show outline editor when tool is pending (client-side tool, no execute)
-                          // or when the result is available (already confirmed)
                           if (!isCompleted && addToolOutput) {
                             return (
-                              <SlideOutlineEditor
-                                key={toolInvocation.toolCallId}
-                                toolCallId={toolInvocation.toolCallId}
-                                outline={toolInvocation.args}
-                                addToolOutput={addToolOutput}
-                              />
+                              <Tool key={toolInvocation.toolCallId} defaultOpen>
+                                <ToolHeader
+                                  title="Presentation Outline Review"
+                                  type={"tool-reviewSlideOutline" as any}
+                                  state="input-available"
+                                />
+                                <ToolContent>
+                                  <SlideOutlineEditor
+                                    toolCallId={toolInvocation.toolCallId}
+                                    outline={toolInvocation.args}
+                                    addToolOutput={addToolOutput}
+                                  />
+                                </ToolContent>
+                              </Tool>
                             );
                           }
                           // Already confirmed — show a summary
                           if (isCompleted && toolInvocation.result) {
-                            const result = typeof toolInvocation.result === "string"
-                              ? JSON.parse(toolInvocation.result)
-                              : toolInvocation.result;
+                            let result: any = toolInvocation.result;
+                            if (typeof toolInvocation.result === "string") {
+                              try {
+                                result = JSON.parse(toolInvocation.result);
+                              } catch {
+                                result = {};
+                              }
+                            }
                             if (result.rejected) {
                               return (
-                                <div key={toolInvocation.toolCallId} className="text-sm text-muted-foreground italic">
-                                  Outline rejected — regenerating...
-                                </div>
+                                <Tool key={toolInvocation.toolCallId} defaultOpen>
+                                  <ToolHeader
+                                    title="Presentation Outline Review"
+                                    type={"tool-reviewSlideOutline" as any}
+                                    state="output-denied"
+                                  />
+                                  <ToolContent>
+                                    <div className="p-4 text-sm text-muted-foreground italic">
+                                      Outline rejected — regenerating...
+                                    </div>
+                                  </ToolContent>
+                                </Tool>
                               );
                             }
                             return (
-                              <div key={toolInvocation.toolCallId} className="text-sm text-muted-foreground italic">
-                                Outline confirmed — {result.slides?.length || "?"} slides
-                              </div>
+                              <Tool key={toolInvocation.toolCallId} defaultOpen>
+                                <ToolHeader
+                                  title="Presentation Outline Review"
+                                  type={"tool-reviewSlideOutline" as any}
+                                  state="output-available"
+                                />
+                                <ToolContent>
+                                  <div className="p-4">
+                                    <div className="flex items-center gap-2 text-sm text-teal-700 dark:text-teal-300">
+                                      <Loader2Icon className="w-4 h-4 animate-spin" />
+                                      <span>
+                                        Outline approved — preparing presentation generation
+                                        {result.slides?.length ? ` (${result.slides.length} slides)` : ""}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </ToolContent>
+                              </Tool>
                             );
                           }
                           return null;
                         }
 
-                        // searchUnsplashImages — show small loading/result indicator
-                        if (toolInvocation.toolName === "searchUnsplashImages") {
-                          if (isCompleted && !hasError && toolInvocation.result?.results) {
-                            const results = toolInvocation.result.results;
-                            const totalImages = results.reduce((sum: number, r: any) => sum + (r.images?.length || 0), 0);
+                        // createPresentation — shows creating progress or final result
+                        if (toolInvocation.toolName === "createPresentation") {
+                          if (isCompleted && !hasError) {
                             return (
-                              <div key={toolInvocation.toolCallId} className="text-sm text-muted-foreground italic">
-                                Found {totalImages} images for {results.length} slides
-                              </div>
+                              <Tool key={toolInvocation.toolCallId} defaultOpen>
+                                <ToolHeader
+                                  title="Presentation Generation"
+                                  type={"tool-createPresentation" as any}
+                                  state="output-available"
+                                />
+                                <ToolContent>
+                                  <SlidesResult result={toolInvocation.result} />
+                                </ToolContent>
+                              </Tool>
                             );
                           }
+                          if (hasError) {
+                            return (
+                              <Tool key={toolInvocation.toolCallId} defaultOpen>
+                                <ToolHeader
+                                  title="Presentation Generation"
+                                  type={"tool-createPresentation" as any}
+                                  state="output-error"
+                                />
+                                <ToolContent>
+                                  <SlidesResult
+                                    result={{ status: "error", error: toolInvocation.result?.error || "Unknown error" }}
+                                  />
+                                </ToolContent>
+                              </Tool>
+                            );
+                          }
+                          // In progress — show creating animation
                           return (
-                            <div key={toolInvocation.toolCallId} className="text-sm text-muted-foreground italic animate-pulse">
-                              Searching for images...
-                            </div>
+                            <Tool key={toolInvocation.toolCallId} defaultOpen>
+                              <ToolHeader
+                                title="Presentation Generation"
+                                type={"tool-createPresentation" as any}
+                                state="input-available"
+                              />
+                              <ToolContent>
+                                <SlidesCreating
+                                  title={toolInvocation.args?.outline?.title}
+                                  slideCount={toolInvocation.args?.outline?.slides?.length}
+                                />
+                              </ToolContent>
+                            </Tool>
                           );
                         }
 
-                        // createGoogleSlidesPresentation — approval or result
-                        if (toolInvocation.toolName === "createGoogleSlidesPresentation") {
-                          // If completed with result, show SlidesResult
-                          if (isCompleted && !hasError) {
+                        // Legacy slides tools — handle gracefully
+                        if (toolInvocation.toolName === "searchUnsplashImages" ||
+                            toolInvocation.toolName === "createGoogleSlidesPresentation") {
+                          if (toolInvocation.toolName === "createGoogleSlidesPresentation" && isCompleted && !hasError) {
                             return (
                               <SlidesResult
                                 key={toolInvocation.toolCallId}
@@ -559,31 +628,7 @@ const normalizedToolInvocations = toolInvocations.reduce((acc: any[], ti: any, t
                               />
                             );
                           }
-                          // If pending (approval requested), show SlidesApproval
-                          if (!isCompleted && toolInvocation.approval?.id && addToolApprovalResponse) {
-                            return (
-                              <SlidesApproval
-                                key={toolInvocation.toolCallId}
-                                approvalId={toolInvocation.approval.id}
-                                outline={toolInvocation.args?.outline || toolInvocation.args}
-                                addToolApprovalResponse={addToolApprovalResponse}
-                              />
-                            );
-                          }
-                          if (hasError) {
-                            return (
-                              <SlidesResult
-                                key={toolInvocation.toolCallId}
-                                result={{ status: "error", error: toolInvocation.result?.error || "Unknown error" }}
-                              />
-                            );
-                          }
-                          // Intermediate state (approved, executing)
-                          return (
-                            <div key={toolInvocation.toolCallId} className="text-sm text-muted-foreground italic animate-pulse">
-                              Generating and uploading presentation...
-                            </div>
-                          );
+                          return null;
                         }
 
                         // Special rendering for Weather tool - wrapped in Tool UI

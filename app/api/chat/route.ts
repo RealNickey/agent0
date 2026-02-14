@@ -9,6 +9,7 @@ import { calendarTools } from "@/ai/calendar-tools";
 import { formsTools } from "@/ai/forms-tools";
 import { gmailTools } from "@/ai/gmail-tools";
 import { tasksTools } from "@/ai/tasks-tools";
+import { imageTools } from "@/ai/image-tools";
 // PDF tools removed — handled entirely client-side to avoid tool part serialization issues
 import { GMAIL_AGENT_PROMPT } from "@/ai/prompts/gmail";
 import { isToolInstalled } from "@/lib/installed-tools";
@@ -35,22 +36,22 @@ export const maxDuration = 60;
 // Helper function to clean messages for non-Google providers
 // Removes Google-specific parts (reasoning, sources) that other providers don't support
 function cleanMessagesForProvider(messages: MyUIMessage[], isGoogleModel: boolean): MyUIMessage[] {
-  if (isGoogleModel) {
-    return messages; // Google models support all part types
-  }
-
-  // For non-Google providers, filter out unsupported parts
+  // Always remove non-essential parts from history sent back to the model.
+  // These parts are useful for UI, but they unnecessarily bloat prompt size.
   const cleanedMessages = messages.map((msg) => {
     if (!msg.parts || !Array.isArray(msg.parts)) {
       return msg;
     }
 
     const cleanedParts = msg.parts.filter((part) => {
-      // Keep standard parts: text, file, tool-*, image-url, image
-      // Remove: reasoning, source-url, source-document
+      // Remove reasoning/sources for all providers to keep context compact.
       if (part.type === "reasoning") return false;
       if (part.type === "source-url") return false;
       if (part.type === "source-document") return false;
+
+      // Non-Google providers don't support google_search tool parts in history.
+      if (!isGoogleModel && part.type === "tool-google_search") return false;
+
       return true;
     });
 
@@ -64,6 +65,92 @@ function cleanMessagesForProvider(messages: MyUIMessage[], isGoogleModel: boolea
   });
 
   return cleanedMessages;
+}
+
+function trimTextToLimit(input: string, limit: number): string {
+  if (input.length <= limit) {
+    return input;
+  }
+
+  return `${input.slice(0, limit)}\n\n[truncated]`;
+}
+
+function estimatePartSize(part: any): number {
+  if (!part || typeof part !== "object") {
+    return 0;
+  }
+
+  if (part.type === "text" && typeof part.text === "string") {
+    return part.text.length;
+  }
+
+  if (part.type === "file" && typeof part.url === "string") {
+    return Math.min(part.url.length, 4000);
+  }
+
+  try {
+    return JSON.stringify(part).length;
+  } catch {
+    return 0;
+  }
+}
+
+function pruneMessagesForModel(messages: MyUIMessage[]): MyUIMessage[] {
+  const MAX_MESSAGES = 28;
+  const MAX_CHARS_TOTAL = 140_000;
+  const MAX_TEXT_PART_CHARS = 12_000;
+
+  const recent = messages.slice(-MAX_MESSAGES).map((msg) => {
+    if (!msg.parts || !Array.isArray(msg.parts)) {
+      return msg;
+    }
+
+    const compactParts = (msg.parts as any[])
+      .map((part) => {
+        if (part?.type === "text" && typeof part.text === "string") {
+          return { ...part, text: trimTextToLimit(part.text, MAX_TEXT_PART_CHARS) };
+        }
+        return part;
+      })
+      .filter((part) => {
+        if (!part || typeof part.type !== "string") return false;
+        if (part.type === "text") return typeof part.text === "string" && part.text.trim().length > 0;
+        return true;
+      });
+
+    return { ...msg, parts: compactParts } as MyUIMessage;
+  }).filter((msg) => msg.parts && msg.parts.length > 0);
+
+  let runningSize = 0;
+  const kept: MyUIMessage[] = [];
+
+  // Keep newest messages first while respecting a global size budget.
+  for (let i = recent.length - 1; i >= 0; i -= 1) {
+    const message = recent[i];
+    const partSizes = (message.parts as any[]).map((part) => estimatePartSize(part));
+    const messageSize = partSizes.reduce((sum, n) => sum + n, 0);
+
+    if (runningSize + messageSize <= MAX_CHARS_TOTAL || kept.length < 6) {
+      kept.unshift(message);
+      runningSize += messageSize;
+      continue;
+    }
+
+    // If this is a user message, keep a compressed text-only version.
+    if (message.role === "user") {
+      const textParts = (message.parts as any[])
+        .filter((part) => part?.type === "text" && typeof part.text === "string")
+        .map((part) => ({ ...part, text: trimTextToLimit(part.text, 1200) }));
+
+      if (textParts.length > 0) {
+        const compactMessage = { ...message, parts: textParts } as MyUIMessage;
+        kept.unshift(compactMessage);
+        runningSize += textParts.reduce((sum, part) => sum + estimatePartSize(part), 0);
+      }
+    }
+  }
+
+  return kept;
 }
 
 function sanitizeToolParts(messages: MyUIMessage[]): MyUIMessage[] {
@@ -120,6 +207,107 @@ function sanitizeToolParts(messages: MyUIMessage[]): MyUIMessage[] {
       };
     })
     .filter((msg) => msg.parts && msg.parts.length > 0);
+}
+
+function isInlineImagePayload(value: unknown): value is string {
+  if (typeof value !== "string") {
+    return false;
+  }
+
+  const trimmed = value.trim();
+
+  if (trimmed.startsWith("data:image/")) {
+    return true;
+  }
+
+  // Handle raw base64 image blobs that may appear without a data URL prefix.
+  // Common signatures: PNG (iVBOR), JPEG (/9j/), GIF (R0lGOD).
+  if (
+    trimmed.length > 8000 &&
+    /^[A-Za-z0-9+/=\r\n]+$/.test(trimmed) &&
+    (trimmed.startsWith("iVBOR") ||
+      trimmed.startsWith("/9j/") ||
+      trimmed.startsWith("R0lGOD"))
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function stripInlineImagePayload(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => stripInlineImagePayload(item))
+      .filter((item) => item !== undefined);
+  }
+
+  if (value && typeof value === "object") {
+    const obj = value as Record<string, unknown>;
+    const stripped: Record<string, unknown> = {};
+
+    for (const [key, nestedValue] of Object.entries(obj)) {
+      // Drop any inline image payloads entirely to keep metadata only.
+      if (isInlineImagePayload(nestedValue)) {
+        continue;
+      }
+
+      const cleanedNested = stripInlineImagePayload(nestedValue);
+      if (cleanedNested !== undefined) {
+        stripped[key] = cleanedNested;
+      }
+    }
+
+    return stripped;
+  }
+
+  if (isInlineImagePayload(value)) {
+    return undefined;
+  }
+
+  return value;
+}
+
+function stripInlineImageFromToolPart(part: any): any {
+  if (!part || typeof part !== "object") {
+    return part;
+  }
+
+  const isToolPart =
+    part.type === "tool-invocation" ||
+    (typeof part.type === "string" && part.type.startsWith("tool-"));
+
+  if (!isToolPart) {
+    return part;
+  }
+
+  const sanitized = { ...part };
+
+  if ("args" in sanitized) {
+    sanitized.args = stripInlineImagePayload(sanitized.args);
+  }
+  if ("result" in sanitized) {
+    sanitized.result = stripInlineImagePayload(sanitized.result);
+  }
+  if ("output" in sanitized) {
+    sanitized.output = stripInlineImagePayload(sanitized.output);
+  }
+  if (sanitized.toolInvocation && typeof sanitized.toolInvocation === "object") {
+    sanitized.toolInvocation = {
+      ...sanitized.toolInvocation,
+      ...("args" in sanitized.toolInvocation
+        ? { args: stripInlineImagePayload(sanitized.toolInvocation.args) }
+        : {}),
+      ...("result" in sanitized.toolInvocation
+        ? { result: stripInlineImagePayload(sanitized.toolInvocation.result) }
+        : {}),
+      ...("output" in sanitized.toolInvocation
+        ? { output: stripInlineImagePayload(sanitized.toolInvocation.output) }
+        : {}),
+    };
+  }
+
+  return sanitized;
 }
 
 // Helper function to get model instance and provider options
@@ -294,6 +482,10 @@ Remember: Return ONLY the markdown code block with mermaid syntax. No additional
 
   // ALWAYS strip large base64 PDF file parts from ALL messages to prevent body size explosion
   // Also strip any PDF tool parts that may have leaked into message history
+  // CRITICAL: Strip base64 image data to achieve zero-token image generation
+  // - Image generation uses Cloudflare API (no LLM tokens)
+  // - Full base64 stored client-side for display/download
+  // - Only metadata (prompt, error) sent to LLM (~15 tokens vs 130K-520K)
   uiMessages = uiMessages.map(msg => {
     if (msg.parts) {
       const cleanedParts = (msg.parts as any[])
@@ -311,56 +503,64 @@ Remember: Return ONLY the markdown code block with mermaid syntax. No additional
         if (part.type === "file" && part.mediaType === "application/pdf" && typeof part.url === "string" && part.url.length > 1000) {
           return { type: "text", text: "(PDF file - processed separately)" };
         }
+        // Strip base64 image data URLs from generated images (they can be 1MB+ each)
+        if (part.type === "file" && typeof part.url === "string" && part.url.startsWith("data:image/")) {
+          // Remove entirely - no tokens wasted on placeholder text
+          return null;
+        }
         // Also strip any giant tool result data (e.g. base64 PDF output stored in result)
         // Check both tool-invocation structure and tool-{name} structure
         if (part.type === "tool-invocation" || part.type?.startsWith?.("tool-")) {
+          const imageStrippedPart = stripInlineImageFromToolPart(part);
           // Handle tool-invocation with nested result
-          if (part.toolInvocation?.result?.fileUrl) {
-            const url = part.toolInvocation.result.fileUrl;
+          if (imageStrippedPart.toolInvocation?.result?.fileUrl) {
+            const url = imageStrippedPart.toolInvocation.result.fileUrl;
             if (typeof url === "string" && url.length > 1000) {
               return {
-                ...part,
+                ...imageStrippedPart,
                 toolInvocation: {
-                  ...part.toolInvocation,
-                  result: { ...part.toolInvocation.result, fileUrl: "(stripped for API)" }
+                  ...imageStrippedPart.toolInvocation,
+                  result: { ...imageStrippedPart.toolInvocation.result, fileUrl: "(stripped for API)" }
                 }
               };
             }
           }
           // Handle tool-{name} with direct result property
-          if (part.result?.fileUrl) {
-            const url = part.result.fileUrl;
+          if (imageStrippedPart.result?.fileUrl) {
+            const url = imageStrippedPart.result.fileUrl;
             if (typeof url === "string" && url.length > 1000) {
               return {
-                ...part,
-                result: { ...part.result, fileUrl: "(stripped for API)" }
+                ...imageStrippedPart,
+                result: { ...imageStrippedPart.result, fileUrl: "(stripped for API)" }
               };
             }
           }
           // Handle args with file URLs (input PDFs)
-          if (part.args?.fileUrls && Array.isArray(part.args.fileUrls)) {
-            const hasLargeFiles = part.args.fileUrls.some((url: any) => 
+          if (imageStrippedPart.args?.fileUrls && Array.isArray(imageStrippedPart.args.fileUrls)) {
+            const hasLargeFiles = imageStrippedPart.args.fileUrls.some((url: any) => 
               typeof url === "string" && url.length > 1000
             );
             if (hasLargeFiles) {
               return {
-                ...part,
+                ...imageStrippedPart,
                 args: { 
-                  ...part.args, 
-                  fileUrls: part.args.fileUrls.map(() => "(stripped for API)")
+                  ...imageStrippedPart.args, 
+                  fileUrls: imageStrippedPart.args.fileUrls.map(() => "(stripped for API)")
                 }
               };
             }
           }
-          if (part.args?.fileUrl && typeof part.args.fileUrl === "string" && part.args.fileUrl.length > 1000) {
+          if (imageStrippedPart.args?.fileUrl && typeof imageStrippedPart.args.fileUrl === "string" && imageStrippedPart.args.fileUrl.length > 1000) {
             return {
-              ...part,
-              args: { ...part.args, fileUrl: "(stripped for API)" }
+              ...imageStrippedPart,
+              args: { ...imageStrippedPart.args, fileUrl: "(stripped for API)" }
             };
           }
+          return imageStrippedPart;
         }
         return part;
-      });
+      })
+      .filter(Boolean); // Remove null parts (stripped images, etc.)
       return { ...msg, parts: cleanedParts } as MyUIMessage;
     }
     return msg;
@@ -375,7 +575,8 @@ Remember: Return ONLY the markdown code block with mermaid syntax. No additional
 
   // Clean messages for non-Google providers (removes reasoning, sources, etc.)
   const cleanedMessages = cleanMessagesForProvider(uiMessages, isGoogleModel);
-  const sanitizedMessages = sanitizeToolParts(cleanedMessages);
+  const prunedMessages = pruneMessagesForModel(cleanedMessages);
+  const sanitizedMessages = sanitizeToolParts(prunedMessages);
 
   // Log for debugging OpenRouter issues
   if (model.startsWith("openrouter:")) {
@@ -481,6 +682,14 @@ Remember: Return ONLY the markdown code block with mermaid syntax. No additional
       }
       // PDF tools — handled entirely client-side (no LLM involvement)
       // The @pdf mention is intercepted in chat-ui.tsx before reaching this route
+      // Image generation tools
+      if (lowerToolName === "image") {
+        if (isToolInstalled("image")) {
+          tools.generateImage = imageTools.generateImage;
+        } else {
+          console.warn("Image tool mentioned but not installed");
+        }
+      }
       // Add more tool mappings here as needed
     }
   } else {
@@ -518,6 +727,10 @@ Remember: Return ONLY the markdown code block with mermaid syntax. No additional
     : "";
 
   // PDF guidance removed — PDF operations are handled client-side
+
+  const imageGuidance = mentionedTools.some(t => t.toLowerCase() === "image")
+    ? " When the user asks to generate, create, or draw an image, ALWAYS call generateImage with a detailed prompt. Enhance the user's prompt with details about style, lighting, composition, and quality for better results. After the image is generated, briefly describe what was created."
+    : "";
 
   // Retry logic with automatic model fallback on rate limiting
   const maxRetries = 3;
@@ -573,7 +786,7 @@ Remember: Return ONLY the markdown code block with mermaid syntax. No additional
 
       const result = streamText({
         model: modelInstance,
-        system: `${systemPrompt}${calendarGuidance}${formsGuidance}${tasksGuidance}`,
+        system: `${systemPrompt}${calendarGuidance}${formsGuidance}${tasksGuidance}${imageGuidance}`,
         messages: modelMessages,
         tools: hasCurrentTools ? currentTools : undefined,
         toolChoice: hasCurrentTools ? "auto" : "none",

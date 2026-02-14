@@ -38,6 +38,8 @@ export function getToolTitle(toolName: string): string {
     createDraft: "Create Draft",
     sendMessage: "Send Email",
     getMessageContent: "Get Message",
+    // Image tools
+    generateImage: "Generate Image",
   };
   return titles[toolName] || toolName;
 }

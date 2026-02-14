@@ -28,6 +28,85 @@ import { useExtensionListeners } from "@/hooks/use-extension-listeners";
 import { useIntegrationHandlers } from "@/hooks/use-integration-handlers";
 import { MODELS, DEFAULT_SUGGESTIONS, STORAGE_KEYS } from "@/lib/chat-constants";
 
+const GENERATED_IMAGE_REF_PREFIX = "__generated_image_ref__:";
+
+function storeGeneratedImageAndGetRef(dataUrl: string): string {
+  if (typeof window === "undefined") {
+    return dataUrl;
+  }
+
+  const refId = `img-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  (window as any).__generatedImages = (window as any).__generatedImages || {};
+  (window as any).__generatedImages[refId] = dataUrl;
+  return `${GENERATED_IMAGE_REF_PREFIX}${refId}`;
+}
+
+function replaceInlineImagesWithRefs(value: unknown): { value: unknown; changed: boolean } {
+  if (Array.isArray(value)) {
+    let changed = false;
+    const next = value.map((item) => {
+      const result = replaceInlineImagesWithRefs(item);
+      changed = changed || result.changed;
+      return result.value;
+    });
+    return { value: next, changed };
+  }
+
+  if (value && typeof value === "object") {
+    let changed = false;
+    const next: Record<string, unknown> = {};
+    for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
+      const result = replaceInlineImagesWithRefs(nested);
+      changed = changed || result.changed;
+      next[key] = result.value;
+    }
+    return { value: next, changed };
+  }
+
+  if (typeof value === "string" && value.startsWith("data:image/")) {
+    return {
+      value: storeGeneratedImageAndGetRef(value),
+      changed: true,
+    };
+  }
+
+  return { value, changed: false };
+}
+
+function compactGeneratedImagePayloads(messages: MyUIMessage[]): { messages: MyUIMessage[]; changed: boolean } {
+  let changed = false;
+
+  const compacted = messages.map((message) => {
+    if (!message.parts || !Array.isArray(message.parts)) {
+      return message;
+    }
+
+    const nextParts = message.parts.map((part: any) => {
+      const isToolPart =
+        part?.type === "tool-invocation" ||
+        (typeof part?.type === "string" && part.type.startsWith("tool-"));
+
+      if (!isToolPart) {
+        return part;
+      }
+
+      const result = replaceInlineImagesWithRefs(part);
+      if (result.changed) {
+        changed = true;
+      }
+      return result.value;
+    });
+
+    if (nextParts !== message.parts) {
+      return { ...message, parts: nextParts } as MyUIMessage;
+    }
+
+    return message;
+  });
+
+  return { messages: compacted, changed };
+}
+
 export function ChatUI() {
   // State management
   const state = useChatState();
@@ -152,6 +231,19 @@ export function ChatUI() {
       setMessages(cleaned);
     }
   }, [isLoaded]); // Only run once on load
+
+  // Compact generated-image payloads from tool results in message history.
+  // Keep full images in an in-memory ref store so UI can still render/download,
+  // while chat requests only include tiny reference strings.
+  useEffect(() => {
+    if (!isLoaded || messages.length === 0) return;
+
+    const compacted = compactGeneratedImagePayloads(messages);
+    if (compacted.changed) {
+      console.log("[Image cleanup] Compacted generated image payloads from message history");
+      setMessages(compacted.messages);
+    }
+  }, [isLoaded, messages, setMessages]);
 
   // Chat handlers
 

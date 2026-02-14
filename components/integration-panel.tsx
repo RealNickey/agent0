@@ -85,6 +85,13 @@ const INTEGRATION_DETAILS: Record<string, { name: string; description: string; f
       { name: "createSequenceDiagram", description: "Create sequence diagrams for interactions" },
       { name: "createGanttChart", description: "Create Gantt charts for project timelines" }
     ]
+  },
+  image: {
+    name: "Image",
+    description: "Generate images from text prompts using Stable Diffusion AI via Cloudflare Workers AI.",
+    functions: [
+      { name: "generateImage", description: "Generate an image from a descriptive text prompt" }
+    ]
   }
 };
 

@@ -67,6 +67,7 @@ import {
 import type { MyUIMessage, PdfOperationResult } from "@/types/chat";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { Weather, WeatherLoading } from "@/components/weather";
+import { GeneratedImage, GeneratedImageLoading } from "@/components/generated-image";
 
 type ChatStatus = UseChatHelpers<MyUIMessage>["status"];
 
@@ -527,6 +528,44 @@ const normalizedToolInvocations = toolInvocations.reduce((acc: any[], ti: any, t
                             </div>
                           );
                         }
+
+                        // Special rendering for Image generation tool
+                        if (toolInvocation.toolName === "generateImage") {
+                          return (
+                            <div key={toolInvocation.toolCallId} className="flex flex-col gap-2 w-full">
+                              <Tool defaultOpen={false}>
+                                <ToolHeader
+                                  title="Generate Image"
+                                  type={"tool-generateImage" as any}
+                                  state={
+                                    hasError
+                                      ? "output-error"
+                                      : isCompleted
+                                      ? "output-available"
+                                      : "input-available"
+                                  }
+                                />
+                                <ToolContent>
+                                  <ToolInput input={toolInvocation.args} />
+                                </ToolContent>
+                              </Tool>
+                              
+                              <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.2 }}
+                                className="w-full"
+                              >
+                                {isCompleted ? (
+                                  <GeneratedImage {...toolInvocation.result} />
+                                ) : (
+                                  <GeneratedImageLoading prompt={toolInvocation.args?.prompt} />
+                                )}
+                              </motion.div>
+                            </div>
+                          );
+                        }
+
                         // Default tool rendering
                         return (
                           <Tool key={toolInvocation.toolCallId} defaultOpen={false}>

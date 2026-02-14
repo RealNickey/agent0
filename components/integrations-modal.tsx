@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { CloudSun, Plus, Trash2, ExternalLink, Calendar, FileText, Mail, ListTodo, Network, FileStack } from "lucide-react";
+import { CloudSun, Plus, Trash2, ExternalLink, Calendar, FileText, Mail, ListTodo, Network, FileStack, ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 import { GlowEffect } from "@/components/ui/glow-effect";
@@ -77,6 +77,14 @@ const INTEGRATIONS = [
     icon: Network,
     color: "text-cyan-500",
     bgColor: "bg-cyan-500/10",
+  },
+  {
+    id: "image",
+    name: "Image",
+    description: "Generate images from text prompts using Stable Diffusion AI.",
+    icon: ImageIcon,
+    color: "text-pink-500",
+    bgColor: "bg-pink-500/10",
   },
 ];
 

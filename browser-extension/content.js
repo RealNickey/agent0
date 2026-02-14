@@ -86,6 +86,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'startCapture') {
     startScreenshotCapture();
     sendResponse({ success: true });
+  } else if (request.action === 'MEDIA_CONTROL') {
+    handleMediaControl(request.command);
+    sendResponse({ success: true });
+  } else if (request.action === 'AGENT0_MEDIA_UPDATE') {
+    window.postMessage({ type: 'AGENT0_MEDIA_UPDATE', data: request.data }, '*');
   } else if (request.action === 'extractPageContent') {
     try {
       console.log('Processing extractPageContent request...');
@@ -432,3 +437,103 @@ function showToastNotification(message, type = 'info') {
 }
 
 } // End of initialization check
+
+// --- Media Control Logic ---
+
+let mediaMonitorInterval = null;
+let lastMediaState = null;
+
+function scanForMedia() {
+  const videos = Array.from(document.querySelectorAll('video'));
+  const audios = Array.from(document.querySelectorAll('audio'));
+  const allMedia = [...videos, ...audios];
+
+  // Find the most 'active' media (playing one preferred)
+  const playingMedia = allMedia.find(m => !m.paused && !m.ended);
+  const mediaToReport = playingMedia || allMedia[0];
+
+  if (!mediaToReport) return null;
+
+  return {
+    hasMedia: true,
+    isPlaying: !mediaToReport.paused,
+    type: mediaToReport.tagName.toLowerCase(), // 'video' or 'audio'
+    title: document.title, // Best guess
+    src: mediaToReport.currentSrc || mediaToReport.src,
+    duration: mediaToReport.duration,
+    currentTime: mediaToReport.currentTime
+  };
+}
+
+function startMediaMonitoring() {
+  if (mediaMonitorInterval) return;
+
+  // Poll for media status changes
+  mediaMonitorInterval = setInterval(() => {
+    const state = scanForMedia();
+    
+    // Simple diff to avoid flooding messages
+    const stateStr = JSON.stringify(state);
+    if (stateStr !== JSON.stringify(lastMediaState)) {
+      lastMediaState = state;
+      if (state) {
+        chrome.runtime.sendMessage({
+          action: 'MEDIA_STATUS_UPDATE',
+          data: state
+        }).catch(() => {
+           // Ignore errors (e.g. extension context invalidated)
+        });
+      }
+    }
+  }, 1000);
+
+  // Also listen for events
+  document.addEventListener('play', () => lastMediaState = null, true);
+  document.addEventListener('pause', () => lastMediaState = null, true);
+}
+
+function handleMediaControl(command) {
+  const videos = Array.from(document.querySelectorAll('video'));
+  const audios = Array.from(document.querySelectorAll('audio'));
+  const allMedia = [...videos, ...audios];
+  
+  // Prioritize playing media for 'pause', or any media for 'play'
+  let target = allMedia.find(m => !m.paused) || allMedia[0];
+
+  if (!target && allMedia.length > 0) target = allMedia[0];
+  if (!target) return;
+
+  if (command === 'play') target.play();
+  if (command === 'pause') target.pause();
+  if (command === 'next') {
+    // For specialized sites (YouTube, Spotify), we might need to click buttons.
+    // Generic HTML5 media doesn't have 'next'.
+    // Try to find a 'Next' button in the UI as a fallback?
+    const nextBtn = document.querySelector('[aria-label*=\'Next\'], [title*=\'Next\'], .ytp-next-button, .next-button');
+    if (nextBtn) nextBtn.click();
+    else {
+        // Seek forward 10s as fallback?
+        target.currentTime += 10;
+    }
+  }
+  if (command === 'prev') {
+      target.currentTime -= 10;
+  }
+}
+
+// Start monitoring
+startMediaMonitoring();
+
+// Listen for messages from the web page (only if we are ON localhost)
+if (window.location.origin.includes('localhost')) {
+  window.addEventListener('message', (event) => {
+    if (event.source !== window) return;
+    if (event.data?.type === 'AGENT0_SEND_MEDIA_CONTROL') {
+      chrome.runtime.sendMessage({
+        action: 'RelayMediaControl',
+        command: event.data.command
+      });
+    }
+  });
+}
+

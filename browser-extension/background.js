@@ -302,8 +302,45 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.action === 'sendToAgent0') {
     handleSendToAgent0(request, sendResponse);
     return true;
+  } else if (request.action === 'MEDIA_STATUS_UPDATE') {
+    handleMediaStatusUpdate(request.data, sender.tab.id);
+  } else if (request.action === 'RelayMediaControl') {
+    handleRelayMediaControl(request.command);
   }
 });
+
+let activeMediaTabId = null;
+
+function handleMediaStatusUpdate(data, tabId) {
+  // If a tab reports playing, it becomes the active media tab
+  if (data.isPlaying) {
+    activeMediaTabId = tabId;
+  }
+  
+  // Forward to Agent0 tabs
+  // Note: match pattern must be correct for chrome.tabs.query
+  chrome.tabs.query({ url: agent0Url + "/*" }, (tabs) => {
+    tabs.forEach(t => {
+      chrome.tabs.sendMessage(t.id, {
+        action: 'AGENT0_MEDIA_UPDATE',
+        data: { ...data, tabId }
+      }).catch(err => console.log('Failed to forward media update', err));
+    });
+  });
+}
+
+function handleRelayMediaControl(command) {
+  if (activeMediaTabId) {
+    chrome.tabs.sendMessage(activeMediaTabId, {
+      action: 'MEDIA_CONTROL',
+      command: command
+    }).catch((err) => {
+       console.log('Failed to send control to tab', activeMediaTabId, err);
+       activeMediaTabId = null;
+    });
+  }
+}
+
 
 function toSafeString(value) {
   if (typeof value === 'string') return value;

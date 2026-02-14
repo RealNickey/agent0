@@ -48,7 +48,7 @@ import { TaskUpdateConfirmation } from "@/components/ai-elements/task-update-con
 import { TaskCompleteDisplay } from "@/components/ai-elements/task-complete-display";
 import { SlideOutlineEditor } from "@/components/ai-elements/slide-outline-editor";
 import { SlidesResult } from "@/components/ai-elements/slides-result";
-import { SlidesApproval } from "@/components/ai-elements/slides-approval";
+import { PresentationApproval } from "@/components/ai-elements/presentation-approval";
 import { PdfResult, PdfLoading } from "@/components/ai-elements/pdf-result";
 import {
   CopyIcon,
@@ -169,7 +169,7 @@ export function MessageList({ messages, isLoading, status, onRegenerate, error, 
                     {message.role === "user" && message.parts && (
                       <div className="flex flex-wrap gap-2 mb-2">
                         {message.parts
-                          .filter((part: any) => part.type === "file")
+                          .filter((part: any) => part && typeof part === "object" && part.type === "file")
                           .map((part: any, i: number) => (
                             <div
                               key={i}
@@ -510,33 +510,60 @@ const normalizedToolInvocations = toolInvocations.reduce((acc: any[], ti: any, t
                            }
                         }
 
-                        // Create Presentation (Client-side trigger -> Server API)
-                        if (toolInvocation.toolName === "createGoogleSlidesPresentation") {
-                           if (toolInvocation.state === "call" && addToolResult) {
-                             return (
-                               <SlidesApproval
-                                 key={toolInvocation.toolCallId}
-                                 toolCallId={toolInvocation.toolCallId}
-                                 outline={toolInvocation.args.outline}
-                                 addToolApprovalResponse={addToolResult}
-                               />
-                             );
-                           }
-                           if (toolInvocation.state === "result") {
+                        // Create Presentation with Images (New combined workflow)
+                        if (toolInvocation.toolName === "createPresentationWithImages") {
+                           const isCompleted = toolInvocation.state === "result";
+                           
+                           if (isCompleted) {
                               const result = toolInvocation.result;
-                              return (
-                                <SlidesResult
-                                  key={toolInvocation.toolCallId}
-                                  status={result.status || (result.error ? "error" : "created")}
-                                  slidesUrl={result.slidesUrl}
-                                  fileId={result.fileId}
-                                  slideCount={result.slideCount}
-                                  title={result.title}
-                                  thumbnailLink={result.thumbnailLink}
-                                  error={result.error}
-                                  message={result.message}
-                                />
-                              );
+                              if (!result) {
+                                return (
+                                  <div key={toolInvocation.toolCallId} className="p-4 bg-destructive/10 rounded-lg border border-destructive/20 text-sm">
+                                    <p className="text-destructive font-medium">Error: No result received from presentation creation</p>
+                                  </div>
+                                );
+                              }
+                              
+                              // Show approval UI when awaiting user confirmation
+                              if (result.awaitingApproval && addToolResult) {
+                                if (!result.outline) {
+                                  return (
+                                    <div key={toolInvocation.toolCallId} className="p-4 bg-destructive/10 rounded-lg border border-destructive/20 text-sm">
+                                      <p className="text-destructive font-medium">Error: Invalid presentation data</p>
+                                    </div>
+                                  );
+                                }
+                                return (
+                                  <PresentationApproval
+                                    key={toolInvocation.toolCallId}
+                                    toolCallId={toolInvocation.toolCallId}
+                                    outline={result.outline}
+                                    imagesFound={result.imagesFound || 0}
+                                    totalImagesRequested={result.totalImagesRequested || 0}
+                                    addToolApprovalResponse={addToolResult}
+                                  />
+                                );
+                              }
+                              
+                              // Show SlidesResult for uploaded presentations
+                              if (result.status === "created" || result.status === "uploaded" || (result.slidesUrl && !result.error)) {
+                                return (
+                                  <SlidesResult
+                                    key={toolInvocation.toolCallId}
+                                    status={result.status || "created"}
+                                    slidesUrl={result.slidesUrl}
+                                    fileId={result.fileId}
+                                    slideCount={result.slideCount}
+                                    title={result.title}
+                                    thumbnailLink={result.thumbnailLink}
+                                    error={result.error}
+                                    message={result.message}
+                                  />
+                                );
+                              }
+                              
+                              // For downloaded presentations, don't show additional result (already shown in approval)
+                              return null;
                            }
                         }
 

@@ -50,6 +50,7 @@ function cleanMessagesForProvider(messages: MyUIMessage[], isGoogleModel: boolea
     const cleanedParts = msg.parts.filter((part) => {
       // Keep standard parts: text, file, tool-*, image-url, image
       // Remove: reasoning, source-url, source-document
+      if (!part || typeof part !== "object") return false;
       if (part.type === "reasoning") return false;
       if (part.type === "source-url") return false;
       if (part.type === "source-document") return false;
@@ -235,7 +236,7 @@ export async function POST(req: Request) {
     const lastMessage = uiMessages[uiMessages.length - 1];
     if (lastMessage.role === "user" && lastMessage.parts) {
       const modifiedParts = lastMessage.parts.map(part => {
-        if (part.type === "text" && typeof part.text === "string") {
+        if (part && typeof part === "object" && part.type === "text" && typeof part.text === "string") {
           return {
             ...part,
             text: `CRITICAL INSTRUCTIONS - FOLLOW EXACTLY:
@@ -301,6 +302,7 @@ Remember: Return ONLY the markdown code block with mermaid syntax. No additional
       const cleanedParts = (msg.parts as any[])
         .filter(part => {
           // Remove PDF tool parts entirely — these are client-side only
+          if (!part || typeof part !== "object") return false;
           if (part.type === "tool-mergePDFs" || part.type === "tool-compressPDF") return false;
           if (part.type === "tool-invocation" && (part.toolName === "mergePDFs" || part.toolName === "compressPDF")) return false;
           return true;
@@ -485,8 +487,7 @@ Remember: Return ONLY the markdown code block with mermaid syntax. No additional
       if (lowerToolName === "slides" || lowerToolName === "presentation" || lowerToolName === "ppt") {
         if (isToolInstalled("slides")) {
           tools.reviewSlideOutline = slidesTools.reviewSlideOutline;
-          tools.searchUnsplashImages = slidesTools.searchUnsplashImages;
-          tools.createGoogleSlidesPresentation = slidesTools.createGoogleSlidesPresentation;
+          tools.createPresentationWithImages = slidesTools.createPresentationWithImages;
         } else {
           console.warn("Slides tool mentioned but not installed");
         }

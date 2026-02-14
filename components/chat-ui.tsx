@@ -128,9 +128,11 @@ export function ChatUI() {
       if (!msg.parts || !Array.isArray(msg.parts)) return msg;
       
       const hasPdfToolPart = msg.parts.some((part: any) => 
-        part.type === "tool-mergePDFs" || 
-        part.type === "tool-compressPDF" ||
-        (part.type === "tool-invocation" && (part.toolName === "mergePDFs" || part.toolName === "compressPDF"))
+        part && typeof part === "object" && (
+          part.type === "tool-mergePDFs" || 
+          part.type === "tool-compressPDF" ||
+          (part.type === "tool-invocation" && (part.toolName === "mergePDFs" || part.toolName === "compressPDF"))
+        )
       );
       
       if (!hasPdfToolPart) return msg;
@@ -139,6 +141,7 @@ export function ChatUI() {
       // Convert tool parts to text, preserving the result message
       const cleanedParts = msg.parts
         .filter((part: any) => {
+          if (!part || typeof part !== "object") return false;
           if (part.type === "tool-mergePDFs" || part.type === "tool-compressPDF") return false;
           if (part.type === "tool-invocation" && (part.toolName === "mergePDFs" || part.toolName === "compressPDF")) return false;
           return true;

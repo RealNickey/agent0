@@ -5,7 +5,7 @@ import { useState } from "react";
 import { SlideOutline } from "@/types/slides";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check, X, Presentation, Palette, Image as ImageIcon, Loader2 } from "lucide-react";
+import { Check, X, Presentation, Palette, Image as ImageIcon, Loader2, Download, Upload } from "lucide-react";
 import { toast } from "sonner"; // Assuming sonner or similar is used, or basic alert. Let's use basic logic for now or window.alert if needed, but better to just show error in UI.
 
 interface SlidesApprovalProps {
@@ -20,8 +20,54 @@ export function SlidesApproval({
   addToolApprovalResponse,
 }: SlidesApprovalProps) {
   const [isCreating, setIsCreating] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const slideCount = outline.slides.length;
   const imageCount = outline.slides.filter(s => s.imageUrl).length;
+
+  const handleDownload = async () => {
+    setIsDownloading(true);
+    try {
+      const response = await fetch("/api/slides/download", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ outline }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Download failed");
+      }
+
+      // Get the blob and create a download link
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${outline.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pptx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      // Mark as completed
+      addToolApprovalResponse({
+        toolCallId,
+        result: { 
+          status: "downloaded", 
+          message: "Presentation downloaded successfully",
+          title: outline.title,
+          slideCount: outline.slides.length 
+        }
+      });
+    } catch (error) {
+      console.error("Failed to download slides:", error);
+      addToolApprovalResponse({
+        toolCallId,
+        result: { error: true, message: "Download failed" }
+      });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   const handleCreate = async () => {
     setIsCreating(true);
@@ -106,32 +152,53 @@ export function SlidesApproval({
           </div>
         </div>
 
-        <div className="flex gap-3 pt-2">
+        <div className="flex flex-col gap-2 pt-2">
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={handleDownload}
+              disabled={isCreating || isDownloading}
+            >
+              {isDownloading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Downloading...
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4 mr-2" />
+                  Download PPTX
+                </>
+              )}
+            </Button>
+            <Button
+              className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
+              onClick={handleCreate}
+              disabled={isCreating || isDownloading}
+            >
+              {isCreating ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Uploading...
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload to Drive
+                </>
+              )}
+            </Button>
+          </div>
           <Button
-            variant="outline"
-            className="flex-1 text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/20"
+            variant="ghost"
+            className="w-full text-destructive hover:bg-destructive/10 hover:text-destructive"
             onClick={() => addToolApprovalResponse({ toolCallId, result: { error: true, message: "User cancelled creation." } })}
-            disabled={isCreating}
+            disabled={isCreating || isDownloading}
+            size="sm"
           >
             <X className="w-4 h-4 mr-2" />
             Cancel
-          </Button>
-          <Button
-            className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
-            onClick={handleCreate}
-            disabled={isCreating}
-          >
-            {isCreating ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Creating...
-              </>
-            ) : (
-              <>
-                <Check className="w-4 h-4 mr-2" />
-                Create & Upload
-              </>
-            )}
           </Button>
         </div>
       </CardContent>

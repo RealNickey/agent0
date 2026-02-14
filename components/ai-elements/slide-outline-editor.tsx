@@ -39,7 +39,17 @@ export function SlideOutlineEditor({
   outline: initialOutline,
   addToolOutput,
 }: SlideOutlineEditorProps) {
-  const [outline, setOutline] = useState<SlideOutline>(initialOutline);
+  // Ensure theme has default values
+  const normalizedOutline: SlideOutline = {
+    ...initialOutline,
+    theme: initialOutline.theme || {
+      primaryColor: "#4F46E5",
+      secondaryColor: "#818CF8",
+      accentColor: "#F59E0B",
+      fontFamily: "Arial",
+    },
+  };
+  const [outline, setOutline] = useState<SlideOutline>(normalizedOutline);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   const handleUpdateSlide = (index: number, updates: Partial<SlideDefinition>) => {

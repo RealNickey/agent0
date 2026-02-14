@@ -2,11 +2,7 @@
 import { z } from "zod";
 import { tool } from "ai";
 import { searchImages } from "@/lib/unsplash";
-import { generatePresentation } from "@/lib/pptx-generator";
-import { uploadPresentationToDrive, getValidAccessToken, setFilePermission } from "@/lib/google-slides";
 import { SlideOutline } from "@/types/slides";
-
-const DEFAULT_USER_ID = "default-user"; // Simplified for this implementation
 
 // Slide types schema
 const slideTypeSchema = z.enum(["title", "content", "section-divider", "two-column", "image-focus", "quote"]);
@@ -37,49 +33,53 @@ const slideOutlineSchema = z.object({
 });
 
 export const slidesTools = {
-  // Client-side tool for outline review (no execute function)
+  // Step 1: Client-side tool for outline review (HITL)
   reviewSlideOutline: tool({
     description: "Generate a structured outline for a presentation. The user will review and edit this outline before it is used to create slides. Call this FIRST when asked to create a presentation.",
-    parameters: slideOutlineSchema,
-  }),
-
-  // Server-side tool to search for images
-  searchUnsplashImages: tool({
-    description: "Search for images on Unsplash based on queries. Call this AFTER the outline is approved to find images for slides.",
-    parameters: z.object({
-      queries: z.array(z.object({
-        slideId: z.string(),
-        query: z.string(),
-      })),
-    }),
-    execute: async ({ queries }) => {
-      const results = [];
-      for (const q of queries) {
-        try {
-          const images = await searchImages(q.query, 1);
-          if (images.length > 0) {
-            results.push({
-              slideId: q.slideId,
-              imageUrl: images[0].downloadUrl || images[0].url, // Use download URL if available, else regular
-              thumbUrl: images[0].thumbUrl,
-              alt: images[0].altDescription,
-              photographer: images[0].photographer,
-            });
-          }
-        } catch (e) {
-          console.error(`Failed to search image for query ${q.query}`, e);
-        }
-      }
-      return { results };
+    inputSchema: slideOutlineSchema,
+    execute: async (outline) => {
+      // Return the outline for client-side handling
+      // This is a HITL (Human-in-the-Loop) tool - the user reviews in the UI
+      return outline;
     },
   }),
 
-  // Server-side tool to create and upload the presentation
-  // Note: execution handled client-side via SlidesApproval component calling API
-  createGoogleSlidesPresentation: tool({
-    description: "Create the final PowerPoint presentation and upload it to Google Drive (converted to Google Slides). Call this AFTER images have been selected and the user has confirmed the final details.",
-    parameters: z.object({
+  // Step 2: Create presentation with images (combines image search + PPTX generation)
+  // This tool is called AFTER the outline is approved by the user
+  // It fetches images, generates the PPTX, and returns data for download/upload UI
+  createPresentationWithImages: tool({
+    description: "After the outline is approved, create the final presentation. This will automatically fetch images from Unsplash for slides that need them, generate the PowerPoint file, and present options to download or upload to Google Drive.",
+    inputSchema: z.object({
       outline: slideOutlineSchema,
     }),
+    execute: async ({ outline }) => {
+      // Step 1: Fetch images for slides that have imageQuery
+      const slidesNeedingImages = outline.slides.filter(s => s.imageQuery && !s.imageUrl);
+      
+      if (slidesNeedingImages.length > 0) {
+        console.log(`Fetching ${slidesNeedingImages.length} images from Unsplash...`);
+        
+        for (const slide of slidesNeedingImages) {
+          try {
+            const images = await searchImages(slide.imageQuery!, 1);
+            if (images.length > 0) {
+              slide.imageUrl = images[0].downloadUrl || images[0].url;
+              console.log(`✓ Image found for "${slide.imageQuery}"`);
+            }
+          } catch (e) {
+            console.error(`Failed to fetch image for "${slide.imageQuery}":`, e);
+          }
+        }
+      }
+
+      // Return the outline with images for client-side handling
+      // The PresentationApproval component will handle PPTX generation and upload/download
+      return {
+        outline,
+        imagesFound: slidesNeedingImages.filter(s => s.imageUrl).length,
+        totalImagesRequested: slidesNeedingImages.length,
+        awaitingApproval: true,
+      };
+    },
   }),
 };

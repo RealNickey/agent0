@@ -3,7 +3,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Presentation, ExternalLink, AlertCircle } from "lucide-react";
+import { Presentation, ExternalLink, AlertCircle, Download, Check } from "lucide-react";
 import Image from "next/image";
 
 interface SlidesResultProps {
@@ -27,6 +27,36 @@ export function SlidesResult(props: SlidesResultProps) {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">{props.message || "An error occurred while creating the presentation."}</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Handle downloaded status
+  if (props.status === "downloaded") {
+    return (
+      <Card className="w-full max-w-md overflow-hidden border-teal-500/20 shadow-sm">
+        <CardHeader className="bg-teal-500/5 border-b border-teal-500/10 pb-4">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-lg bg-teal-500/10 text-teal-600">
+              <Download className="w-5 h-5" />
+            </div>
+            <div>
+              <CardTitle className="text-base font-semibold">{props.title || "Presentation Downloaded"}</CardTitle>
+              <CardDescription className="text-xs">
+                {props.slideCount ? `${props.slideCount} slides` : "Successfully downloaded"}
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-4">
+          <div className="flex items-center gap-2 text-sm text-teal-600 bg-teal-500/10 p-3 rounded-lg">
+            <Check className="w-4 h-4" />
+            <span>PPTX file downloaded to your computer</span>
+          </div>
+          <p className="text-[10px] text-center text-muted-foreground mt-3">
+            {props.message || "Check your Downloads folder"}
+          </p>
         </CardContent>
       </Card>
     );

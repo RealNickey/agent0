@@ -44,24 +44,24 @@ export function getToolTitle(toolName: string): string {
 
 // Type guard for text parts
 function isTextPart(part: UIMessagePart): part is Extract<UIMessagePart, { type: "text" }> {
-  return part.type === "text";
+  return part && typeof part === "object" && part.type === "text";
 }
 
 // Type guard for reasoning parts
 function isReasoningPart(part: UIMessagePart): part is Extract<UIMessagePart, { type: "reasoning" }> {
-  return part.type === "reasoning";
+  return part && typeof part === "object" && part.type === "reasoning";
 }
 
 // Type guard for tool invocation parts - handles both old and new AI SDK formats
 // Old format: part.type === "tool-invocation"
 // New AI SDK 5.0 format: part.type === "tool-{toolName}" (e.g., "tool-displayWeather")
 function isToolInvocationPart(part: UIMessagePart): boolean {
-  return part.type === "tool-invocation" || part.type.startsWith("tool-");
+  return part && typeof part === "object" && typeof part.type === "string" && (part.type === "tool-invocation" || part.type.startsWith("tool-"));
 }
 
 // Type guard for source parts
 function isSourcePart(part: UIMessagePart): boolean {
-  return part.type === "source-url" || part.type === "source-document";
+  return part && typeof part === "object" && (part.type === "source-url" || part.type === "source-document");
 }
 
 // Helper to extract text content from message parts

@@ -434,12 +434,11 @@
     });
 
     // Search
-    $('#search-agent0')?.addEventListener('click', () => handleSearch('agent0'));
     $('#search-google')?.addEventListener('click', () => handleSearch('google'));
     $('#search-input')?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
-        handleSearch('agent0');
+        handleSearch('google');
       }
     });
 

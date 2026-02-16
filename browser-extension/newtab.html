@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Tab - Agent0</title>
+  <link rel="stylesheet" href="newtab.css">
+</head>
+<body>
+  <!-- Settings Panel Overlay -->
+  <div id="settings-overlay" class="settings-overlay hidden">
+    <div class="settings-panel glass-card">
+      <div class="settings-header">
+        <h2>Settings</h2>
+        <button id="close-settings" class="icon-btn" title="Close">✕</button>
+      </div>
+
+      <div class="settings-group">
+        <label class="settings-label">Clock Format</label>
+        <div class="toggle-group">
+          <button class="toggle-btn active" data-format="12">12-hour</button>
+          <button class="toggle-btn" data-format="24">24-hour</button>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <label class="settings-label">Theme</label>
+        <div class="toggle-group">
+          <button class="toggle-btn active" data-theme="dark">Dark</button>
+          <button class="toggle-btn" data-theme="light">Light</button>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <label class="settings-label">Background</label>
+        <div class="bg-options">
+          <button class="bg-option active" data-bg="gradient-1" title="Default Gradient">
+            <span class="bg-preview gradient-1"></span>
+          </button>
+          <button class="bg-option" data-bg="gradient-2" title="Ocean">
+            <span class="bg-preview gradient-2"></span>
+          </button>
+          <button class="bg-option" data-bg="gradient-3" title="Sunset">
+            <span class="bg-preview gradient-3"></span>
+          </button>
+          <button class="bg-option" data-bg="gradient-4" title="Forest">
+            <span class="bg-preview gradient-4"></span>
+          </button>
+          <button class="bg-option" data-bg="solid-dark" title="Solid Dark">
+            <span class="bg-preview solid-dark"></span>
+          </button>
+          <button class="bg-option" data-bg="solid-navy" title="Solid Navy">
+            <span class="bg-preview solid-navy"></span>
+          </button>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <label class="settings-label">Blur Intensity</label>
+        <input type="range" id="blur-slider" min="0" max="40" value="20" class="slider">
+        <span id="blur-value" class="slider-value">20px</span>
+      </div>
+
+      <div class="settings-group">
+        <label class="settings-label">Agent0 URL</label>
+        <input type="text" id="agent0-url-input" class="text-input" value="http://localhost:3000" placeholder="http://localhost:3000">
+      </div>
+    </div>
+  </div>
+
+  <!-- Shortcut Modal -->
+  <div id="shortcut-modal" class="settings-overlay hidden">
+    <div class="settings-panel glass-card shortcut-modal-panel">
+      <div class="settings-header">
+        <h2 id="shortcut-modal-title">Add Shortcut</h2>
+        <button id="close-shortcut-modal" class="icon-btn" title="Close">✕</button>
+      </div>
+      <div class="settings-group">
+        <label class="settings-label">Name</label>
+        <input type="text" id="shortcut-name" class="text-input" placeholder="e.g. GitHub" maxlength="20">
+      </div>
+      <div class="settings-group">
+        <label class="settings-label">URL</label>
+        <input type="text" id="shortcut-url" class="text-input" placeholder="https://github.com">
+      </div>
+      <div class="modal-actions">
+        <button id="save-shortcut" class="btn btn-primary">Save</button>
+        <button id="cancel-shortcut" class="btn btn-secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Dashboard -->
+  <div class="dashboard-wrapper">
+    <!-- Top Bar -->
+    <div class="top-bar">
+      <div class="top-bar-left">
+        <span class="brand">Agent0</span>
+      </div>
+      <div class="top-bar-right">
+        <button id="open-agent0-btn" class="btn btn-primary btn-sm" title="Open Agent0">
+          <span class="btn-icon">⚡</span> Open Agent0
+        </button>
+        <button id="settings-btn" class="icon-btn" title="Settings">⚙</button>
+      </div>
+    </div>
+
+    <!-- Clock & Date -->
+    <div class="clock-section">
+      <div id="clock" class="clock">00:00</div>
+      <div id="date" class="date">Loading...</div>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="search-section">
+      <div class="search-bar glass-card">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="search-input" class="search-input" placeholder="Ask Agent0 anything..." autocomplete="off" autofocus>
+        <button id="search-agent0" class="btn btn-primary btn-sm" title="Search in Agent0">Agent0</button>
+        <button id="search-google" class="btn btn-ghost btn-sm" title="Search Google">Google</button>
+      </div>
+    </div>
+
+    <!-- Agent0 Tools Grid -->
+    <div class="section">
+      <h3 class="section-title">Quick Actions</h3>
+      <div class="tools-grid">
+        <button class="tool-tile glass-card" data-tool="@gmail " data-label="Check Email">
+          <span class="tool-icon">📧</span>
+          <span class="tool-label">Check Email</span>
+        </button>
+        <button class="tool-tile glass-card" data-tool="@calendar " data-label="Manage Calendar">
+          <span class="tool-icon">📅</span>
+          <span class="tool-label">Calendar</span>
+        </button>
+        <button class="tool-tile glass-card" data-tool="@tasks " data-label="View Tasks">
+          <span class="tool-icon">✅</span>
+          <span class="tool-label">Tasks</span>
+        </button>
+        <button class="tool-tile glass-card" data-tool="@spotify " data-label="Play Music">
+          <span class="tool-icon">🎵</span>
+          <span class="tool-label">Music</span>
+        </button>
+        <button class="tool-tile glass-card" data-tool="@weather " data-label="Check Weather">
+          <span class="tool-icon">🌤️</span>
+          <span class="tool-label">Weather</span>
+        </button>
+        <button class="tool-tile glass-card" data-tool="@pdf " data-label="PDF Tools">
+          <span class="tool-icon">📄</span>
+          <span class="tool-label">PDF Tools</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Quick Links / Shortcuts -->
+    <div class="section">
+      <div class="section-header">
+        <h3 class="section-title">Quick Links</h3>
+        <button id="add-shortcut-btn" class="icon-btn" title="Add shortcut">＋</button>
+      </div>
+      <div id="shortcuts-grid" class="shortcuts-grid">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+
+    <!-- Productivity Prompt -->
+    <div class="section">
+      <div class="promo-card glass-card">
+        <h3 class="promo-title">Need to get things done?</h3>
+        <p class="promo-subtitle">Open Agent0 for:</p>
+        <div class="promo-features">
+          <span class="promo-feature">Email summaries &amp; management</span>
+          <span class="promo-feature">Calendar scheduling</span>
+          <span class="promo-feature">File conversions &amp; PDF ops</span>
+          <span class="promo-feature">Task management</span>
+          <span class="promo-feature">And 18+ more tools</span>
+        </div>
+        <button id="promo-open-agent0" class="btn btn-primary btn-lg">Open Agent0</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="newtab.js"></script>
+</body>
+</html>

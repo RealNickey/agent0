@@ -4,21 +4,16 @@ import { cn } from "@/lib/utils";
 import { Download, ImageIcon, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "motion/react";
+import { useEffect, useState } from "react";
 
 const GENERATED_IMAGE_REF_PREFIX = "__generated_image_ref__:";
 
-function resolveImageUrl(imageUrl: string): string {
-  if (!imageUrl.startsWith(GENERATED_IMAGE_REF_PREFIX)) {
-    return imageUrl;
-  }
+function isImageRef(imageUrl: string): boolean {
+  return imageUrl.startsWith(GENERATED_IMAGE_REF_PREFIX);
+}
 
-  if (typeof window === "undefined") {
-    return "";
-  }
-
-  const refId = imageUrl.slice(GENERATED_IMAGE_REF_PREFIX.length);
-  const stored = (window as any).__generatedImages?.[refId];
-  return typeof stored === "string" ? stored : "";
+function extractImageId(imageUrl: string): string {
+  return imageUrl.slice(GENERATED_IMAGE_REF_PREFIX.length);
 }
 
 interface GeneratedImageProps {
@@ -28,9 +23,9 @@ interface GeneratedImageProps {
   message?: string;
 }
 
-function downloadImage(dataUrl: string, filename: string) {
+function downloadImage(src: string, filename: string) {
   const link = document.createElement("a");
-  link.href = dataUrl;
+  link.href = src;
   link.download = filename;
   document.body.appendChild(link);
   link.click();
@@ -43,7 +38,36 @@ export function GeneratedImage({
   error,
   message,
 }: GeneratedImageProps) {
-  const resolvedImageUrl = resolveImageUrl(imageUrl);
+  // For ref-based URLs, resolve asynchronously via the image API.
+  // For direct URLs (legacy / non-ref), use them as-is.
+  const [resolvedUrl, setResolvedUrl] = useState<string>(() =>
+    isImageRef(imageUrl) ? "" : imageUrl
+  );
+  const [fetchError, setFetchError] = useState(false);
+
+  useEffect(() => {
+    if (!isImageRef(imageUrl)) {
+      setResolvedUrl(imageUrl);
+      return;
+    }
+    const id = extractImageId(imageUrl);
+    if (!id) {
+      setFetchError(true);
+      return;
+    }
+    setResolvedUrl("");
+    setFetchError(false);
+    fetch(`/api/image/${encodeURIComponent(id)}`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`${res.status}`);
+        return res.blob();
+      })
+      .then((blob) => {
+        const objectUrl = URL.createObjectURL(blob);
+        setResolvedUrl(objectUrl);
+      })
+      .catch(() => setFetchError(true));
+  }, [imageUrl]);
 
   if (error) {
     return (
@@ -55,12 +79,32 @@ export function GeneratedImage({
     );
   }
 
-  if (!resolvedImageUrl) {
+  if (fetchError) {
     return (
       <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 p-4 my-2">
         <p className="text-amber-700 dark:text-amber-300 text-sm">
           Generated image preview is unavailable in this session. Please regenerate the image.
         </p>
+      </div>
+    );
+  }
+
+  // Still loading the image from the server
+  if (!resolvedUrl) {
+    return (
+      <div
+        className={cn(
+          "rounded-xl border bg-gradient-to-br from-purple-50 to-pink-50",
+          "dark:from-slate-800 dark:to-slate-900 dark:border-slate-700",
+          "p-5 my-3 shadow-sm"
+        )}
+      >
+        <div className="flex items-center gap-3">
+          <Loader2 className="h-5 w-5 animate-spin text-purple-500" />
+          <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+            Loading image&hellip;
+          </p>
+        </div>
       </div>
     );
   }
@@ -87,7 +131,7 @@ export function GeneratedImage({
           variant="ghost"
           size="sm"
           className="h-8 px-3 text-xs gap-1.5"
-          onClick={() => downloadImage(resolvedImageUrl, filename)}
+          onClick={() => downloadImage(resolvedUrl, filename)}
         >
           <Download className="h-3.5 w-3.5" />
           Download
@@ -102,7 +146,7 @@ export function GeneratedImage({
         className="overflow-hidden rounded-lg"
       >
         <img
-          src={resolvedImageUrl}
+          src={resolvedUrl}
           alt={prompt}
           className="w-full max-w-[512px] h-auto rounded-lg"
         />

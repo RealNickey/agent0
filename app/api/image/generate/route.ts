@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { randomUUID } from "crypto";
+import { storeGeneratedImage } from "@/lib/image-store";
 
 const bodySchema = z.object({
   prompt: z.string().min(1).max(2000),
@@ -64,9 +66,15 @@ export async function POST(req: Request) {
     const base64 = Buffer.from(imageBuffer).toString("base64");
     const dataUrl = `data:image/png;base64,${base64}`;
 
+    // Store the image server-side and return a short reference ID.
+    // This prevents the large base64 payload from ever being sent to the LLM
+    // as a tool result (which would cost ~330k+ tokens per image).
+    const imageId = randomUUID();
+    storeGeneratedImage(imageId, dataUrl);
+
     return Response.json({
       success: true,
-      imageUrl: dataUrl,
+      imageId,
       prompt,
     });
   } catch (error) {

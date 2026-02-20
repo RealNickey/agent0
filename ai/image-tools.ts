@@ -32,9 +32,13 @@ export const generateImageTool = tool({
 
     const data = await response.json();
 
+    // Return a lightweight reference – NOT the raw base64 data URL.
+    // Sending the full image back to the LLM causes token-limit errors
+    // (a typical 512×512 PNG is ~330k tokens as base64).
+    // The UI fetches the actual image from /api/image/:id.
     return {
       error: false,
-      imageUrl: data.imageUrl,
+      imageUrl: `__generated_image_ref__:${data.imageId}`,
       prompt,
     };
   },

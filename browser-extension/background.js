@@ -489,3 +489,38 @@ async function handleSendToAgent0(request, sendResponse) {
     sendResponse({ success: false, error: error.message });
   }
 }
+
+// --- Media Control Logic ---
+let currentMediaState = {
+  isPlaying: false,
+  title: 'No media playing',
+  artist: '',
+  artwork: '',
+  isVideo: false,
+  hasNext: false
+};
+let activeMediaTabId = null;
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'MEDIA_STATE_UPDATE') {
+    activeMediaTabId = sender.tab.id;
+    currentMediaState = request.state;
+    
+    // Forward to localhost:3000 tabs
+    chrome.tabs.query({ url: '*://localhost:3000/*' }, (tabs) => {
+      tabs.forEach(tab => {
+        chrome.tabs.sendMessage(tab.id, {
+          action: 'UPDATE_WEB_APP_MEDIA_STATE',
+          state: currentMediaState
+        });
+      });
+    });
+  } else if (request.action === 'FORWARD_MEDIA_COMMAND') {
+    if (activeMediaTabId) {
+      chrome.tabs.sendMessage(activeMediaTabId, {
+        action: 'MEDIA_COMMAND',
+        command: request.command
+      });
+    }
+  }
+});

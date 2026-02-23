@@ -431,4 +431,120 @@ function showToastNotification(message, type = 'info') {
   }, 4000);
 }
 
+// --- Media Control Logic ---
+let activeMediaElement = null;
+
+function getMediaMetadata() {
+  let title = document.title;
+  let artwork = '';
+  let artist = window.location.hostname;
+
+  if (navigator.mediaSession && navigator.mediaSession.metadata) {
+    const meta = navigator.mediaSession.metadata;
+    if (meta.title) title = meta.title;
+    if (meta.artist) artist = meta.artist;
+    if (meta.artwork && meta.artwork.length > 0) {
+      artwork = meta.artwork[meta.artwork.length - 1].src;
+    }
+  }
+
+  // Fallback for YouTube
+  if (window.location.hostname.includes('youtube.com')) {
+    const ytTitle = document.querySelector('h1.ytd-video-primary-info-renderer, h1.ytd-watch-metadata');
+    if (ytTitle) title = ytTitle.innerText;
+    const videoId = new URLSearchParams(window.location.search).get('v');
+    if (videoId) artwork = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+  }
+
+  return { title, artist, artwork };
+}
+
+function updateMediaState(element, isPlaying) {
+  activeMediaElement = element;
+  const isVideo = element.tagName.toLowerCase() === 'video';
+  const metadata = getMediaMetadata();
+  
+  // Check if there's a next track available
+  let hasNext = false;
+  if (window.location.hostname.includes('youtube.com')) {
+    hasNext = !!document.querySelector('.ytp-next-button');
+  } else if (navigator.mediaSession && navigator.mediaSession.nextTrack) {
+    hasNext = true;
+  } else {
+    // Generic fallback: assume audio might not have next, video might
+    hasNext = isVideo;
+  }
+  
+  chrome.runtime.sendMessage({
+    action: 'MEDIA_STATE_UPDATE',
+    state: {
+      isPlaying,
+      isVideo,
+      title: metadata.title,
+      artist: metadata.artist,
+      artwork: metadata.artwork,
+      hasNext
+    }
+  });
+}
+
+document.addEventListener('play', (e) => {
+  if (e.target && (e.target.tagName === 'VIDEO' || e.target.tagName === 'AUDIO')) {
+    updateMediaState(e.target, true);
+  }
+}, true);
+
+document.addEventListener('pause', (e) => {
+  if (e.target && (e.target.tagName === 'VIDEO' || e.target.tagName === 'AUDIO')) {
+    updateMediaState(e.target, false);
+  }
+}, true);
+
+// Check for already playing media on load
+setTimeout(() => {
+  const mediaElements = document.querySelectorAll('video, audio');
+  for (const el of mediaElements) {
+    if (!el.paused && !el.ended) {
+      updateMediaState(el, true);
+      break;
+    }
+  }
+}, 1000);
+
+// Listen for commands from background
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'MEDIA_COMMAND') {
+    if (activeMediaElement) {
+      if (request.command === 'play') activeMediaElement.play();
+      else if (request.command === 'pause') activeMediaElement.pause();
+      else if (request.command === 'next') {
+        const nextBtn = document.querySelector('.ytp-next-button, [aria-label="Next"], [aria-label="Next track"], [title="Next"], .next-button');
+        if (nextBtn) nextBtn.click();
+      }
+    }
+  }
+});
+
+// --- Bridge for localhost:3000 ---
+if (window.location.href.includes('localhost:3000')) {
+  window.addEventListener('message', (event) => {
+    if (event.source !== window) return;
+    if (event.data && event.data.type === 'AGENT0_MEDIA_COMMAND') {
+      chrome.runtime.sendMessage({
+        action: 'FORWARD_MEDIA_COMMAND',
+        command: event.data.command
+      });
+    }
+  });
+
+  chrome.runtime.onMessage.addListener((request) => {
+    if (request.action === 'UPDATE_WEB_APP_MEDIA_STATE') {
+      window.postMessage({
+        type: 'AGENT0_MEDIA_STATE',
+        state: request.state
+      }, '*');
+    }
+  });
+}
+
 } // End of initialization check

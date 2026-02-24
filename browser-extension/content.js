@@ -9,6 +9,170 @@ let canvas = null;
 let startPoint = null;
 let currentRect = null;
 
+// Register Agent0 app tabs with the background service worker so it can
+// push media state updates reliably via chrome.tabs.sendMessage.
+try {
+  if (window.location.origin === 'http://localhost:3000') {
+    chrome.runtime.sendMessage({ action: 'agent0_register' });
+  }
+} catch (_) {}
+
+// ─── Media Detection & Control ────────────────────────────────────────────
+let _mediaDetectionInterval = null;
+let _lastReportedState = null;
+
+function findActiveMedia() {
+  // Find all <video> and <audio> elements on the page
+  const elements = [...document.querySelectorAll('video, audio')];
+  // Prefer a playing element; fall back to the first one found
+  return elements.find(el => !el.paused) || elements[0] || null;
+}
+
+function getMediaTitle() {
+  // YouTube
+  const ytTitle = document.querySelector('h1.ytd-watch-metadata yt-formatted-string, h1.title.ytd-video-primary-info-renderer');
+  if (ytTitle) return ytTitle.textContent.trim();
+
+  // Spotify Web Player
+  const spotTitle = document.querySelector('[data-testid="context-item-info-title"] a, .now-playing .track-info__name a');
+  if (spotTitle) return spotTitle.textContent.trim();
+
+  // Generic HTML5 Media Session (some sites set this)
+  if (navigator.mediaSession && navigator.mediaSession.metadata && navigator.mediaSession.metadata.title) {
+    return navigator.mediaSession.metadata.title;
+  }
+
+  // Generic: document title as last resort
+  return document.title || 'Unknown';
+}
+
+function getMediaArtwork() {
+  // YouTube thumbnail
+  const ytMeta = document.querySelector('meta[property="og:image"]');
+  if (ytMeta && ytMeta.content) return ytMeta.content;
+
+  // Spotify album art
+  const spotImg = document.querySelector('[data-testid="CoverSlotCollapsed__Container"] img, .now-playing .cover-art img');
+  if (spotImg && spotImg.src) return spotImg.src;
+
+  // Media Session artwork
+  if (navigator.mediaSession && navigator.mediaSession.metadata && navigator.mediaSession.metadata.artwork && navigator.mediaSession.metadata.artwork.length) {
+    return navigator.mediaSession.metadata.artwork[navigator.mediaSession.metadata.artwork.length - 1].src;
+  }
+
+  return null;
+}
+
+function reportMediaState() {
+  const el = findActiveMedia();
+  if (!el) {
+    // No media element found — clear if we previously reported
+    if (_lastReportedState !== null) {
+      _lastReportedState = null;
+      try {
+        chrome.runtime.sendMessage({ action: 'agent0_media_state', state: null });
+      } catch (_) {}
+    }
+    return;
+  }
+
+  const state = {
+    playing: !el.paused,
+    currentTime: el.currentTime || 0,
+    duration: el.duration && isFinite(el.duration) ? el.duration : 0,
+    title: getMediaTitle(),
+    artwork: getMediaArtwork(),
+    tabId: null // filled by background script
+  };
+
+  // Only send if something changed (reduce noise)
+  const stateKey = `${state.playing}|${Math.floor(state.currentTime)}|${state.title}`;
+  if (_lastReportedState === stateKey) return;
+  _lastReportedState = stateKey;
+
+  try {
+    chrome.runtime.sendMessage({ action: 'agent0_media_state', state });
+  } catch (_) {}
+}
+
+function startMediaDetection() {
+  if (_mediaDetectionInterval) return;
+
+  // Skip media detection on the Agent0 app itself — it has no real media elements
+  const isAgent0Page = window.location.origin === 'http://localhost:3000';
+  if (isAgent0Page) return;
+
+  _mediaDetectionInterval = setInterval(() => {
+    try {
+      reportMediaState();
+    } catch (err) {
+      // Extension context invalidated (e.g. after reload) — stop polling
+      if (String(err).includes('Extension context invalidated')) {
+        clearInterval(_mediaDetectionInterval);
+        _mediaDetectionInterval = null;
+      }
+    }
+  }, 1000);
+  reportMediaState();
+}
+
+function handleMediaCommand(command) {
+  const el = findActiveMedia();
+  if (!el) return;
+
+  switch (command) {
+    case 'play': {
+      el.play().catch(() => {});
+      break;
+    }
+    case 'pause': {
+      el.pause();
+      break;
+    }
+    case 'togglePlay': {
+      if (el.paused) el.play().catch(() => {}); else el.pause();
+      break;
+    }
+    case 'next': {
+      // YouTube next button
+      const ytNext = document.querySelector('.ytp-next-button');
+      if (ytNext) { ytNext.click(); break; }
+      // Spotify next button
+      const spotNext = document.querySelector('[data-testid="control-button-skip-forward"], button.control-button-next');
+      if (spotNext) { spotNext.click(); break; }
+      // Generic: skip forward 10s
+      el.currentTime = Math.min(el.currentTime + 10, el.duration || el.currentTime);
+      break;
+    }
+    case 'previous': {
+      const ytPrev = document.querySelector('.ytp-prev-button');
+      if (ytPrev) { ytPrev.click(); break; }
+      const spotPrev = document.querySelector('[data-testid="control-button-skip-back"], button.control-button-back');
+      if (spotPrev) { spotPrev.click(); break; }
+      el.currentTime = Math.max(el.currentTime - 10, 0);
+      break;
+    }
+  }
+}
+
+// Start scanning immediately
+startMediaDetection();
+
+// Listen for AGENT0_MEDIA_COMMAND postMessages from the Agent0 React app.
+// postMessage uses structuredClone and works reliably across the page/content-script
+// isolation barrier (unlike CustomEvent.detail which can be null in the isolated world).
+window.addEventListener('message', (e) => {
+  if (e.source !== window) return;
+  if (e.data?.type !== 'AGENT0_MEDIA_COMMAND') return;
+  const command = e.data.command;
+  if (!command) return;
+  try {
+    chrome.runtime.sendMessage({ action: 'agent0_media_command', command });
+  } catch (_) {
+    // Extension context invalidated
+  }
+});
+
 // Extract main content from the page for summarization
 function extractPageContent() {
   console.log('=== Extracting page content ===');
@@ -109,6 +273,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       showToastNotification('Failed to extract content: ' + error.message, 'error');
       sendResponse({ success: false, error: error.message });
     }
+  } else if (request.action === 'agent0_media_command') {
+    // Handle media control commands from Agent0
+    handleMediaCommand(request.command);
+    sendResponse({ success: true });
+  } else if (request.action === 'agent0_media_state_to_app') {
+    // Forward media state from background → content script → page (React hook)
+    try {
+      window.postMessage({ type: 'AGENT0_MEDIA_STATE', state: request.state ?? null }, '*');
+    } catch (_) {}
+    sendResponse({ success: true });
   }
   return true;
 });

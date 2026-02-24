@@ -7,6 +7,27 @@ const CONTEXT_MENU_IDS = {
   SEND_SELECTION: 'agent0-send-selection',
 };
 
+// ─── Media Relay State ────────────────────────────────────────────────────
+// Track which tab is currently playing media so we can relay commands to it
+let _activeMediaTabId = null;
+let _latestMediaState = null;
+
+// Track Agent0 app tabs so we can push media state reliably
+const _agent0TabIds = new Set();
+
+// Clean up if the active media tab is closed
+chrome.tabs.onRemoved.addListener((tabId) => {
+  if (_agent0TabIds.has(tabId)) {
+    _agent0TabIds.delete(tabId);
+  }
+  if (tabId === _activeMediaTabId) {
+    _activeMediaTabId = null;
+    _latestMediaState = null;
+    broadcastMediaStateToAgent0(null);
+    sendMediaStateToRegisteredAgent0Tabs(null);
+  }
+});
+
 // Listen for keyboard shortcut
 chrome.commands.onCommand.addListener((command) => {
   if (command === 'capture-screenshot') {
@@ -302,8 +323,104 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.action === 'sendToAgent0') {
     handleSendToAgent0(request, sendResponse);
     return true;
+  } else if (request.action === 'agent0_register') {
+    const senderTabId = sender?.tab?.id;
+    if (typeof senderTabId === 'number') {
+      _agent0TabIds.add(senderTabId);
+      // If we already know media state, push it immediately
+      if (_latestMediaState) {
+        try {
+          chrome.tabs.sendMessage(senderTabId, {
+            action: 'agent0_media_state_to_app',
+            state: _latestMediaState,
+          });
+        } catch (_) {}
+      }
+    }
+    sendResponse({ success: true });
+    return false;
+  } else if (request.action === 'agent0_media_state') {
+    // Content script is reporting media state from a tab
+    handleMediaStateBroadcast(request.state, sender);
+    sendResponse({ success: true });
+    return false;
+  } else if (request.action === 'agent0_media_command') {
+    // Agent0 page is sending a control command — relay to the active media tab
+    handleMediaCommandRelay(request.command, sendResponse);
+    return true;
   }
 });
+
+// ─── Media Relay Helpers ──────────────────────────────────────────────────
+
+function handleMediaStateBroadcast(state, sender) {
+  const senderTabId = sender?.tab?.id;
+
+  if (!state) {
+    // Tab reports no media — clear if it was the active one
+    if (senderTabId === _activeMediaTabId) {
+      _activeMediaTabId = null;
+      _latestMediaState = null;
+      broadcastMediaStateToAgent0(null);
+      sendMediaStateToRegisteredAgent0Tabs(null);
+    }
+    return;
+  }
+
+  // Prefer the tab that is actively playing; otherwise keep the current one
+  if (state.playing || _activeMediaTabId === null || _activeMediaTabId === senderTabId) {
+    _activeMediaTabId = senderTabId;
+    state.tabId = senderTabId;
+    _latestMediaState = state;
+    broadcastMediaStateToAgent0(state);
+    sendMediaStateToRegisteredAgent0Tabs(state);
+  }
+}
+
+function sendMediaStateToRegisteredAgent0Tabs(state) {
+  // Push via tabs.sendMessage → Agent0 content script → window.postMessage
+  for (const tabId of _agent0TabIds) {
+    try {
+      chrome.tabs.sendMessage(tabId, {
+        action: 'agent0_media_state_to_app',
+        state,
+      });
+    } catch (_) {}
+  }
+}
+
+async function broadcastMediaStateToAgent0(state) {
+  try {
+    const tabs = await chrome.tabs.query({ url: `${agent0Url}/*` });
+    for (const tab of tabs) {
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: (mediaState) => {
+            window.postMessage({ type: 'AGENT0_MEDIA_STATE', state: mediaState }, '*');
+          },
+          args: [state]
+        });
+      } catch (_) {}
+    }
+  } catch (_) {}
+}
+
+async function handleMediaCommandRelay(command, sendResponse) {
+  if (!_activeMediaTabId) {
+    sendResponse({ success: false, error: 'No active media tab' });
+    return;
+  }
+  try {
+    await chrome.tabs.sendMessage(_activeMediaTabId, {
+      action: 'agent0_media_command',
+      command
+    });
+    sendResponse({ success: true });
+  } catch (err) {
+    sendResponse({ success: false, error: err.message });
+  }
+}
 
 function toSafeString(value) {
   if (typeof value === 'string') return value;

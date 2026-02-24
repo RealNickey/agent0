@@ -33,6 +33,10 @@ function getMediaTitle() {
   const ytTitle = document.querySelector('h1.ytd-watch-metadata yt-formatted-string, h1.title.ytd-video-primary-info-renderer');
   if (ytTitle) return ytTitle.textContent.trim();
 
+  // YouTube Music
+  const ytMusicTitle = document.querySelector('yt-formatted-string.title.style-scope.ytmusic-player-bar');
+  if (ytMusicTitle) return ytMusicTitle.textContent.trim();
+
   // Spotify Web Player
   const spotTitle = document.querySelector('[data-testid="context-item-info-title"] a, .now-playing .track-info__name a');
   if (spotTitle) return spotTitle.textContent.trim();
@@ -51,6 +55,10 @@ function getMediaArtwork() {
   const ytMeta = document.querySelector('meta[property="og:image"]');
   if (ytMeta && ytMeta.content) return ytMeta.content;
 
+  // YouTube Music thumbnail
+  const ytMusicImg = document.querySelector('img.image.style-scope.ytmusic-player-bar');
+  if (ytMusicImg && ytMusicImg.src) return ytMusicImg.src;
+
   // Spotify album art
   const spotImg = document.querySelector('[data-testid="CoverSlotCollapsed__Container"] img, .now-playing .cover-art img');
   if (spotImg && spotImg.src) return spotImg.src;
@@ -61,6 +69,25 @@ function getMediaArtwork() {
   }
 
   return null;
+}
+
+function getSpotifyArtwork() {
+  const img = document.querySelector(
+    '[data-testid="CoverSlotCollapsed__Container"] img, ' +
+    '[data-testid="CoverSlotExpanded__Container"] img, ' +
+    '.now-playing .cover-art img, ' +
+    'img.cover-art-image'
+  );
+  return img ? img.src : null;
+}
+
+function getSpotifyTitle() {
+  const el = document.querySelector(
+    '[data-testid="context-item-info-title"] a, ' +
+    '[data-testid="now-playing-widget"] a[data-testid="context-item-link"], ' +
+    '.now-playing .track-info__name a'
+  );
+  return el ? el.textContent.trim() : null;
 }
 
 function reportMediaState() {
@@ -76,16 +103,22 @@ function reportMediaState() {
     return;
   }
 
+  const hostname = window.location.hostname;
+  const isSpotify = hostname === 'open.spotify.com';
+
+  const title = isSpotify ? (getSpotifyTitle() || getMediaTitle()) : getMediaTitle();
+  const artwork = isSpotify ? (getSpotifyArtwork() || getMediaArtwork()) : getMediaArtwork();
+
   const state = {
     playing: !el.paused,
     currentTime: el.currentTime || 0,
     duration: el.duration && isFinite(el.duration) ? el.duration : 0,
-    title: getMediaTitle(),
-    artwork: getMediaArtwork(),
+    title,
+    artwork,
     tabId: null // filled by background script
   };
 
-  // Only send if something changed (reduce noise)
+  // Only send if something changed (reduce noise) — include playing state to catch toggles
   const stateKey = `${state.playing}|${Math.floor(state.currentTime)}|${state.title}`;
   if (_lastReportedState === stateKey) return;
   _lastReportedState = stateKey;
@@ -117,39 +150,79 @@ function startMediaDetection() {
 }
 
 function handleMediaCommand(command) {
-  const el = findActiveMedia();
-  if (!el) return;
+  const hostname = window.location.hostname;
+  const isYouTube = hostname === 'www.youtube.com' || hostname === 'youtube.com';
+  const isYouTubeMusic = hostname === 'music.youtube.com';
+  const isSpotify = hostname === 'open.spotify.com';
 
   switch (command) {
     case 'play': {
-      el.play().catch(() => {});
+      if (isSpotify) {
+        const btn = document.querySelector('[data-testid="control-button-playpause"]');
+        if (btn) { btn.click(); break; }
+      }
+      const el = findActiveMedia();
+      if (el) el.play().catch(() => {});
       break;
     }
     case 'pause': {
-      el.pause();
+      if (isSpotify) {
+        const btn = document.querySelector('[data-testid="control-button-playpause"]');
+        if (btn) { btn.click(); break; }
+      }
+      const el = findActiveMedia();
+      if (el) el.pause();
       break;
     }
     case 'togglePlay': {
+      if (isSpotify) {
+        const btn = document.querySelector('[data-testid="control-button-playpause"]');
+        if (btn) { btn.click(); break; }
+      }
+      const el = findActiveMedia();
+      if (!el) break;
       if (el.paused) el.play().catch(() => {}); else el.pause();
       break;
     }
     case 'next': {
       // YouTube next button
-      const ytNext = document.querySelector('.ytp-next-button');
-      if (ytNext) { ytNext.click(); break; }
+      if (isYouTube) {
+        const ytNext = document.querySelector('.ytp-next-button');
+        if (ytNext) { ytNext.click(); break; }
+      }
+      // YouTube Music — click the next track button (not skip forward)
+      if (isYouTubeMusic) {
+        const ytmNext = document.querySelector('tp-yt-paper-icon-button.next-button, ytmusic-player-bar #next-button');
+        if (ytmNext) { ytmNext.click(); break; }
+      }
       // Spotify next button
-      const spotNext = document.querySelector('[data-testid="control-button-skip-forward"], button.control-button-next');
-      if (spotNext) { spotNext.click(); break; }
+      if (isSpotify) {
+        const spotNext = document.querySelector('[data-testid="control-button-skip-forward"]');
+        if (spotNext) { spotNext.click(); break; }
+      }
       // Generic: skip forward 10s
-      el.currentTime = Math.min(el.currentTime + 10, el.duration || el.currentTime);
+      const elNext = findActiveMedia();
+      if (elNext) elNext.currentTime = Math.min(elNext.currentTime + 10, elNext.duration || elNext.currentTime);
       break;
     }
     case 'previous': {
-      const ytPrev = document.querySelector('.ytp-prev-button');
-      if (ytPrev) { ytPrev.click(); break; }
-      const spotPrev = document.querySelector('[data-testid="control-button-skip-back"], button.control-button-back');
-      if (spotPrev) { spotPrev.click(); break; }
-      el.currentTime = Math.max(el.currentTime - 10, 0);
+      // YouTube prev button
+      if (isYouTube) {
+        const ytPrev = document.querySelector('.ytp-prev-button');
+        if (ytPrev) { ytPrev.click(); break; }
+      }
+      // YouTube Music — click the previous track button
+      if (isYouTubeMusic) {
+        const ytmPrev = document.querySelector('tp-yt-paper-icon-button.previous-button, ytmusic-player-bar #previous-button');
+        if (ytmPrev) { ytmPrev.click(); break; }
+      }
+      // Spotify prev button
+      if (isSpotify) {
+        const spotPrev = document.querySelector('[data-testid="control-button-skip-back"]');
+        if (spotPrev) { spotPrev.click(); break; }
+      }
+      const elPrev = findActiveMedia();
+      if (elPrev) elPrev.currentTime = Math.max(elPrev.currentTime - 10, 0);
       break;
     }
   }

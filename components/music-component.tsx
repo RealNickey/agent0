@@ -62,8 +62,8 @@ export default function MusicComponent({
           <div className="absolute inset-0 overflow-hidden rounded-[23.792px]">
             <img
               alt=""
-              className="absolute h-[128.1%] left-[-1.81%] max-w-none top-[-3.63%] w-[103.65%]"
-              src={imgRectangle172}
+              className="absolute h-[128.1%] left-[-1.81%] max-w-none top-[-3.63%] w-[103.65%] object-cover"
+              src={artwork || imgRectangle172}
             />
           </div>
           <div className="absolute inset-[-3px] rounded-[inherit] shadow-[inset_0px_4px_4px_0px_rgba(0,0,0,0.25)]" />
@@ -83,12 +83,23 @@ export default function MusicComponent({
           }}
         >
           <div className="absolute inset-[0_-15.76%_-15.76%_0]">
-            <img
-              alt="Play"
-              className="block max-w-none size-full"
-              src={imgPlay}
-              style={isPlaying ? { filter: "brightness(1.3)" } : undefined}
-            />
+            {isPlaying ? (
+              <svg
+                className="block max-w-none size-full"
+                viewBox="0 0 24 24"
+                fill="white"
+                style={{ filter: "brightness(1.3)" }}
+              >
+                <rect x="6" y="4" width="4" height="16" rx="1" />
+                <rect x="14" y="4" width="4" height="16" rx="1" />
+              </svg>
+            ) : (
+              <img
+                alt="Play"
+                className="block max-w-none size-full"
+                src={imgPlay}
+              />
+            )}
           </div>
         </div>
 
@@ -126,7 +137,7 @@ export default function MusicComponent({
                 cy="22"
                 r={circleRadius}
                 fill="none"
-                stroke="rgba(255,255,255,0.15)"
+                stroke="rgba(0,0,0,0.15)"
                 strokeWidth="3"
               />
               {/* Progress arc */}
@@ -135,7 +146,7 @@ export default function MusicComponent({
                 cy="22"
                 r={circleRadius}
                 fill="none"
-                stroke="#d5edff"
+                stroke="#000000"
                 strokeWidth="3"
                 strokeLinecap="round"
                 strokeDasharray={circumference}
@@ -160,7 +171,7 @@ export default function MusicComponent({
           <div className="absolute inset-[-1.5px] pointer-events-none rounded-[inherit] shadow-[inset_0px_4px_4px_0px_rgba(0,0,0,0.25)]" />
         </div>
         <div
-          className="absolute aspect-[640/640] left-[60.54%] right-[10.82%] rounded-[14px] top-[21.81px]"
+          className="absolute aspect-[640/640] left-[60.54%] right-[10.82%] rounded-[14px] top-[21.81px] overflow-hidden group"
           data-name="image 113"
           data-node-id="290:148"
         >
@@ -169,31 +180,30 @@ export default function MusicComponent({
             className="absolute inset-0 max-w-none object-cover pointer-events-none rounded-[14px] size-full"
             src={artwork || imgImage113}
           />
+          {/* ── Title Marquee (overlaid at the bottom, non-intrusive) ── */}
+          {title && (
+            <div
+              className="absolute bottom-0 left-0 right-0 overflow-hidden pointer-events-none bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center"
+              style={{ height: "24px" }}
+            >
+              <div
+                className="whitespace-nowrap text-[10px] font-medium text-white px-2"
+                style={{
+                  animation: "agent0-marquee 10s linear infinite",
+                }}
+              >
+                {title}
+              </div>
+              <style>{`
+                @keyframes agent0-marquee {
+                  0%   { transform: translateX(100%); }
+                  100% { transform: translateX(-100%); }
+                }
+              `}</style>
+            </div>
+          )}
         </div>
       </div>
-
-      {/* ── Title Marquee (overlaid at the bottom, non-intrusive) ── */}
-      {title && (
-        <div
-          className="absolute bottom-[2px] left-[4%] right-[34%] overflow-hidden pointer-events-none"
-          style={{ height: "16px" }}
-        >
-          <div
-            className="whitespace-nowrap text-[10px] font-medium text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]"
-            style={{
-              animation: "agent0-marquee 10s linear infinite",
-            }}
-          >
-            {title}
-          </div>
-          <style>{`
-            @keyframes agent0-marquee {
-              0%   { transform: translateX(100%); }
-              100% { transform: translateX(-100%); }
-            }
-          `}</style>
-        </div>
-      )}
     </div>
   );
 }

@@ -47,3 +47,6 @@ next-env.d.ts
 
 # Installed Tools
 .installed-tools.json
+
+# Temporary placeholder background (replace with actual at-a-glance.jpg)
+/public/at-a-glance.jpg

@@ -185,44 +185,61 @@ function handleMediaCommand(command) {
       break;
     }
     case 'next': {
-      // YouTube next button
+      // YouTube Music — click the next track button (not skip forward)
+      if (isYouTubeMusic) {
+        const ytmNext = document.querySelector('ytmusic-player-bar .next-button') || 
+                       document.querySelector('tp-yt-paper-icon-button.next-button') ||
+                       document.querySelector('button.next-button') ||
+                       document.querySelector('#next-button');
+        if (ytmNext) { ytmNext.click(); break; }
+      }
+      
+      // YouTube generic
       if (isYouTube) {
         const ytNext = document.querySelector('.ytp-next-button');
         if (ytNext) { ytNext.click(); break; }
       }
-      // YouTube Music — click the next track button (not skip forward)
-      if (isYouTubeMusic) {
-        const ytmNext = document.querySelector('tp-yt-paper-icon-button.next-button, ytmusic-player-bar #next-button');
-        if (ytmNext) { ytmNext.click(); break; }
-      }
+
       // Spotify next button
       if (isSpotify) {
         const spotNext = document.querySelector('[data-testid="control-button-skip-forward"]');
         if (spotNext) { spotNext.click(); break; }
       }
-      // Generic: skip forward 10s
-      const elNext = findActiveMedia();
-      if (elNext) elNext.currentTime = Math.min(elNext.currentTime + 10, elNext.duration || elNext.currentTime);
+
+      // Generic: skip forward 10s (only if NOT one of the special music/video sites)
+      if (!isYouTube && !isYouTubeMusic && !isSpotify) {
+        const elNext = findActiveMedia();
+        if (elNext) elNext.currentTime = Math.min(elNext.currentTime + 10, elNext.duration || elNext.currentTime);
+      }
       break;
     }
     case 'previous': {
+      // YouTube Music — click the previous track button
+      if (isYouTubeMusic) {
+        const ytmPrev = document.querySelector('ytmusic-player-bar .previous-button') ||
+                       document.querySelector('tp-yt-paper-icon-button.previous-button') ||
+                       document.querySelector('button.previous-button') ||
+                       document.querySelector('#previous-button');
+        if (ytmPrev) { ytmPrev.click(); break; }
+      }
+
       // YouTube prev button
       if (isYouTube) {
         const ytPrev = document.querySelector('.ytp-prev-button');
         if (ytPrev) { ytPrev.click(); break; }
       }
-      // YouTube Music — click the previous track button
-      if (isYouTubeMusic) {
-        const ytmPrev = document.querySelector('tp-yt-paper-icon-button.previous-button, ytmusic-player-bar #previous-button');
-        if (ytmPrev) { ytmPrev.click(); break; }
-      }
+
       // Spotify prev button
       if (isSpotify) {
         const spotPrev = document.querySelector('[data-testid="control-button-skip-back"]');
         if (spotPrev) { spotPrev.click(); break; }
       }
-      const elPrev = findActiveMedia();
-      if (elPrev) elPrev.currentTime = Math.max(elPrev.currentTime - 10, 0);
+
+      // Generic: skip back 10s (only if NOT one of the special music/video sites)
+      if (!isYouTube && !isYouTubeMusic && !isSpotify) {
+        const elPrev = findActiveMedia();
+        if (elPrev) elPrev.currentTime = Math.max(elPrev.currentTime - 10, 0);
+      }
       break;
     }
   }

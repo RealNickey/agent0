@@ -26,6 +26,9 @@ export function useChatState() {
   const [isFormsConnected, setIsFormsConnected] = useState(false);
   const [isTasksConnected, setIsTasksConnected] = useState(false);
   
+  // Notifications state
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   return {
@@ -61,6 +64,8 @@ export function useChatState() {
     setIsFormsConnected,
     isTasksConnected,
     setIsTasksConnected,
+    notificationsEnabled,
+    setNotificationsEnabled,
     fileInputRef,
   };
 }

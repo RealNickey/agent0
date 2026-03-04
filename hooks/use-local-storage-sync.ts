@@ -30,6 +30,8 @@ interface UseLocalStorageSyncProps {
   setIsCalendarConnected: (connected: boolean) => void;
   setIsFormsConnected: (connected: boolean) => void;
   setIsTasksConnected: (connected: boolean) => void;
+  notificationsEnabled: boolean;
+  setNotificationsEnabled: (enabled: boolean) => void;
   isLoaded: boolean;
   setIsLoaded: (loaded: boolean) => void;
 }
@@ -45,6 +47,8 @@ export function useLocalStorageSync({
   setIsCalendarConnected,
   setIsFormsConnected,
   setIsTasksConnected,
+  notificationsEnabled,
+  setNotificationsEnabled,
   isLoaded,
   setIsLoaded,
 }: UseLocalStorageSyncProps) {
@@ -62,6 +66,11 @@ export function useLocalStorageSync({
       const savedThinking = localStorage.getItem(STORAGE_KEYS.THINKING);
       if (savedThinking != null) {
         setEnableThinking(savedThinking === "true");
+      }
+
+      const savedNotifications = localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS);
+      if (savedNotifications != null) {
+        setNotificationsEnabled(savedNotifications === "true");
       }
 
       const savedMessages = localStorage.getItem(STORAGE_KEYS.MESSAGES);
@@ -100,7 +109,7 @@ export function useLocalStorageSync({
       console.error("Failed to load from localStorage", e);
     }
     setIsLoaded(true);
-  }, [setMessages, setSelectedModel, setEnableThinking, setAddedIntegrations, setIsCalendarConnected, setIsFormsConnected, setIsTasksConnected, setIsLoaded]);
+  }, [setMessages, setSelectedModel, setEnableThinking, setNotificationsEnabled, setAddedIntegrations, setIsCalendarConnected, setIsFormsConnected, setIsTasksConnected, setIsLoaded]);
 
   // Save model to local storage when it changes
   useEffect(() => {
@@ -123,6 +132,17 @@ export function useLocalStorageSync({
       }
     }
   }, [enableThinking, isLoaded]);
+
+  // Save notifications preference to local storage
+  useEffect(() => {
+    if (isLoaded) {
+      try {
+        localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, String(notificationsEnabled));
+      } catch (e) {
+        console.error("Failed to save notifications to localStorage", e);
+      }
+    }
+  }, [notificationsEnabled, isLoaded]);
 
   // Save messages to local storage when they change
   useEffect(() => {

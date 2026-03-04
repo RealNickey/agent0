@@ -38,4 +38,5 @@ export const STORAGE_KEYS = {
   MESSAGES: "agent0-chat-messages",
   THINKING: "agent0-enable-thinking",
   INTEGRATIONS: "agent0-added-integrations",
+  NOTIFICATIONS: "agent0-notifications-enabled",
 } as const;

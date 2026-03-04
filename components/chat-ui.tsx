@@ -23,6 +23,7 @@ import { TodoList } from "@/components/todo-list";
 import { AtAGlance } from "@/components/at-a-glance";
 import { TodaySchedule } from "@/components/today-schedule";
 import { AudioWave } from "@/components/audio-wave";
+import { NotificationBanner } from "@/components/notification-banner";
 
 // Hooks and Constants
 import { useChatState } from "@/hooks/use-chat-state";
@@ -31,6 +32,7 @@ import { useSessionSync } from "@/hooks/use-session-sync";
 import { useFileHandlers } from "@/hooks/use-file-handlers";
 import { useExtensionListeners } from "@/hooks/use-extension-listeners";
 import { useIntegrationHandlers } from "@/hooks/use-integration-handlers";
+import { useNotifications } from "@/hooks/use-notifications";
 import { MODELS, DEFAULT_SUGGESTIONS, STORAGE_KEYS } from "@/lib/chat-constants";
 import { useUser } from "@clerk/nextjs";
 
@@ -56,6 +58,7 @@ export function ChatUI() {
     isCalendarConnected, setIsCalendarConnected,
     isFormsConnected, setIsFormsConnected,
     isTasksConnected, setIsTasksConnected,
+    notificationsEnabled, setNotificationsEnabled,
     fileInputRef,
   } = state;
 
@@ -105,6 +108,8 @@ export function ChatUI() {
     setIsCalendarConnected,
     setIsFormsConnected,
     setIsTasksConnected,
+    notificationsEnabled,
+    setNotificationsEnabled,
     isLoaded,
     setIsLoaded: state.setIsLoaded,
   });
@@ -140,6 +145,11 @@ export function ChatUI() {
     setIsFormsConnected,
     setIsTasksConnected,
   });
+
+  // Notifications
+  const isNotificationsActive = notificationsEnabled &&
+    (addedIntegrations.includes("calendar") || addedIntegrations.includes("gmail"));
+  const { notifications, dismissNotification } = useNotifications({ enabled: isNotificationsActive });
 
   const isLoading = status === "streaming" || status === "submitted";
 
@@ -479,6 +489,9 @@ export function ChatUI() {
         className="flex h-screen w-full flex-col text-foreground bg-cover bg-center bg-no-repeat selection:bg-[#8ca7bc]/30"
         style={{ backgroundImage: 'url("/Dashboard.png")' }}
       >
+        {/* Notification Banner */}
+        <NotificationBanner notifications={notifications} onDismiss={dismissNotification} />
+
         {/* Header */}
         <DynamicIsland 
           models={MODELS}
@@ -488,6 +501,8 @@ export function ChatUI() {
           onModelOpenChange={setIsModelOpen}
           onOpenIntegrations={() => setIsIntegrationsModalOpen(true)}
           onNewChat={handleNewChat}
+          notificationsEnabled={notificationsEnabled}
+          onToggleNotifications={() => setNotificationsEnabled(!notificationsEnabled)}
         />
         
       {/* Main Content Area */}

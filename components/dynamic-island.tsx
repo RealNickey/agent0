@@ -3,7 +3,7 @@
 import * as React from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
-import { Blocks, TreePine, Plus } from "lucide-react";
+import { Blocks, TreePine, Plus, Bell, BellOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UserButton, SignedIn, SignedOut, SignInButton, useUser } from "@clerk/nextjs";
 import { ModelSelectorControl, Model, ModelSelectorControlProps } from "@/components/ai-elements/model-selector-control";
@@ -17,6 +17,8 @@ interface DynamicIslandProps extends Partial<ModelSelectorControlProps> {
   isModelOpen?: boolean;
   onModelOpenChange?: (open: boolean) => void;
   onNewChat?: () => void;
+  notificationsEnabled?: boolean;
+  onToggleNotifications?: () => void;
 }
 
 export function DynamicIsland({ 
@@ -27,7 +29,9 @@ export function DynamicIsland({
   isModelOpen = false,
   onModelOpenChange,
   onOpenIntegrations,
-  onNewChat
+  onNewChat,
+  notificationsEnabled = true,
+  onToggleNotifications,
 }: DynamicIslandProps) {
   const { user, isLoaded } = useUser();
   const [showControls, setShowControls] = React.useState(false);
@@ -88,6 +92,22 @@ export function DynamicIsland({
                     <Blocks className="size-4" />
                     <span>Tools</span>
                 </Button>
+
+                {/* Notification Toggle */}
+                <motion.button
+                  whileHover={{ scale: 1.05, backgroundColor: "rgba(255,255,255,0.1)" }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={onToggleNotifications}
+                  className={cn(
+                    "flex items-center justify-center size-10 rounded-full transition-colors",
+                    notificationsEnabled
+                      ? "text-white/80 hover:text-white bg-white/5"
+                      : "text-white/40 hover:text-white/60 bg-white/2"
+                  )}
+                  title={notificationsEnabled ? "Disable notifications" : "Enable notifications"}
+                >
+                  {notificationsEnabled ? <Bell className="size-4" /> : <BellOff className="size-4" />}
+                </motion.button>
               </div>
               
               <div className="w-px h-6 bg-white/8 mx-1 shrink-0" />

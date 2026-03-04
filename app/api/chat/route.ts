@@ -508,6 +508,8 @@ Remember: Return ONLY the markdown code block with mermaid syntax. No additional
           tools.getImportantEmails = gmailTools.getImportantEmails;
           tools.getContactEmails = gmailTools.getContactEmails;
           tools.markAsImportant = gmailTools.markAsImportant;
+          tools.fetchAndSummarizeEmails = gmailTools.fetchAndSummarizeEmails;
+          tools.markAsRead = gmailTools.markAsRead;
         } else {
           console.warn("Gmail tool mentioned but not installed");
         }
@@ -622,12 +624,13 @@ Remember: Return ONLY the markdown code block with mermaid syntax. No additional
 
   const gmailGuidance = mentionedTools.some(t => t.toLowerCase() === "gmail")
     ? " Gmail Agent Instructions: You are a multi-step agentic Gmail assistant. " +
-      "When the user asks about important emails, use getImportantEmails to fetch starred/important messages. " +
+      "When the user asks to fetch, show, or display their recent important emails or inbox summary, IMMEDIATELY call fetchAndSummarizeEmails — this returns structured card data with summaries and category tags for the UI. " +
+      "When the user asks about important emails in detail (read content), use getImportantEmails to fetch starred/important messages. " +
       "When the user asks about emails from specific people or VIP contacts, use getContactEmails with their email addresses. " +
       "When the user wants to star or flag an email, use markAsImportant with the message ID. " +
       "For composing emails, ALWAYS use composeEmail to present a draft for user review before sending. " +
       "Chain tools when needed: e.g., searchEmails → getMessageContent → composeEmail for reply workflows. " +
-      "After presenting email search results or drafts, DO NOT repeat the full content as text — the tool UI handles display."
+      "After presenting email cards or drafts, DO NOT repeat the full content as text — the tool UI handles display."
     : "";
 
   const slidesGuidance = mentionedTools.some(t => ["slides", "presentation", "ppt"].includes(t.toLowerCase()))

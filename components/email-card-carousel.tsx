@@ -1,20 +1,39 @@
-import React, { useRef, useCallback } from "react";
+import React, { useRef, useCallback, useState } from "react";
 import { animate } from "motion/react";
-import { EmailCard } from "./email-card";
+import { EmailCard, type EmailCardData } from "./email-card";
 
-export function EmailCardCarousel() {
+interface EmailCardCarouselProps {
+  emails?: EmailCardData[];
+}
+
+const PLACEHOLDER_COUNT = 3;
+
+export function EmailCardCarousel({ emails }: EmailCardCarouselProps) {
+  // Track dismissed card IDs so we can exclude them from the list
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => new Set());
+
+  const dismissCard = (id: string) => {
+    setDismissedIds((prev) => new Set([...prev, id]));
+  };
+
+  // Build the visible cards list
+  const cards: Array<{ id: string; data?: EmailCardData }> = emails?.length
+    ? emails
+        .filter((e) => !dismissedIds.has(e.messageId))
+        .map((e) => ({ id: e.messageId, data: e }))
+    : Array.from({ length: PLACEHOLDER_COUNT }, (_, i) => ({ id: `placeholder-${i}` })).filter(
+        ({ id }) => !dismissedIds.has(id)
+      );
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
   const startX = useRef(0);
   const scrollLeft = useRef(0);
-  // Velocity tracking
   const lastX = useRef(0);
   const lastTime = useRef(0);
   const velocity = useRef(0);
-  // Hold a reference to any in-flight animation so we can cancel it on new drag
   const motionStop = useRef<(() => void) | null>(null);
 
-  // Allow horizontal scrolling on mouse wheel — project + snap
   const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
     if (!scrollRef.current || e.deltaY === 0) return;
     e.preventDefault();
@@ -34,7 +53,6 @@ export function EmailCardCarousel() {
 
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (!scrollRef.current) return;
-    // Cancel any running animation
     if (motionStop.current) { motionStop.current(); motionStop.current = null; }
     isDragging.current = true;
     startX.current = e.pageX - scrollRef.current.offsetLeft;
@@ -43,7 +61,6 @@ export function EmailCardCarousel() {
     lastTime.current = performance.now();
     velocity.current = 0;
     scrollRef.current.style.cursor = "grabbing";
-    // Disable native snap while dragging so we control it entirely
     scrollRef.current.style.scrollSnapType = "none";
   }, []);
 
@@ -52,10 +69,7 @@ export function EmailCardCarousel() {
     e.preventDefault();
     const now = performance.now();
     const dt = now - lastTime.current;
-    if (dt > 0) {
-      // velocity in px/s, positive = scrolling right
-      velocity.current = ((lastX.current - e.pageX) / dt) * 1000;
-    }
+    if (dt > 0) velocity.current = ((lastX.current - e.pageX) / dt) * 1000;
     lastX.current = e.pageX;
     lastTime.current = now;
     const x = e.pageX - scrollRef.current.offsetLeft;
@@ -67,16 +81,12 @@ export function EmailCardCarousel() {
     isDragging.current = false;
     scrollRef.current.style.cursor = "grab";
     scrollRef.current.style.scrollSnapType = "none";
-
     const container = scrollRef.current;
-    const v = velocity.current; // px/s
-
-    // Project where a natural deceleration would land, then snap to nearest card
-    const DECEL = 1800; // px/s² — tune this to taste
+    const v = velocity.current;
+    const DECEL = 1800;
     const coasting = (v * Math.abs(v)) / (2 * DECEL);
     const projected = container.scrollLeft + coasting;
     const target = findSnapTarget(container, projected);
-
     const controls = animate(container.scrollLeft, target, {
       type: "spring",
       velocity: v,
@@ -91,6 +101,8 @@ export function EmailCardCarousel() {
   const handleMouseLeave = useCallback(() => {
     if (isDragging.current) handleMouseUp();
   }, [handleMouseUp]);
+
+  if (cards.length === 0) return null;
 
   return (
     <div
@@ -116,26 +128,20 @@ export function EmailCardCarousel() {
           WebkitOverflowScrolling: "touch",
           userSelect: "none",
           WebkitUserSelect: "none",
-          // First/last card always centred
           paddingLeft: "calc(50% - 253px)",
           paddingRight: "calc(50% - 253px)",
         }}
       >
-        <div className="shrink-0" data-snap-card>
-          <EmailCard />
-        </div>
-        <div className="shrink-0" data-snap-card>
-          <EmailCard />
-        </div>
-        <div className="shrink-0" data-snap-card>
-          <EmailCard />
-        </div>
+        {cards.map(({ id, data }) => (
+          <div key={id} className="shrink-0" data-snap-card>
+            <EmailCard data={data} onDismiss={() => dismissCard(id)} />
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
-/** Returns the scrollLeft value that centres the card nearest to `projectedScrollLeft`. */
 function findSnapTarget(container: HTMLDivElement, projectedScrollLeft: number): number {
   const cards = Array.from(container.querySelectorAll<HTMLElement>("[data-snap-card]"));
   if (!cards.length) return container.scrollLeft;

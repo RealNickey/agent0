@@ -910,6 +910,222 @@ export const markAsImportantTool = tool({
 });
 
 /**
+ * Heuristic category detection based on Gmail labels and subject/sender keywords
+ */
+function detectCategory(labelIds: string[] = [], subject: string = "", from: string = ""): string {
+  const subjectLower = subject.toLowerCase();
+  const fromLower = from.toLowerCase();
+
+  // Gmail system labels
+  if (labelIds.includes("CATEGORY_PROMOTIONS")) return "marketing";
+  if (labelIds.includes("CATEGORY_SOCIAL")) return "social";
+  if (labelIds.includes("CATEGORY_UPDATES")) return "updates";
+  if (labelIds.includes("CATEGORY_FORUMS")) return "forums";
+
+  // Keyword-based
+  if (/invoice|payment|receipt|bill|order|subscription/.test(subjectLower)) return "finance";
+  if (/meeting|standup|call|interview|schedule|calendar/.test(subjectLower)) return "meeting";
+  if (/github|jira|linear|slack|notion|figma|vercel|deploy/.test(fromLower + subjectLower)) return "work";
+  if (/noreply|no-reply|newsletter|unsubscribe/.test(fromLower)) return "marketing";
+  if (/alert|notification|verify|confirm|reset/.test(subjectLower)) return "notification";
+
+  return "general";
+}
+
+/**
+ * Fetch recent important/starred emails and return structured data for UI cards.
+ * Each result includes a summary (snippet), category tag, sender info, and attachment flag.
+ */
+export const fetchAndSummarizeEmailsTool = tool({
+  description:
+    "Fetch recent important and starred emails from the user's inbox, then return structured card data with a summary, category tag, sender information, and whether attachments are present. Use this when the user wants to see their important emails displayed as cards.",
+  inputSchema: z.object({
+    max_results: z
+      .number()
+      .optional()
+      .default(6)
+      .describe("Maximum number of email cards to return (1-20)"),
+  }),
+  execute: async ({ max_results }) => {
+    const accessToken = await getAccessToken();
+
+    if (!accessToken) {
+      return {
+        error: true,
+        message:
+          "Gmail is not connected. Please connect your Google account first by visiting /api/auth/google",
+        emails: [],
+      };
+    }
+
+    try {
+      const limit = Math.min(max_results || 6, 20);
+      const params = new URLSearchParams({
+        q: "is:important OR is:starred",
+        maxResults: String(limit),
+      });
+
+      const listResult = await gmailRequest<{
+        messages?: Array<{ id: string; threadId: string }>;
+      }>(accessToken, `/users/me/messages?${params.toString()}`);
+
+      if (!listResult.success) {
+        return {
+          error: true,
+          message: listResult.error || "Failed to fetch emails",
+          emails: [],
+        };
+      }
+
+      const messageIds = listResult.data?.messages || [];
+      if (messageIds.length === 0) {
+        return {
+          error: false,
+          emails: [],
+          message: "No important or starred emails found",
+        };
+      }
+
+      // Fetch each message with metadata + parts for attachment detection
+      const emails = await Promise.all(
+        messageIds.slice(0, limit).map(async ({ id }) => {
+          const msgResult = await gmailRequest<any>(
+            accessToken,
+            `/users/me/messages/${id}?format=full`
+          );
+
+          if (!msgResult.success || !msgResult.data) return null;
+
+          const msg = msgResult.data;
+          const headers = parseHeaders(msg.payload?.headers || []);
+
+          // Detect attachments recursively
+          const attachments: Array<{ filename: string; mimeType: string }> = [];
+          function collectAttachments(parts: any[] = []) {
+            for (const part of parts) {
+              if (part.filename && part.body?.attachmentId) {
+                attachments.push({
+                  filename: part.filename,
+                  mimeType: part.mimeType || "application/octet-stream",
+                });
+              }
+              if (part.parts) collectAttachments(part.parts);
+            }
+          }
+          collectAttachments(msg.payload?.parts);
+
+          // Parse sender display name and email
+          const rawFrom = headers.from || "";
+          const fromMatch = rawFrom.match(/^(.*?)\s*<([^>]+)>$/);
+          const atIndex = rawFrom.indexOf("@");
+          const senderName = fromMatch
+            ? fromMatch[1].trim().replace(/^"|"$/g, "") || "Unknown"
+            : atIndex > 0
+            ? rawFrom.substring(0, atIndex)
+            : rawFrom || "Unknown";
+          const senderEmail = fromMatch ? fromMatch[2] : rawFrom;
+
+          const category = detectCategory(msg.labelIds, headers.subject, rawFrom);
+
+          // Use snippet as the summary (short preview of content)
+          const summary = msg.snippet
+            ? msg.snippet.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, "&")
+            : "";
+
+          // Parse date — prefer header date string, fall back to internalDate (ms since epoch)
+          let dateLabel = "";
+          try {
+            if (headers.date) {
+              dateLabel = new Date(headers.date).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+            } else if (msg.internalDate) {
+              dateLabel = new Date(parseInt(msg.internalDate, 10)).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+            }
+          } catch {
+            dateLabel = "";
+          }
+
+          return {
+            messageId: msg.id,
+            threadId: msg.threadId,
+            subject: headers.subject || "(no subject)",
+            summary,
+            category,
+            senderName,
+            senderEmail: senderEmail || "",
+            date: dateLabel,
+            hasAttachments: attachments.length > 0,
+            attachments: attachments.length > 0 ? attachments : undefined,
+            labelIds: msg.labelIds || [],
+          };
+        })
+      );
+
+      const validEmails = emails.filter(Boolean) as NonNullable<typeof emails[number]>[];
+
+      return {
+        error: false,
+        emails: validEmails,
+        emailCount: validEmails.length,
+        message: `Fetched ${validEmails.length} important email(s)`,
+      };
+    } catch (err) {
+      return {
+        error: true,
+        message: err instanceof Error ? err.message : "Failed to fetch emails",
+        emails: [],
+      };
+    }
+  },
+});
+
+/**
+ * Mark an email as read (removes UNREAD label)
+ */
+export const markAsReadTool = tool({
+  description: "Mark an email as read by removing the UNREAD label. Use this when the user dismisses or marks a card as read.",
+  inputSchema: z.object({
+    message_id: z.string().describe("The Gmail message ID to mark as read"),
+  }),
+  execute: async ({ message_id }) => {
+    const accessToken = await getAccessToken();
+
+    if (!accessToken) {
+      return {
+        error: true,
+        message: "Gmail is not connected. Please connect your Google account first by visiting /api/auth/google",
+      };
+    }
+
+    try {
+      const result = await gmailRequest<any>(
+        accessToken,
+        `/users/me/messages/${encodeURIComponent(message_id)}/modify`,
+        "POST",
+        { removeLabelIds: ["UNREAD"] }
+      );
+
+      if (!result.success) {
+        return {
+          error: true,
+          message: result.error || "Failed to mark email as read",
+        };
+      }
+
+      return {
+        error: false,
+        messageId: result.data?.id,
+        message: `Email marked as read`,
+      };
+    } catch (err) {
+      return {
+        error: true,
+        message: err instanceof Error ? err.message : "Failed to mark email as read",
+      };
+    }
+  },
+});
+
+/**
  * Export all Gmail tools
  */
 export const gmailTools = {
@@ -923,4 +1139,6 @@ export const gmailTools = {
   getImportantEmails: getImportantEmailsTool,
   getContactEmails: getContactEmailsTool,
   markAsImportant: markAsImportantTool,
+  fetchAndSummarizeEmails: fetchAndSummarizeEmailsTool,
+  markAsRead: markAsReadTool,
 };

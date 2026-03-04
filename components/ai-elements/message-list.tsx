@@ -44,6 +44,7 @@ import { GitHubPRList } from "@/components/ai-elements/github-pr-list";
 import { GitHubRepoList } from "@/components/ai-elements/github-repo-list";
 import { GitHubCommentResult } from "@/components/ai-elements/github-comment-result";
 import { EmailDraftConfirmation } from "@/components/ai-elements/email-draft-confirmation";
+import { EmailCardCarousel } from "@/components/email-card-carousel";
 import { FormCreationConfirmation } from "@/components/ai-elements/form-creation-confirmation";
 import { FormResponsesList } from "@/components/ai-elements/form-responses-list";
 import { FormSummaryCard } from "@/components/ai-elements/form-summary-card";
@@ -385,6 +386,18 @@ const normalizedToolInvocations = toolInvocations.reduce((acc: any[], ti: any, t
                             );
                           }
                         }
+
+                        // Fetch and Summarize Emails — render as interactive card carousel
+                        if (toolInvocation.toolName === "fetchAndSummarizeEmails" && isCompleted) {
+                          if (!hasError && toolInvocation.result?.emails?.length > 0) {
+                            return (
+                              <div key={toolInvocation.toolCallId} className="w-full my-2 not-prose">
+                                <EmailCardCarousel emails={toolInvocation.result.emails} />
+                              </div>
+                            );
+                          }
+                        }
+
 
                         // Schedule GitHub Issue Creation (with human-in-the-loop confirmation)
                         if (toolInvocation.toolName === "scheduleIssueCreation" && isCompleted) {

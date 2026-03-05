@@ -8,6 +8,7 @@ interface UseIntegrationHandlersProps {
   setIsCalendarConnected: React.Dispatch<React.SetStateAction<boolean>>;
   setIsFormsConnected: React.Dispatch<React.SetStateAction<boolean>>;
   setIsTasksConnected: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsSheetsConnected: React.Dispatch<React.SetStateAction<boolean>>;
   onIntegrationsChange?: () => void; // New callback
 }
 
@@ -19,6 +20,7 @@ export function useIntegrationHandlers({
   setIsCalendarConnected,
   setIsFormsConnected,
   setIsTasksConnected,
+  setIsSheetsConnected,
   onIntegrationsChange,
 }: UseIntegrationHandlersProps) {
   const reloadIntegrations = useCallback(async () => {
@@ -75,6 +77,15 @@ export function useIntegrationHandlers({
       } else if (id === "tasks") {
         setIsTasksConnected(true);
       }
+
+      if (id === "sheets" && !authData.hasSheetsScopes) {
+        const width = 600, height = 700;
+        const left = window.screen.width / 2 - width / 2;
+        const top = window.screen.height / 2 - height / 2;
+        window.open("/api/auth/google?service=sheets", "GoogleSheetsAuth", `width=${width},height=${height},left=${left},top=${top}`);
+      } else if (id === "sheets") {
+        setIsSheetsConnected(true);
+      }
       
       await reloadIntegrations();
       
@@ -84,7 +95,7 @@ export function useIntegrationHandlers({
       console.error("Failed to install tool", error);
       setAddedIntegrations((prev) => prev.filter(i => i !== id));
     }
-  }, [addedIntegrations, reloadIntegrations, setAddedIntegrations, setActiveIntegration, setIsCalendarConnected, setIsFormsConnected, setIsTasksConnected, onIntegrationsChange]);
+  }, [addedIntegrations, reloadIntegrations, setAddedIntegrations, setActiveIntegration, setIsCalendarConnected, setIsFormsConnected, setIsTasksConnected, setIsSheetsConnected, onIntegrationsChange]);
 
   const handleRemoveIntegration = useCallback(async (id: string) => {
     setAddedIntegrations((prev) => prev.filter((i) => i !== id));

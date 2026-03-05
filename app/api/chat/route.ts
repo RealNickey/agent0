@@ -12,6 +12,7 @@ import { tasksTools } from "@/ai/tasks-tools";
 import { githubTools } from "@/ai/github-tools";
 import { slidesTools } from "@/ai/slides-tools";
 import { imageTools } from "@/ai/image-tools";
+import { sheetsTools } from "@/ai/sheets-tools";
 // PDF tools removed — handled entirely client-side to avoid tool part serialization issues
 import { GMAIL_AGENT_PROMPT } from "@/ai/prompts/gmail";
 import { GITHUB_AGENT_PROMPT } from "@/ai/prompts/github";
@@ -548,6 +549,21 @@ Remember: Return ONLY the markdown code block with mermaid syntax. No additional
           console.warn("GitHub tool mentioned but not installed");
         }
       }
+      // Sheets/Spreadsheet tools
+      if (lowerToolName === "sheets" || lowerToolName === "spreadsheet" || lowerToolName === "spreadsheets") {
+        if (isToolInstalled("sheets")) {
+          tools.createSpreadsheet = sheetsTools.createSpreadsheet;
+          tools.readRange = sheetsTools.readRange;
+          tools.writeRange = sheetsTools.writeRange;
+          tools.appendRows = sheetsTools.appendRows;
+          tools.formatRange = sheetsTools.formatRange;
+          tools.createChart = sheetsTools.createChart;
+          tools.searchSheets = sheetsTools.searchSheets;
+          tools.formulaHelper = sheetsTools.formulaHelper;
+        } else {
+          console.warn("Sheets tool mentioned but not installed");
+        }
+      }
       // Slides/Presentation tools
       if (lowerToolName === "slides" || lowerToolName === "presentation" || lowerToolName === "ppt") {
         if (isToolInstalled("slides")) {
@@ -636,6 +652,15 @@ Remember: Return ONLY the markdown code block with mermaid syntax. No additional
 
   // PDF guidance removed — PDF operations are handled client-side
 
+  const sheetsGuidance = mentionedTools.some(t => ["sheets", "spreadsheet", "spreadsheets"].includes(t.toLowerCase()))
+    ? " Google Sheets Instructions: You can create, read, write, and format Google Spreadsheets. " +
+      "Use createSpreadsheet to make a new spreadsheet. Use readRange to fetch cell data. " +
+      "Use writeRange to overwrite cells or appendRows to add data after existing rows. " +
+      "Use formatRange for styling (bold headers, colors, alignment). Use createChart for visualizations. " +
+      "Use searchSheets to find existing spreadsheets by name. Use formulaHelper to insert formulas like =SUM, =AVERAGE, etc. " +
+      "When writing data, structure it as a 2D array of rows. Always use valueInputOption=USER_ENTERED for formulas."
+    : "";
+
   // Retry logic with automatic model fallback on rate limiting
   const maxRetries = 3;
   let currentModel = model;
@@ -707,7 +732,7 @@ Remember: Return ONLY the markdown code block with mermaid syntax. No additional
 
       const result = streamText({
         model: modelInstance,
-        system: `${systemPrompt}${calendarGuidance}${formsGuidance}${tasksGuidance}${gmailGuidance}${githubGuidance}${slidesGuidance}${memoryBlock}`,
+        system: `${systemPrompt}${calendarGuidance}${formsGuidance}${tasksGuidance}${gmailGuidance}${githubGuidance}${slidesGuidance}${sheetsGuidance}${memoryBlock}`,
         messages: modelMessages,
         tools: hasCurrentTools ? currentTools : undefined,
         toolChoice: hasCurrentTools ? "auto" : "none",

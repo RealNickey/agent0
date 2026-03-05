@@ -94,6 +94,20 @@ const INTEGRATION_DETAILS: Record<string, { name: string; description: string; f
       { name: "createPresentation", description: "Generate HTML presentation with rich visuals and animations" }
     ]
   },
+  sheets: {
+    name: "Sheets",
+    description: "Create, read, write, and format Google Spreadsheets.",
+    functions: [
+      { name: "createSpreadsheet", description: "Create a new Google Spreadsheet" },
+      { name: "readRange", description: "Read cell values from a range" },
+      { name: "writeRange", description: "Write data to a cell range" },
+      { name: "appendRows", description: "Append rows to a sheet" },
+      { name: "formatRange", description: "Apply formatting (bold, colors, alignment)" },
+      { name: "createChart", description: "Create a chart from spreadsheet data" },
+      { name: "searchSheets", description: "Search for spreadsheets by name" },
+      { name: "formulaHelper", description: "Insert formulas into cells" },
+    ]
+  },
   github: {
     name: "GitHub",
     description: "Manage repositories, issues, branches, and pull requests on GitHub.",

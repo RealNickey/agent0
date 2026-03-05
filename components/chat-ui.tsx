@@ -56,6 +56,7 @@ export function ChatUI() {
     isCalendarConnected, setIsCalendarConnected,
     isFormsConnected, setIsFormsConnected,
     isTasksConnected, setIsTasksConnected,
+    isSheetsConnected, setIsSheetsConnected,
     fileInputRef,
   } = state;
 
@@ -105,6 +106,7 @@ export function ChatUI() {
     setIsCalendarConnected,
     setIsFormsConnected,
     setIsTasksConnected,
+    setIsSheetsConnected,
     isLoaded,
     setIsLoaded: state.setIsLoaded,
   });
@@ -128,6 +130,7 @@ export function ChatUI() {
     setIsCalendarConnected,
     setIsFormsConnected,
     setIsTasksConnected,
+    setIsSheetsConnected,
     setEnableSearch
   );
 
@@ -139,6 +142,7 @@ export function ChatUI() {
     setIsCalendarConnected,
     setIsFormsConnected,
     setIsTasksConnected,
+    setIsSheetsConnected,
   });
 
   const isLoading = status === "streaming" || status === "submitted";

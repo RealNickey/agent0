@@ -55,6 +55,14 @@ const marketplaceTools = [
     icon: "image",
     enabled: true,
   },
+  {
+    id: "sheets",
+    name: "Sheets",
+    description: "Create, read, write, and format Google Spreadsheets — track data, build charts, and manage tabular information",
+    category: "productivity",
+    icon: "table",
+    enabled: true,
+  },
   // Add more tools here as needed
 ];
 

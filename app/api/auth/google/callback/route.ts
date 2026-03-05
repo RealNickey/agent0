@@ -12,6 +12,7 @@ function getHtmlResponse(title: string, message: string, success: boolean, userI
   // Send different message types based on which service was authorized
   const messageType = service === 'forms' ? 'GOOGLE_FORMS_AUTH_SUCCESS' 
     : service === 'tasks' ? 'GOOGLE_TASKS_AUTH_SUCCESS'
+    : service === 'sheets' ? 'GOOGLE_SHEETS_AUTH_SUCCESS'
     : service === 'all' ? 'GOOGLE_ALL_AUTH_SUCCESS'
     : 'GOOGLE_AUTH_SUCCESS';
   

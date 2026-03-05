@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { CloudSun, Plus, Trash2, ExternalLink, Calendar, FileText, Mail, ListTodo, Network, FileStack, Github, ImageIcon } from "lucide-react";
+import { CloudSun, Plus, Trash2, ExternalLink, Calendar, FileText, Mail, ListTodo, Network, FileStack, Github, ImageIcon, Table2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 import { GlowEffect } from "@/components/ui/glow-effect";
@@ -93,6 +93,14 @@ const INTEGRATIONS = [
     icon: ImageIcon,
     color: "text-violet-400",
     bgColor: "bg-violet-500/10",
+  },
+  {
+    id: "sheets",
+    name: "Sheets",
+    description: "Create, read, write, and format Google Spreadsheets with charts and formulas.",
+    icon: Table2,
+    color: "text-emerald-500",
+    bgColor: "bg-emerald-500/10",
   },
 ];
 

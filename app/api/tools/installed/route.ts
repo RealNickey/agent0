@@ -73,6 +73,14 @@ function getToolMetadata(id: string) {
       icon: "presentation",
     };
   }
+  if (id === "sheets") {
+    return {
+      name: "Sheets",
+      description: "Create, read, write, and format Google Spreadsheets with charts and formulas",
+      category: "productivity",
+      icon: "table",
+    };
+  }
   return {
     name: id,
     description: "Custom tool",

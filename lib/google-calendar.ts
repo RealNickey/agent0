@@ -24,6 +24,12 @@ export const GOOGLE_CALENDAR_SCOPES = [
   "https://www.googleapis.com/auth/tasks.readonly",
 ];
 
+// Google Sheets API scopes
+export const GOOGLE_SHEETS_SCOPES = [
+  "https://www.googleapis.com/auth/spreadsheets",
+  "https://www.googleapis.com/auth/drive.readonly",
+];
+
 // Google Forms API scopes
 export const GOOGLE_FORMS_SCOPES = [
   "https://www.googleapis.com/auth/forms.body",
@@ -32,8 +38,8 @@ export const GOOGLE_FORMS_SCOPES = [
   "https://www.googleapis.com/auth/drive.file",
 ];
 
-// Combined scopes for both Calendar and Forms
-export const GOOGLE_ALL_SCOPES = [...GOOGLE_CALENDAR_SCOPES, ...GOOGLE_FORMS_SCOPES];
+// Combined scopes for Calendar, Forms, and Sheets
+export const GOOGLE_ALL_SCOPES = [...GOOGLE_CALENDAR_SCOPES, ...GOOGLE_FORMS_SCOPES, ...GOOGLE_SHEETS_SCOPES];
 
 // Environment variables for Google OAuth
 export const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
@@ -193,7 +199,7 @@ export async function getValidAccessToken(userId: string): Promise<string | null
  * @param state - State parameter for CSRF protection
  * @param service - Which service to authorize: 'calendar', 'forms', or 'all'
  */
-export function getAuthorizationUrl(state?: string, service: 'calendar' | 'forms' | 'tasks' | 'all' = 'calendar'): string {
+export function getAuthorizationUrl(state?: string, service: 'calendar' | 'forms' | 'tasks' | 'sheets' | 'all' = 'calendar'): string {
   let scopes: string[];
   switch (service) {
     case 'forms':
@@ -201,6 +207,9 @@ export function getAuthorizationUrl(state?: string, service: 'calendar' | 'forms
       break;
     case 'tasks':
       scopes = GOOGLE_CALENDAR_SCOPES; // Tasks scopes are included in calendar scopes
+      break;
+    case 'sheets':
+      scopes = GOOGLE_SHEETS_SCOPES;
       break;
     case 'all':
       scopes = GOOGLE_ALL_SCOPES;

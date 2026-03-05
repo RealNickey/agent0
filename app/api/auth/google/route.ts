@@ -13,7 +13,7 @@ const DEFAULT_USER_ID = "default-user";
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const action = searchParams.get("action");
-  const service = (searchParams.get("service") as 'calendar' | 'forms' | 'tasks' | 'all') || 'calendar';
+  const service = (searchParams.get("service") as 'calendar' | 'forms' | 'tasks' | 'sheets' | 'all') || 'calendar';
 
   // Check connection status
   if (action === "status") {
@@ -22,6 +22,7 @@ export async function GET(request: Request) {
     const hasCalendarScopes = tokens?.scope?.includes("calendar");
     const hasFormsScopes = tokens?.scope?.includes("forms.body");
     const hasTasksScopes = tokens?.scope?.includes("tasks");
+    const hasSheetsScopes = tokens?.scope?.includes("spreadsheets");
     
     return Response.json({
       connected: !!tokens,
@@ -29,6 +30,7 @@ export async function GET(request: Request) {
       hasCalendarScopes,
       hasFormsScopes,
       hasTasksScopes,
+      hasSheetsScopes,
       scopes: tokens?.scope,
     });
   }

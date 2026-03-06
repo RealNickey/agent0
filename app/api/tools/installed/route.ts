@@ -81,6 +81,14 @@ function getToolMetadata(id: string) {
       icon: "film",
     };
   }
+  if (id === "convert") {
+    return {
+      name: "Convert",
+      description: "Convert files between formats — images, documents, spreadsheets, and more",
+      category: "utility",
+      icon: "arrow-right-left",
+    };
+  }
   return {
     name: id,
     description: "Custom tool",

@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { CloudSun, Plus, Trash2, ExternalLink, Calendar, FileText, Mail, ListTodo, Network, FileStack, Github, ImageIcon, Film } from "lucide-react";
+import { CloudSun, Plus, Trash2, ExternalLink, Calendar, FileText, Mail, ListTodo, Network, FileStack, Github, ImageIcon, Film, ArrowRightLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 import { GlowEffect } from "@/components/ui/glow-effect";
@@ -101,6 +101,14 @@ const INTEGRATIONS = [
     icon: Film,
     color: "text-amber-400",
     bgColor: "bg-amber-500/10",
+  },
+  {
+    id: "convert",
+    name: "Convert",
+    description: "Convert files between formats — images, documents, spreadsheets, and more.",
+    icon: ArrowRightLeft,
+    color: "text-teal-400",
+    bgColor: "bg-teal-500/10",
   },
 ];
 

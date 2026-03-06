@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
-import type { MyUIMessage, PdfOperationResult } from "@/types/chat";
+import type { MyUIMessage, PdfOperationResult, ConvertOperationResult } from "@/types/chat";
 import { getToolInvocations } from "@/lib/chat-message-utils";
 
 // Import all the Gen UI components
@@ -33,6 +33,7 @@ import { SlidesHeadingConfirmation } from "@/components/ai-elements/slides-headi
 import { ImageGenerationLoading, ImageGenerationResult, ImageGeneration } from "@/components/ai-elements/image-generation";
 import { Weather, WeatherLoading } from "@/components/weather";
 import { MovieCard, MovieCardLoading } from "@/components/movie-card";
+import { ConvertResult } from "@/components/convert-result";
 
 export type GenUIItem = {
   id: string;
@@ -225,6 +226,23 @@ export function extractGenUIs(messages: MyUIMessage[], model?: string): GenUIIte
           });
         }
       }
+    }
+
+    // Convert Result from metadata
+    if ((message.metadata as any)?.convertResult) {
+      const conv = (message.metadata as any).convertResult as ConvertOperationResult;
+      // Resolve the data URL from window ref
+      let resolvedUrl = conv.fileUrl;
+      if (typeof window !== "undefined" && conv.fileUrl?.startsWith("__convert_ref__:")) {
+        const refId = conv.fileUrl.replace("__convert_ref__:", "");
+        resolvedUrl = (window as any).__convertResults?.[refId] || conv.fileUrl;
+      }
+      items.push({
+        id: `convert-${message.id}`,
+        type: "convert",
+        component: <ConvertResult {...conv} fileUrl={resolvedUrl} />,
+        timestamp: message.metadata?.createdAt || Date.now() + messageIndex,
+      });
     }
   });
 

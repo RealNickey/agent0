@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, useRef } from "react";
 import { useChat } from "@ai-sdk/react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
-import type { MyUIMessage, PdfOperationResult } from "@/types/chat";
+import type { MyUIMessage, PdfOperationResult, ConvertOperationResult } from "@/types/chat";
 import { StripLargeDataChatTransport } from "@/lib/chat-transport";
 // Components
 import { DynamicIsland } from "@/components/dynamic-island";
@@ -411,6 +411,134 @@ export function ChatUI() {
       return;
     }
     // --- End PDF client-side handling ---
+
+    // --- Convert: handle entirely client-side (zero AI tokens) ---
+    const isConvertOnly = mentionedTools.length > 0 && mentionedTools.every(t => t.toLowerCase() === "convert");
+
+    if (isConvertOnly) {
+      const userText = value.text.trim();
+      const ts = Date.now();
+      const userMsgId = `convert-user-${ts}`;
+      const assistantMsgId = `convert-asst-${ts}`;
+
+      // Build user message parts
+      const userParts: any[] = [];
+      if (userText) userParts.push({ type: "text", text: userText });
+      for (const att of attachments) {
+        userParts.push({ type: "text", text: `📎 ${att.name || "File"}` });
+      }
+
+      // Must have at least one attachment
+      if (attachments.length === 0) {
+        setMessages((prev) => [
+          ...prev,
+          { id: userMsgId, role: "user", parts: userParts.length ? userParts : [{ type: "text", text: userText || "@convert" }] } as MyUIMessage,
+          { id: assistantMsgId, role: "assistant", parts: [{ type: "text", text: "Please attach a file to convert. For example: attach an image and type `@convert png` to convert it to PNG." }] } as MyUIMessage,
+        ]);
+        setInputValue(""); setAttachments([]); setMentionedTools([]);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
+      }
+
+      // Parse target format from user text (strip @convert prefix)
+      const cleanText = userText.replace(/@convert\s*/gi, "").trim().toLowerCase();
+      // Accept formats like "png", "to png", "to .png", ".png"
+      const formatMatch = cleanText.match(/(?:to\s+)?\.?([a-z0-9]{2,5})$/i);
+      const targetFormat = formatMatch ? formatMatch[1].toLowerCase() : null;
+
+      if (!targetFormat) {
+        setMessages((prev) => [
+          ...prev,
+          { id: userMsgId, role: "user", parts: userParts } as MyUIMessage,
+          { id: assistantMsgId, role: "assistant", parts: [{ type: "text", text: "Please specify a target format. Example: `@convert png`, `@convert pdf`, `@convert mp3`." }] } as MyUIMessage,
+        ]);
+        setInputValue(""); setAttachments([]); setMentionedTools([]);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
+      }
+
+      // Show loading message
+      const sourceFile = attachments[0];
+      const sourceName = sourceFile.name || "file";
+      setMessages((prev) => [
+        ...prev,
+        { id: userMsgId, role: "user", parts: userParts } as MyUIMessage,
+        {
+          id: assistantMsgId,
+          role: "assistant",
+          parts: [{ type: "text", text: `⏳ Converting ${sourceName} to .${targetFormat}...` }],
+        } as MyUIMessage,
+      ]);
+      setInputValue(""); setAttachments([]); setMentionedTools([]);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+
+      // Call convert API
+      let convertResultData: ConvertOperationResult;
+      try {
+        const res = await fetch("/api/convert", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fileUrl: sourceFile.url,
+            fileName: sourceName,
+            targetFormat,
+          }),
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          // Store the data URL in a ref map similar to PDF
+          const refId = `convert-${ts}`;
+          if (typeof window !== "undefined") {
+            (window as any).__convertResults = (window as any).__convertResults || {};
+            (window as any).__convertResults[refId] = data.fileUrl;
+          }
+          convertResultData = {
+            success: true,
+            fileName: data.fileName,
+            fileUrl: `__convert_ref__:${refId}`,
+            fileSize: data.fileSize,
+            sourceFormat: data.sourceFormat,
+            targetFormat: data.targetFormat,
+            convertedOnClient: data.convertedOnClient || false,
+            targetMime: data.targetMime,
+          };
+        } else {
+          convertResultData = {
+            success: false,
+            fileName: sourceName,
+            fileUrl: "",
+            sourceFormat: data.sourceFormat || sourceName.split(".").pop() || "unknown",
+            targetFormat,
+            error: data.error || "Conversion failed",
+          };
+        }
+      } catch (err) {
+        convertResultData = {
+          success: false,
+          fileName: sourceName,
+          fileUrl: "",
+          sourceFormat: sourceName.split(".").pop() || "unknown",
+          targetFormat,
+          error: err instanceof Error ? err.message : "Conversion failed",
+        };
+      }
+
+      // Update assistant message with result
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === assistantMsgId
+            ? ({
+                ...msg,
+                parts: [{ type: "text", text: convertResultData.success ? `✅ Converted ${sourceName} to .${targetFormat}` : `❌ ${convertResultData.error}` }],
+                metadata: { convertResult: convertResultData },
+              } as MyUIMessage)
+            : msg
+        )
+      );
+      return;
+    }
+    // --- End Convert client-side handling ---
 
     // Build parts array for the message
     const parts: Array<{ type: "text"; text: string } | { type: "file"; url: string; mediaType: string }> = [];

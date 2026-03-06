@@ -112,6 +112,13 @@ const INTEGRATION_DETAILS: Record<string, { name: string; description: string; f
     functions: [
       { name: "searchMovie", description: "Search for a movie by title and return poster, year, runtime, genres, rating, and overview" }
     ]
+  },
+  convert: {
+    name: "Convert",
+    description: "Convert files between formats — images, documents, spreadsheets, and more.",
+    functions: [
+      { name: "convertFile", description: "Convert an attached file to a different format (e.g. PNG→JPG, CSV→TSV, HTML→MD)" }
+    ]
   }
 };
 

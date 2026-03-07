@@ -25,6 +25,7 @@ export interface ConvertResultProps {
   error?: string;
   convertedOnClient?: boolean;
   targetMime?: string;
+  outputs?: Array<{ fileName: string; fileUrl: string; fileSize?: string }>;
 }
 
 const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "webp", "bmp", "gif", "tiff", "avif", "svg", "ico"];
@@ -92,6 +93,7 @@ export function ConvertResult({
   error,
   convertedOnClient,
   targetMime,
+  outputs,
 }: ConvertResultProps) {
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloaded, setDownloaded] = useState(false);
@@ -257,6 +259,74 @@ export function ConvertResult({
             )}
           </>
         )}
+
+        {/* Multi-output gallery (e.g. PDF→IMG pages) */}
+        {outputs && outputs.length > 1 && (
+          <div className="space-y-2">
+            <p className="text-xs text-slate-400">{outputs.length} pages converted</p>
+            {isImageOutput ? (
+              <div className="grid grid-cols-3 gap-2 max-h-[320px] overflow-y-auto rounded-lg">
+                {outputs.map((out, i) => (
+                  <div
+                    key={i}
+                    className="relative rounded-md overflow-hidden border border-slate-700/40 bg-slate-800/50 group"
+                  >
+                    <Image
+                      src={out.fileUrl}
+                      alt={out.fileName}
+                      width={160}
+                      height={120}
+                      className="w-full h-auto object-contain"
+                      unoptimized
+                    />
+                    <button
+                      className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => {
+                        const link = document.createElement("a");
+                        link.href = out.fileUrl;
+                        link.download = out.fileName;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                      }}
+                    >
+                      <DownloadIcon className="h-4 w-4 text-white" />
+                    </button>
+                    <span className="absolute bottom-0.5 right-1 text-[9px] text-slate-400 bg-black/60 px-1 rounded">
+                      {i + 1}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-1.5 max-h-[200px] overflow-y-auto">
+                {outputs.map((out, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-slate-800/60 border border-slate-700/30"
+                  >
+                    <FileIcon className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+                    <span className="text-xs text-slate-300 truncate flex-1">{out.fileName}</span>
+                    {out.fileSize && <span className="text-[10px] text-slate-500 shrink-0">{out.fileSize}</span>}
+                    <button
+                      className="text-slate-400 hover:text-slate-200 shrink-0"
+                      onClick={() => {
+                        const link = document.createElement("a");
+                        link.href = out.fileUrl;
+                        link.download = out.fileName;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                      }}
+                    >
+                      <DownloadIcon className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Actions */}
@@ -274,8 +344,29 @@ export function ConvertResult({
           ) : (
             <DownloadIcon className="h-4 w-4 mr-1.5" />
           )}
-          {downloaded ? "Downloaded!" : "Download"}
+          {downloaded ? "Downloaded!" : outputs && outputs.length > 1 ? "Download First" : "Download"}
         </Button>
+        {outputs && outputs.length > 1 && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="flex-1 border-slate-600 text-slate-300 hover:bg-slate-800"
+            onClick={async () => {
+              for (const out of outputs) {
+                const link = document.createElement("a");
+                link.href = out.fileUrl;
+                link.download = out.fileName;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                await new Promise((r) => setTimeout(r, 200));
+              }
+            }}
+          >
+            <DownloadIcon className="h-4 w-4 mr-1.5" />
+            Download All ({outputs.length})
+          </Button>
+        )}
       </div>
     </motion.div>
   );

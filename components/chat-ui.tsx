@@ -492,7 +492,24 @@ export function ChatUI() {
           if (typeof window !== "undefined") {
             (window as any).__convertResults = (window as any).__convertResults || {};
             (window as any).__convertResults[refId] = data.fileUrl;
+
+            // Store multi-output pages (PDF→IMG, DOC→IMG, etc.)
+            if (data.outputs && Array.isArray(data.outputs)) {
+              data.outputs.forEach((out: { fileUrl: string }, i: number) => {
+                (window as any).__convertResults[`${refId}-out-${i}`] = out.fileUrl;
+              });
+            }
           }
+
+          // Build outputs with ref-based URLs for localStorage safety
+          const outputsWithRefs = data.outputs?.map(
+            (out: { fileName: string; fileUrl: string; fileSize?: string }, i: number) => ({
+              fileName: out.fileName,
+              fileUrl: `__convert_ref__:${refId}-out-${i}`,
+              fileSize: out.fileSize,
+            })
+          );
+
           convertResultData = {
             success: true,
             fileName: data.fileName,
@@ -502,6 +519,7 @@ export function ChatUI() {
             targetFormat: data.targetFormat,
             convertedOnClient: data.convertedOnClient || false,
             targetMime: data.targetMime,
+            outputs: outputsWithRefs,
           };
         } else {
           convertResultData = {

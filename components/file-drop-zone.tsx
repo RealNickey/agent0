@@ -16,7 +16,7 @@ export function FileDropZone({
   onFilesDropped, 
   children, 
   className,
-  accept = "image/*,application/pdf,.txt,.md,.json,.csv"
+  accept = "image/*,application/pdf,.txt,.md,.json,.csv,.xlsx,.xls,.docx,.doc,.pptx,.ppt,.tsv,.html,.odt,.ods,.odp"
 }: FileDropZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const dragCounterRef = useRef(0);

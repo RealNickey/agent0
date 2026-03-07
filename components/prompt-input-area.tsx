@@ -289,7 +289,7 @@ export function PromptInputArea({
             type="file"
             ref={fileInputRef}
             onChange={onFilesSelected}
-            accept="image/*,application/pdf,.txt,.md,.json,.csv"
+            accept="image/*,application/pdf,.txt,.md,.json,.csv,.xlsx,.xls,.docx,.doc,.pptx,.ppt,.tsv,.html,.odt,.ods,.odp"
             multiple
             className="hidden"
           />

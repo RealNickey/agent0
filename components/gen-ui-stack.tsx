@@ -237,10 +237,23 @@ export function extractGenUIs(messages: MyUIMessage[], model?: string): GenUIIte
         const refId = conv.fileUrl.replace("__convert_ref__:", "");
         resolvedUrl = (window as any).__convertResults?.[refId] || conv.fileUrl;
       }
+
+      // Resolve multi-output refs
+      let resolvedOutputs = conv.outputs;
+      if (typeof window !== "undefined" && conv.outputs?.length) {
+        resolvedOutputs = conv.outputs.map((out) => {
+          if (out.fileUrl?.startsWith("__convert_ref__:")) {
+            const outRef = out.fileUrl.replace("__convert_ref__:", "");
+            return { ...out, fileUrl: (window as any).__convertResults?.[outRef] || out.fileUrl };
+          }
+          return out;
+        });
+      }
+
       items.push({
         id: `convert-${message.id}`,
         type: "convert",
-        component: <ConvertResult {...conv} fileUrl={resolvedUrl} />,
+        component: <ConvertResult {...conv} fileUrl={resolvedUrl} outputs={resolvedOutputs} />,
         timestamp: message.metadata?.createdAt || Date.now() + messageIndex,
       });
     }

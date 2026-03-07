@@ -30,6 +30,18 @@ function formatFileSize(bytes: number): string {
 }
 
 // Helper to get consistent icons
+const OFFICE_MIME_LABELS: Record<string, string> = {
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "Word",
+  "application/msword": "Word",
+  "application/vnd.oasis.opendocument.text": "ODT",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "Excel",
+  "application/vnd.ms-excel": "Excel",
+  "application/vnd.oasis.opendocument.spreadsheet": "ODS",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation": "PowerPoint",
+  "application/vnd.ms-powerpoint": "PowerPoint",
+  "application/vnd.oasis.opendocument.presentation": "ODP",
+};
+
 function getFileIcon(type: string) {
   if (type.startsWith("image/")) {
     return <FileImageIcon className="size-4 text-white" />;
@@ -37,8 +49,7 @@ function getFileIcon(type: string) {
   if (type.startsWith("audio/")) {
     return <MusicIcon className="size-4 text-white" />;
   }
-  if (type === "application/pdf") {
-    // Distinct icon for PDF
+  if (type === "application/pdf" || type in OFFICE_MIME_LABELS) {
     return <FileTextIcon className="size-4 text-white" />;
   }
   if (type.startsWith("text/")) {
@@ -50,7 +61,8 @@ function getFileIcon(type: string) {
 function getFileTypeFriendlyName(type: string): string {
   if (type.startsWith("image/")) return "Image";
   if (type.startsWith("audio/")) return "Audio";
-  if (type === "application/pdf") return "Document";
+  if (type === "application/pdf") return "PDF";
+  if (type in OFFICE_MIME_LABELS) return OFFICE_MIME_LABELS[type];
   if (type.startsWith("text/")) return "Text File";
   return "File";
 }

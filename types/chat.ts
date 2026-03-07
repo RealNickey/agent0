@@ -34,6 +34,8 @@ export interface ConvertOperationResult {
   error?: string;
   convertedOnClient?: boolean;
   targetMime?: string;
+  /** Multi-page output (e.g. PDF→IMG produces one image per page) */
+  outputs?: Array<{ fileName: string; fileUrl: string; fileSize?: string }>;
 }
 
 // Define message metadata schema for validation

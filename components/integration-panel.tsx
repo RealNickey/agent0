@@ -115,9 +115,9 @@ const INTEGRATION_DETAILS: Record<string, { name: string; description: string; f
   },
   convert: {
     name: "Convert",
-    description: "Convert files between formats — images, documents, spreadsheets, and more.",
+    description: "Convert files between formats — images, documents, spreadsheets, presentations, and more. Supports DOC↔PDF, DOC→IMG, DOC→PPT, IMG→PDF, PDF→IMG, PDF→DOC, PDF→PPT, Excel→PDF, PPT→PDF, and all image-to-image conversions.",
     functions: [
-      { name: "convertFile", description: "Convert an attached file to a different format (e.g. PNG→JPG, CSV→TSV, HTML→MD)" }
+      { name: "convertFile", description: "Convert an attached file to a different format (e.g. PNG→JPG, DOCX→PDF, PDF→PNG, XLSX→PDF, PPTX→PDF)" }
     ]
   }
 };

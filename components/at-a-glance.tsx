@@ -604,7 +604,7 @@ export function AtAGlance({
 
       {/* Line 4 – [Meet] [n] meetings today */}
       <motion.div variants={lineVariant} className={lineClass}>
-        <motion.span variants={wordVariant}><MagneticWrap id="teams"><TeamsPlaceholder size={68} /></MagneticWrap></motion.span>
+        <motion.span variants={wordVariant}><MagneticWrap id="teams"><MeetPlaceholder size={68} /></MagneticWrap></motion.span>
         <motion.span variants={wordVariant} className={`${vivid} ${textBase}`}>{liveMeetingCount ?? meetingCount} meetings</motion.span>
         <motion.span variants={wordVariant} className={`${muted} ${textBase}`}>today</motion.span>
       </motion.div>

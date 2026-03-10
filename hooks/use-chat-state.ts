@@ -8,6 +8,7 @@ export function useChatState() {
   const [selectedModel, setSelectedModel] = useState<Model>(MODELS[0]);
   const [isModelOpen, setIsModelOpen] = useState(false);
   const [enableSearch, setEnableSearch] = useState(true);
+  const [enableUrlContext, setEnableUrlContext] = useState(true);
   const [enableThinking, setEnableThinking] = useState(true);
   const [mentionedTools, setMentionedTools] = useState<string[]>([]);
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);
@@ -36,6 +37,8 @@ export function useChatState() {
     setIsModelOpen,
     enableSearch,
     setEnableSearch,
+    enableUrlContext,
+    setEnableUrlContext,
     enableThinking,
     setEnableThinking,
     mentionedTools,

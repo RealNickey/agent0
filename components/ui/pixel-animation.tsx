@@ -263,10 +263,12 @@ export function PixelAnimation({
       cancelAnimationFrame(animationRef.current.request)
     }
 
-    const rect = container.getBoundingClientRect()
-
-    animationRef.current.width = Math.floor(rect.width)
-    animationRef.current.height = Math.floor(rect.height)
+    // Use offsetWidth/offsetHeight instead of getBoundingClientRect() so that
+    // CSS transforms (e.g. scale entrance animations on parent cards) don't
+    // cause the canvas to be initialised with scaled-down dimensions. The
+    // canvas attribute size should always match the element's layout box.
+    animationRef.current.width = Math.floor(container.offsetWidth)
+    animationRef.current.height = Math.floor(container.offsetHeight)
 
     canvas.width = animationRef.current.width
     canvas.height = animationRef.current.height

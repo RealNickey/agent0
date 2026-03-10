@@ -9,7 +9,7 @@
 import fs from "fs";
 import path from "path";
 
-// Google API scopes (Calendar + Gmail + Tasks)
+// Google API scopes (Calendar + Gmail + Tasks + Contacts)
 export const GOOGLE_CALENDAR_SCOPES = [
   // Calendar scopes
   "https://www.googleapis.com/auth/calendar",
@@ -22,6 +22,8 @@ export const GOOGLE_CALENDAR_SCOPES = [
   // Tasks scopes
   "https://www.googleapis.com/auth/tasks",
   "https://www.googleapis.com/auth/tasks.readonly",
+  // Contacts / People API — for sender profile pictures
+  "https://www.googleapis.com/auth/contacts.readonly",
 ];
 
 // Google Forms API scopes

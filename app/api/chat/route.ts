@@ -11,8 +11,9 @@ import { gmailTools } from "@/ai/gmail-tools";
 import { tasksTools } from "@/ai/tasks-tools";
 import { githubTools } from "@/ai/github-tools";
 import { slidesTools } from "@/ai/slides-tools";
-import { imageTools } from "@/ai/image-tools";
+import { createImageTools } from "@/ai/image-tools";
 import { movieTools } from "@/ai/movie-tools";
+import { researchTools } from "@/ai/research-tools";
 // PDF tools removed — handled entirely client-side to avoid tool part serialization issues
 import { GMAIL_AGENT_PROMPT } from "@/ai/prompts/gmail";
 import { GITHUB_AGENT_PROMPT } from "@/ai/prompts/github";
@@ -261,7 +262,7 @@ export async function POST(req: Request) {
       .join(' ')
       .trim()
     if (lastUserText) {
-      extractAndSaveMemories(userId, lastUserText).catch((e) =>
+      extractAndSaveMemories(userId, lastUserText, model).catch((e) =>
         console.error('[MemoryExtractor] Failed:', e)
       )
     }
@@ -559,12 +560,17 @@ Remember: Return ONLY the markdown code block with mermaid syntax. No additional
         }
       }
       // Image generation tool (Cloudflare Workers AI - Flux-1-Schnell)
-      if (lowerToolName === "image") {
-        tools.generateImage = imageTools.generateImage;
+      // Only available to authenticated users — images are scoped to userId in Blob storage
+      if (lowerToolName === "image" && userId) {
+        tools.generateImage = createImageTools(userId).generateImage;
       }
       // Movie tool (TMDB)
       if (lowerToolName === "movie") {
         tools.searchMovie = movieTools.searchMovie;
+      }
+      // Research tool (Wikipedia, PubMed, OpenAlex, DuckDuckGo)
+      if (lowerToolName === "research") {
+        tools.conductResearch = researchTools.conductResearch;
       }
       // PDF tools — handled entirely client-side (no LLM involvement)
       // The @pdf mention is intercepted in chat-ui.tsx before reaching this route
@@ -637,6 +643,10 @@ Remember: Return ONLY the markdown code block with mermaid syntax. No additional
 
   const movieGuidance = mentionedTools.some(t => t.toLowerCase() === "movie")
     ? " Movie tool instructions: When the user asks about a movie (any language — English, Hindi, Malayalam, Tamil, Telugu, Korean, etc.), ALWAYS call searchMovie with just the bare movie title as the 'title' argument. Do NOT pass '@movie' or '@film' in the title field — strip that prefix. Do NOT answer from memory; always call the tool. After the tool result is rendered, DO NOT repeat the movie details as text."
+    : "";
+
+  const researchGuidance = mentionedTools.some(t => t.toLowerCase() === "research")
+    ? " Research Agent Instructions: When the user asks about any topic, medical condition, project, technology, or concept, use conductResearch to search multiple authoritative sources simultaneously. Set category to 'medical' for health/disease queries, 'academic' for papers/studies, 'technology' for tech topics, or 'auto' to auto-detect. After research completes, DO NOT repeat the full findings as text — the Research Report Gen UI component displays everything with copy and download options. Only add brief commentary if needed."
     : "";
 
   const slidesGuidance = mentionedTools.some(t => ["slides", "presentation", "ppt"].includes(t.toLowerCase()))
@@ -716,7 +726,7 @@ Remember: Return ONLY the markdown code block with mermaid syntax. No additional
 
       const result = streamText({
         model: modelInstance,
-        system: `${systemPrompt}${calendarGuidance}${formsGuidance}${tasksGuidance}${gmailGuidance}${githubGuidance}${slidesGuidance}${movieGuidance}${memoryBlock}`,
+        system: `${systemPrompt}${calendarGuidance}${formsGuidance}${tasksGuidance}${gmailGuidance}${githubGuidance}${slidesGuidance}${movieGuidance}${researchGuidance}${memoryBlock}`,
         messages: modelMessages,
         tools: hasCurrentTools ? currentTools : undefined,
         toolChoice: hasCurrentTools ? "auto" : "none",

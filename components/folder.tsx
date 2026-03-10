@@ -91,7 +91,7 @@ export function Folder() {
                 initial: { y: 0, x: 0, rotate: 0 },
                 hover: { y: -40, x: 20, rotate: 5 },
               }}
-              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              transition={{ duration: 0.35, ease: "easeOut" }}
             >
               <div className="flex-none h-[221.717px] rotate-[18.12deg] w-[148.824px]">
                 <div className="relative rounded-[18.577px] size-full shadow-lg overflow-hidden">
@@ -111,7 +111,7 @@ export function Folder() {
                 initial: { y: 0 },
                 hover: { y: -60 },
               }}
-              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              transition={{ duration: 0.35, ease: "easeOut" }}
             >
               <div className="h-[221.717px] w-[148.824px]">
                 <div className="relative size-full overflow-hidden rounded-[18.286px] shadow-lg">
@@ -131,7 +131,7 @@ export function Folder() {
                 initial: { y: 0, x: 0, rotate: 0 },
                 hover: { y: -40, x: -20, rotate: -5 },
               }}
-              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              transition={{ duration: 0.35, ease: "easeOut" }}
             >
               <div className="flex-none h-[225.095px] rotate-[-17.28deg] w-[150.234px]">
                 <div className="relative rounded-[19.176px] size-full shadow-lg overflow-hidden">
@@ -152,7 +152,7 @@ export function Folder() {
               initial: { rotateX: 0 },
               hover: { rotateX: -15 },
             }}
-            transition={{ type: "spring", stiffness: 300, damping: 20 }}
+            transition={{ duration: 0.35, ease: "easeOut" }}
           >
             <div className="absolute inset-[-0.72%_-0.5%] overflow-hidden rounded-xl">
               <svg className="block max-w-none size-full" viewBox="0 0 244 170" preserveAspectRatio="none" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -160,15 +160,7 @@ export function Folder() {
                 <path d="M52.7666 137.679H195.904M52.7666 146.17H195.904" stroke="#322D31" strokeOpacity="0.85" strokeWidth="2.42607"/>
               </svg>
 
-              {/* Subtle shine effect */}
-              <motion.div
-                className="absolute inset-0 bg-linear-to-tr from-white/0 via-white/40 to-white/0 opacity-0"
-                variants={{
-                  initial: { opacity: 0, x: "-100%" },
-                  hover: { opacity: 1, x: "100%" },
-                }}
-                transition={{ duration: 0.8, ease: "easeInOut" }}
-              />
+              {/* Subtle shine effect removed */}
             </div>
           </motion.div>
         </motion.div>

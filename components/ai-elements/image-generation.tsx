@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence, useMotionValue, useSpring } from "motion/react";
 import { ImageIcon, DownloadIcon, SparklesIcon, ZoomInIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -121,11 +121,27 @@ export function ImageGeneration({
   const [lightboxOpen, setLightboxOpen] = useState(false);
   // revealed = true once generated image has loaded from network
   const [imageLoaded, setImageLoaded] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
   const revealDone = isReady && imageLoaded;
 
   const { springX, springY, onMouseMove, onMouseLeave } = useTilt(6);
 
   const src = imageUrl ?? (imageId ? `/api/images/${encodeURIComponent(imageId)}` : null);
+
+  // Reset loading state whenever the image source changes (e.g. new generation).
+  // Also handles the cached-image edge case where the browser fires the load
+  // event synchronously before React attaches onLoad — check img.complete.
+  useEffect(() => {
+    setImageLoaded(false);
+    if (!src) return;
+    // In the next tick the <img> will be in the DOM; check if already complete.
+    const frame = requestAnimationFrame(() => {
+      if (imgRef.current?.complete) {
+        setImageLoaded(true);
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [src]);
 
   const extension =
     mediaType === "image/png"
@@ -213,6 +229,7 @@ export function ImageGeneration({
           {src && mediaType && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
+              ref={imgRef}
               src={src}
               alt={prompt ?? "Generated image"}
               onLoad={() => setImageLoaded(true)}
@@ -224,6 +241,7 @@ export function ImageGeneration({
         {/* ── Layer 2: Loading overlay (blurred placeholder + pixel anim) ── */}
         <motion.div
           className="absolute inset-0 pointer-events-none"
+          initial={{ opacity: 1 }}
           animate={{ opacity: revealDone ? 0 : 1 }}
           transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
         >

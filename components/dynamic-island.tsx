@@ -35,7 +35,6 @@ export function DynamicIsland({
   return (
     <div className={cn("fixed top-6 left-1/2 -translate-x-1/2 z-50", className)}>
       <motion.div
-        layout
         onMouseLeave={() => setShowControls(false)}
         initial={{ y: -20, opacity: 0, filter: "blur(10px)" }}
         animate={{ y: 0, opacity: 1, filter: "blur(0px)" }}
@@ -54,10 +53,9 @@ export function DynamicIsland({
         </motion.button>
 
         <AnimatePresence mode="popLayout">
-          {showControls && (
+            {showControls && (
             <motion.div
               key="island-controls"
-              layout
               initial={{ opacity: 0, scale: 0.9, width: 0 }}
               animate={{ opacity: 1, scale: 1, width: "auto" }}
               exit={{ opacity: 0, scale: 0.9, width: 0 }}

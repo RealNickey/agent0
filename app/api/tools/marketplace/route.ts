@@ -55,6 +55,14 @@ const marketplaceTools = [
     icon: "image",
     enabled: true,
   },
+  {
+    id: "research",
+    name: "Research",
+    description: "Deep research across Wikipedia, PubMed, academic papers, and news. Generates downloadable reports with citations.",
+    category: "utility",
+    icon: "search",
+    enabled: true,
+  },
   // Add more tools here as needed
 ];
 

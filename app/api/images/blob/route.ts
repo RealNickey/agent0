@@ -1,4 +1,5 @@
 import { type NextRequest } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 
 // Allowed hostname patterns for Vercel Blob storage (prevents SSRF)
 const VERCEL_BLOB_HOST_RE =
@@ -6,11 +7,18 @@ const VERCEL_BLOB_HOST_RE =
 
 /**
  * Server-side proxy for private Vercel Blob images.
+ * Requires Clerk authentication and verifies the requested image belongs to the
+ * authenticated user (path must start with /generated-images/{userId}/).
  * Validates the URL is a legitimate Vercel Blob host (SSRF protection),
  * then fetches the private blob with Bearer auth and streams it to the browser.
  * This keeps the blob token out of the client entirely.
  */
 export async function GET(request: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
   const blobUrl = request.nextUrl.searchParams.get("url");
 
   if (!blobUrl) {
@@ -32,7 +40,12 @@ export async function GET(request: NextRequest) {
     return new Response("URL not allowed", { status: 403 });
   }
 
-  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  // Enforce ownership: the blob path must belong to the authenticated user
+  if (!parsedUrl.pathname.startsWith(`/generated-images/${userId}/`)) {
+    return new Response("Access denied", { status: 403 });
+  }
+
+  const token = process.env.BLOB_READ_WRITE_TOKEN?.trim();
   if (!token) {
     return new Response("Blob storage not configured", { status: 500 });
   }

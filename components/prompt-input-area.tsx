@@ -8,7 +8,14 @@ import {
   FileTextIcon, 
   NetworkIcon, 
   FileStackIcon, 
-  CloudSunIcon 
+  CloudSunIcon,
+  MailIcon,
+  ListTodoIcon,
+  GithubIcon,
+  ImageIcon,
+  FilmIcon,
+  PresentationIcon,
+  SearchIcon
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
@@ -454,6 +461,20 @@ export function PromptInputArea({
                         ? NetworkIcon
                         : toolLower === "pdf"
                         ? FileStackIcon
+                        : toolLower === "gmail"
+                        ? MailIcon
+                        : toolLower === "tasks"
+                        ? ListTodoIcon
+                        : toolLower === "github"
+                        ? GithubIcon
+                        : toolLower === "image"
+                        ? ImageIcon
+                        : toolLower === "movie"
+                        ? FilmIcon
+                        : toolLower === "slides"
+                        ? PresentationIcon
+                        : toolLower === "research"
+                        ? SearchIcon
                         : CloudSunIcon;
                     
                     return (

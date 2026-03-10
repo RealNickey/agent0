@@ -56,7 +56,8 @@ function inferImageMediaTypeFromPayload(payload: any): string {
   return "image/png";
 }
 
-export const imageGenerationTool = tool({
+export function createImageTools(userId: string) {
+  const imageGenerationTool = tool({
   description:
     "Generate an image from a text prompt using Cloudflare Workers AI (Flux-1-Schnell model). " +
     "Use this when the user asks to generate, create, draw, or visualize an image. " +
@@ -75,9 +76,9 @@ export const imageGenerationTool = tool({
       ),
   }),
   execute: async ({ prompt, steps = 4 }) => {
-    const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
-    const apiToken = process.env.CLOUDFLARE_API_TOKEN;
-    const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
+    const accountId = process.env.CLOUDFLARE_ACCOUNT_ID?.trim();
+    const apiToken = process.env.CLOUDFLARE_API_TOKEN?.trim();
+    const blobToken = process.env.BLOB_READ_WRITE_TOKEN?.trim();
 
     if (!accountId || !apiToken) {
       return {
@@ -154,7 +155,7 @@ export const imageGenerationTool = tool({
 
     const extension = getImageExtension(mediaType);
     const datePrefix = new Date().toISOString().slice(0, 10);
-    const filePath = `generated-images/${datePrefix}/${crypto.randomUUID()}.${extension}`;
+    const filePath = `generated-images/${userId}/${datePrefix}/${crypto.randomUUID()}.${extension}`;
 
     let blobUrl: string;
     try {
@@ -189,6 +190,5 @@ export const imageGenerationTool = tool({
   },
 });
 
-export const imageTools = {
-  generateImage: imageGenerationTool,
-};
+  return { generateImage: imageGenerationTool };
+}

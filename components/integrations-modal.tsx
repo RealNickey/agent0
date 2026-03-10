@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { CloudSun, Plus, Trash2, ExternalLink, Calendar, FileText, Mail, ListTodo, Network, FileStack, Github, ImageIcon, Film, ArrowRightLeft } from "lucide-react";
+import { CloudSun, Plus, Trash2, ExternalLink, Calendar, FileText, Mail, ListTodo, Network, FileStack, Github, ImageIcon, Film, Search,ArrowRightLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 import { GlowEffect } from "@/components/ui/glow-effect";
@@ -109,6 +109,14 @@ const INTEGRATIONS = [
     icon: ArrowRightLeft,
     color: "text-teal-400",
     bgColor: "bg-teal-500/10",
+   },
+  {
+    id: "research",
+    name: "Research",
+    description: "Deep research across Wikipedia, PubMed, and academic sources with downloadable reports.",
+    icon: Search,
+    color: "text-emerald-500",
+    bgColor: "bg-emerald-500/10",
   },
 ];
 

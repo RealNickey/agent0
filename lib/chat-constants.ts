@@ -8,6 +8,7 @@ export const MODELS: Model[] = [
   { id: "gemini-2.5-flash-lite", name: "Gemini 2.5 Flash Lite", provider: "google", series: "2.5", supportsThinking: true },
   { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", provider: "google", series: "2.0", supportsThinking: false },
   { id: "gemini-3-flash-preview", name: "Gemini 3 Flash (Preview)", provider: "google", series: "3", supportsThinking: true },
+  { id: "gemini-3.1-flash-lite-preview", name: "Gemini 3.1 Flash Lite (Preview)", provider: "google", series: "3.1", supportsThinking: true },
 
   // Groq
   { id: "groq:llama-3.3-70b-versatile", name: "Llama 3.3 70B", provider: "groq", series: "3.3", supportsThinking: false },
@@ -37,5 +38,7 @@ export const STORAGE_KEYS = {
   MODEL: "agent0-selected-model",
   MESSAGES: "agent0-chat-messages",
   THINKING: "agent0-enable-thinking",
+  SEARCH: "agent0-enable-search",
+  URL_CONTEXT: "agent0-enable-url-context",
   INTEGRATIONS: "agent0-added-integrations",
 } as const;

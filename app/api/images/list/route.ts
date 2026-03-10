@@ -1,18 +1,25 @@
 import { list } from "@vercel/blob";
+import { auth } from "@clerk/nextjs/server";
 
 /**
- * Lists all images stored in Vercel Blob under the generated-images/ prefix.
+ * Lists images stored in Vercel Blob for the authenticated user only
+ * (prefix: generated-images/{userId}/).
  * Returns proxy URLs so the private blob token never reaches the browser.
  */
 export async function GET() {
-  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  const { userId } = await auth();
+  if (!userId) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
+  const token = process.env.BLOB_READ_WRITE_TOKEN?.trim();
   if (!token) {
     return Response.json({ images: [] });
   }
 
   try {
     const { blobs } = await list({
-      prefix: "generated-images/",
+      prefix: `generated-images/${userId}/`,
       token,
     });
 

@@ -11,8 +11,28 @@
  */
 
 import { google } from "@ai-sdk/google";
+import { cohere } from "@ai-sdk/cohere";
+import { createOpenAI } from "@ai-sdk/openai";
 import { generateText, stepCountIs } from "ai";
 import { createMemoryTools } from "@/ai/memory-tools";
+
+const groq = createOpenAI({
+  baseURL: "https://api.groq.com/openai/v1",
+  apiKey: process.env.GROQ_API_KEY || "",
+});
+
+const openrouter = createOpenAI({
+  name: "openrouter",
+  baseURL: "https://openrouter.ai/api/v1",
+  apiKey: process.env.OPENROUTER_API_KEY || "",
+});
+
+function resolveModel(modelId: string) {
+  if (modelId.startsWith("groq:")) return groq(modelId.replace("groq:", ""));
+  if (modelId.startsWith("cohere:")) return cohere(modelId.replace("cohere:", ""));
+  if (modelId.startsWith("openrouter:")) return openrouter(modelId.replace("openrouter:", ""));
+  return google(modelId);
+}
 
 const EXTRACTION_SYSTEM_PROMPT = `You are a silent memory extraction agent. Your ONLY job is to call saveMemory for any personal information you detect in the user's message. Never generate any text response — only call saveMemory.
 
@@ -64,14 +84,15 @@ Do NOT save generic facts, opinions, questions, or commands that are not persona
  */
 export async function extractAndSaveMemories(
   userId: string,
-  userMessage: string
+  userMessage: string,
+  modelId = "gemini-2.0-flash"
 ): Promise<void> {
   if (!userMessage.trim()) return;
 
   const memTools = createMemoryTools(userId);
 
   await generateText({
-    model: google("gemini-2.0-flash"),
+    model: resolveModel(modelId),
     system: EXTRACTION_SYSTEM_PROMPT,
     messages: [
       {

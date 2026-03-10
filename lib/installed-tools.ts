@@ -29,6 +29,10 @@ try {
       id: "slides",
       installedAt: new Date().toISOString(),
     });
+    installedTools.set("research", {
+      id: "research",
+      installedAt: new Date().toISOString(),
+    });
     saveToolsToFile();
   }
 } catch (error) {

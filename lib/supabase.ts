@@ -4,10 +4,13 @@ import type { Database } from '@/types/supabase'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''
 
+const agent0SupabaseUrl = process.env.NEXT_PUBLIC_AGENT0_STORAGE_SUPABASE_URL ?? ''
+const agent0SupabaseServiceKey = process.env.AGENT0_STORAGE_SUPABASE_SERVICE_ROLE_KEY ?? ''
+
 /** Returns true only when real (non-placeholder) Supabase credentials are present */
 export function isSupabaseConfigured(): boolean {
   const url = supabaseUrl
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? supabaseAnonKey
+  const key = agent0SupabaseServiceKey ?? supabaseAnonKey
   return (
     url.startsWith('https://') &&
     !url.includes('your_supabase') &&
@@ -17,7 +20,7 @@ export function isSupabaseConfigured(): boolean {
 }
 
 export function isSupabaseServiceConfigured(): boolean {
-  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY)
+  return Boolean(agent0SupabaseUrl && agent0SupabaseServiceKey)
 }
 
 // Client for browser usage with anon key
@@ -26,11 +29,11 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey)
 // Server-side client with service role key (for API routes)
 // Uses a short connect timeout so DB failures fail fast instead of blocking for 10 s
 export function createServiceClient(timeoutMs = 4000) {
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? supabaseAnonKey
+  const supabaseServiceKey = agent0SupabaseServiceKey ?? supabaseAnonKey
   if (!isSupabaseServiceConfigured()) {
     throw new Error('Supabase service client is not configured')
   }
-  return createClient<Database>(supabaseUrl, supabaseServiceKey, {
+  return createClient<Database>(agent0SupabaseUrl, supabaseServiceKey, {
     global: {
       fetch: (url, options) =>
         fetch(url, { ...options, signal: AbortSignal.timeout(timeoutMs) }),

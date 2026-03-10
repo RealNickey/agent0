@@ -26,6 +26,10 @@ interface UseLocalStorageSyncProps {
   setSelectedModel: (model: Model) => void;
   enableThinking: boolean;
   setEnableThinking: (enable: boolean) => void;
+  enableSearch: boolean;
+  setEnableSearch: (enable: boolean) => void;
+  enableUrlContext: boolean;
+  setEnableUrlContext: (enable: boolean) => void;
   setAddedIntegrations: (integrations: string[]) => void;
   setIsCalendarConnected: (connected: boolean) => void;
   setIsFormsConnected: (connected: boolean) => void;
@@ -42,6 +46,10 @@ export function useLocalStorageSync({
   setSelectedModel,
   enableThinking,
   setEnableThinking,
+  enableSearch,
+  setEnableSearch,
+  enableUrlContext,
+  setEnableUrlContext,
   setAddedIntegrations,
   setIsCalendarConnected,
   setIsFormsConnected,
@@ -64,6 +72,16 @@ export function useLocalStorageSync({
       const savedThinking = localStorage.getItem(STORAGE_KEYS.THINKING);
       if (savedThinking != null) {
         setEnableThinking(savedThinking === "true");
+      }
+
+      const savedSearch = localStorage.getItem(STORAGE_KEYS.SEARCH);
+      if (savedSearch != null) {
+        setEnableSearch(savedSearch === "true");
+      }
+
+      const savedUrlContext = localStorage.getItem(STORAGE_KEYS.URL_CONTEXT);
+      if (savedUrlContext != null) {
+        setEnableUrlContext(savedUrlContext === "true");
       }
 
       const savedMessages = localStorage.getItem(STORAGE_KEYS.MESSAGES);
@@ -108,7 +126,7 @@ export function useLocalStorageSync({
       console.error("Failed to load from localStorage", e);
     }
     setIsLoaded(true);
-  }, [setMessages, setSelectedModel, setEnableThinking, setAddedIntegrations, setIsCalendarConnected, setIsFormsConnected, setIsTasksConnected, setIsGmailConnected, setIsLoaded]);
+  }, [setMessages, setSelectedModel, setEnableThinking, setEnableSearch, setEnableUrlContext, setAddedIntegrations, setIsCalendarConnected, setIsFormsConnected, setIsTasksConnected, setIsGmailConnected, setIsLoaded]);
 
   // Save model to local storage when it changes
   useEffect(() => {
@@ -131,6 +149,28 @@ export function useLocalStorageSync({
       }
     }
   }, [enableThinking, isLoaded]);
+
+  // Save search preference to local storage
+  useEffect(() => {
+    if (isLoaded) {
+      try {
+        localStorage.setItem(STORAGE_KEYS.SEARCH, String(enableSearch));
+      } catch (e) {
+        console.error("Failed to save search to localStorage", e);
+      }
+    }
+  }, [enableSearch, isLoaded]);
+
+  // Save URL context preference to local storage
+  useEffect(() => {
+    if (isLoaded) {
+      try {
+        localStorage.setItem(STORAGE_KEYS.URL_CONTEXT, String(enableUrlContext));
+      } catch (e) {
+        console.error("Failed to save URL context to localStorage", e);
+      }
+    }
+  }, [enableUrlContext, isLoaded]);
 
   // Save messages to local storage when they change
   useEffect(() => {

@@ -1,7 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { google } from "@ai-sdk/google";
+import { cohere } from "@ai-sdk/cohere";
+import { createOpenAI } from "@ai-sdk/openai";
 import { generateObject } from "ai";
 import { z } from "zod";
+
+const groq = createOpenAI({
+  baseURL: "https://api.groq.com/openai/v1",
+  apiKey: process.env.GROQ_API_KEY || "",
+});
+
+function resolveModel(modelId: string) {
+  if (modelId.startsWith("groq:")) {
+    return groq(modelId.replace("groq:", ""));
+  }
+  if (modelId.startsWith("cohere:")) {
+    return cohere(modelId.replace("cohere:", ""));
+  }
+  return google(modelId);
+}
 
 const categorySchema = z.object({
   categories: z.array(
@@ -57,14 +74,16 @@ export const CATEGORY_COLORS: Record<string, { bg: string; border: string; text:
 };
 
 /**
- * POST /api/gmail/categorize — AI-categorize emails using Gemini Flash
- * Body: { messages: Array<{ subject: string, snippet: string, from: string }> }
+ * POST /api/gmail/categorize — AI-categorize emails using the selected model
+ * Body: { messages: Array<{ subject: string, snippet: string, from: string }>, model?: string }
  * Returns: { categories: Array<{ index: number, category: string }>, colors: Record }
  */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const messages: { subject: string; snippet: string; from: string }[] = body.messages;
+    // Use the model the user has selected, fall back to Kimi K2
+    const modelId: string = body.model || "groq:moonshotai/kimi-k2-instruct-0905";
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return NextResponse.json(
@@ -81,8 +100,10 @@ export async function POST(req: NextRequest) {
       )
       .join("\n");
 
+    const model = resolveModel(modelId);
+
     const result = await generateObject({
-      model: google("gemini-2.0-flash"),
+      model,
       schema: categorySchema,
       prompt: `Categorize each email into exactly ONE category from: work, personal, marketing, finance, social, newsletter, updates.
 

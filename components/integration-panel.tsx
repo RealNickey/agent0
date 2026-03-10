@@ -118,6 +118,20 @@ const INTEGRATION_DETAILS: Record<string, { name: string; description: string; f
     description: "Convert files between formats — images, documents, spreadsheets, presentations, and more. Supports DOC↔PDF, DOC→IMG, DOC→PPT, IMG→PDF, PDF→IMG, PDF→DOC, PDF→PPT, Excel→PDF, PPT→PDF, and all image-to-image conversions.",
     functions: [
       { name: "convertFile", description: "Convert an attached file to a different format (e.g. PNG→JPG, DOCX→PDF, PDF→PNG, XLSX→PDF, PPTX→PDF)" }
+      ]
+      },
+  image: {
+    name: "Image",
+    description: "Generate images from text prompts using Cloudflare Workers AI (Flux-1-Schnell).",
+    functions: [
+      { name: "generateImage", description: "Generate an image from a text prompt using Flux-1-Schnell model" }
+    ]
+  },
+  research: {
+    name: "Research",
+    description: "Conduct deep research across multiple authoritative sources including Wikipedia, Europe PMC peer-reviewed papers, OpenAlex academic publications, and DuckDuckGo. Synthesizes a comprehensive journal-style report with numbered sections, full literature review, key findings, and a complete reference list with citations.",
+    functions: [
+      { name: "conductResearch", description: "Research any topic by fetching full content from Wikipedia, Europe PMC, OpenAlex, and DuckDuckGo — then synthesizes a downloadable report with citations" }
     ]
   }
 };

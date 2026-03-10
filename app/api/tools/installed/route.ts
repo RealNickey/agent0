@@ -89,6 +89,30 @@ function getToolMetadata(id: string) {
       icon: "arrow-right-left",
     };
   }
+  if (id === "github") {
+    return {
+      name: "GitHub",
+      description: "Create issues, branches, pull requests, and manage repos on GitHub",
+      category: "developer",
+      icon: "github",
+    };
+  }
+  if (id === "image") {
+    return {
+      name: "Image",
+      description: "Generate images from text prompts using Cloudflare Workers AI (Flux-1-Schnell)",
+      category: "creative",
+      icon: "image",
+    };
+  }
+  if (id === "research") {
+    return {
+      name: "Research",
+      description: "Deep research across Wikipedia, PubMed, academic papers, and news creates reports",
+      category: "utility",
+      icon: "search",
+    };
+  }
   return {
     name: id,
     description: "Custom tool",

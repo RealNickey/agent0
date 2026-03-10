@@ -34,6 +34,7 @@ import { ImageGenerationLoading, ImageGenerationResult, ImageGeneration } from "
 import { Weather, WeatherLoading } from "@/components/weather";
 import { MovieCard, MovieCardLoading } from "@/components/movie-card";
 import { ConvertResult } from "@/components/convert-result";
+import { ResearchReport, ResearchLoading } from "@/components/ai-elements/research-report";
 
 export type GenUIItem = {
   id: string;
@@ -169,6 +170,8 @@ export function extractGenUIs(messages: MyUIMessage[], model?: string): GenUIIte
         }
       } else if (toolInvocation.toolName === "displayWeather") {
         component = isCompleted ? <Weather {...toolInvocation.result} /> : <WeatherLoading location={toolInvocation.args?.location} />;
+      } else if (toolInvocation.toolName === "conductResearch") {
+        component = isCompleted ? <ResearchReport {...toolInvocation.result} /> : <ResearchLoading query={toolInvocation.args?.query} />;
       } else if (toolInvocation.toolName === "searchMovie") {
         component = isCompleted ? <MovieCard {...toolInvocation.result} /> : <MovieCardLoading title={toolInvocation.args?.title} />;
       } else if (toolInvocation.toolName === "schedulePresentationHeadings" && isCompleted) {
@@ -321,6 +324,10 @@ export function GenUIStack({ items }: { items: GenUIItem[] }) {
 
   if (items.length === 0) return null;
 
+  // Clamp synchronously so we never access an out-of-bounds index on the render
+  // that fires before the useEffect has corrected activeIndex.
+  const safeIndex = Math.min(Math.max(activeIndex, 0), items.length - 1);
+
   return (
     <div
       ref={containerRef}
@@ -332,7 +339,7 @@ export function GenUIStack({ items }: { items: GenUIItem[] }) {
       {items.length > 1 && (
         <div className="absolute top-4 inset-x-0 flex items-center justify-center z-20 pointer-events-none">
           <span className="text-[11px] font-semibold tracking-widest uppercase text-foreground/30 tabular-nums">
-            {activeIndex + 1}&thinsp;/&thinsp;{items.length}
+            {safeIndex + 1}&thinsp;/&thinsp;{items.length}
           </span>
         </div>
       )}
@@ -345,7 +352,7 @@ export function GenUIStack({ items }: { items: GenUIItem[] }) {
         {/* Active card */}
         <AnimatePresence mode="wait">
           <motion.div
-            key={items[activeIndex].id}
+            key={items[safeIndex].id}
             className="absolute inset-0 rounded-2xl border border-white/15 overflow-hidden z-10 flex flex-col"
             style={{
               background:
@@ -375,7 +382,7 @@ export function GenUIStack({ items }: { items: GenUIItem[] }) {
             }}
           >
             <div className="flex-1 min-h-0 overflow-y-auto p-5 flex flex-col custom-scrollbar">
-              {items[activeIndex].component}
+              {items[safeIndex].component}
             </div>
           </motion.div>
         </AnimatePresence>
@@ -390,7 +397,7 @@ export function GenUIStack({ items }: { items: GenUIItem[] }) {
               onClick={() => navigate(index)}
               className={cn(
                 "w-1.5 rounded-full transition-all duration-300 cursor-pointer",
-                index === activeIndex
+                index === safeIndex
                   ? "bg-primary/85 h-5 shadow-[0_0_6px_var(--primary)]"
                   : "bg-white/25 hover:bg-white/50 h-1.5",
               )}

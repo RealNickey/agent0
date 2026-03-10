@@ -14,8 +14,6 @@ export default function GlancePage() {
       }}
     >
       <AtAGlance
-        emailCount={2}
-        meetingCount={2}
       />
     </main>
   );

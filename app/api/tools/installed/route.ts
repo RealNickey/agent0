@@ -105,14 +105,6 @@ function getToolMetadata(id: string) {
       icon: "search",
     };
   }
-  if (id === "convert") {
-    return {
-      name: "Convert",
-      description: "Convert files between formats: images, PDFs, documents, spreadsheets, and text",
-      category: "utility",
-      icon: "refresh-cw",
-    };
-  }
   return {
     name: id,
     description: "Custom tool",

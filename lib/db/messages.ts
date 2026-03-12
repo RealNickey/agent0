@@ -16,7 +16,7 @@ export async function saveMessages(
     user_id: userId,
     role: msg.role,
     parts: stripLargeData(msg.parts ?? []),
-    metadata: stripLargeMetadata(msg.metadata ?? null),
+    metadata: msg.metadata ?? null,
   }))
   const { error } = await db
     .from('chat_messages')
@@ -54,23 +54,4 @@ function stripLargeData(parts: any[]): any[] {
     }
     return part
   })
-}
-
-/** Strip any large base64 data URLs from metadata before Supabase storage */
-function stripLargeMetadata(metadata: any): any {
-  if (!metadata || typeof metadata !== 'object') return metadata
-  const out = { ...metadata }
-  // Strip large data URLs from convertResult.files[]
-  if (out.convertResult) {
-    const cr = { ...out.convertResult }
-    if (Array.isArray(cr.files)) {
-      cr.files = cr.files.map((f: any) =>
-        typeof f.dataUrl === 'string' && f.dataUrl.startsWith('data:') && f.dataUrl.length > 50_000
-          ? { ...f, dataUrl: '[large file – view in session only]' }
-          : f
-      )
-    }
-    out.convertResult = cr
-  }
-  return out
 }

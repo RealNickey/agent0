@@ -28,7 +28,7 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey)
 
 // Server-side client with service role key (for API routes)
 // Uses a short connect timeout so DB failures fail fast instead of blocking for 10 s
-export function createServiceClient(timeoutMs = 15000) {
+export function createServiceClient(timeoutMs = 4000) {
   const supabaseServiceKey = agent0SupabaseServiceKey ?? supabaseAnonKey
   if (!isSupabaseServiceConfigured()) {
     throw new Error('Supabase service client is not configured')

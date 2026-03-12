@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, useRef } from "react";
 import { useChat } from "@ai-sdk/react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
-import type { MyUIMessage, PdfOperationResult, ConvertResult } from "@/types/chat";
+import type { MyUIMessage, PdfOperationResult } from "@/types/chat";
 import { StripLargeDataChatTransport } from "@/lib/chat-transport";
 // Components
 import { DynamicIsland } from "@/components/dynamic-island";
@@ -16,7 +16,6 @@ import { IntegrationPanel } from "@/components/integration-panel";
 import { FileDropZone } from "@/components/file-drop-zone";
 import { ScrollProgress } from "@/components/ui/scroll-progress";
 import { GenUIStack, extractGenUIs } from "@/components/gen-ui-stack";
-import { ConvertResult as ConvertResultDisplay } from "@/components/ai-elements/convert-result";
 import { Folder } from "@/components/folder";
 import { Music } from "@/components/music";
 import { EmailCardCarousel } from "@/components/email-card-carousel";
@@ -421,125 +420,6 @@ export function ChatUI() {
     }
     // --- End PDF client-side handling ---
 
-    // --- Convert: handle entirely client-side (zero AI tokens) ---
-    const isConvertOnly = mentionedTools.length > 0 && mentionedTools.every(t => t.toLowerCase() === "convert");
-
-    if (isConvertOnly) {
-      const userText = value.text.trim();
-      // Parse target format from text: "@convert to png", "@convert png", "convert to pdf", etc.
-      const formatMatch = userText.match(/(?:to\s+|convert\s+(?:to\s+)?)([a-zA-Z0-9]+)/i)
-        || userText.match(/@convert\s+([a-zA-Z0-9]+)/i);
-      const targetFormat = formatMatch?.[1]?.toLowerCase();
-
-      const ts = Date.now();
-      const userMsgId = `convert-user-${ts}`;
-      const assistantMsgId = `convert-asst-${ts}`;
-
-      // Build user message parts — text only, NO base64 file parts
-      const userParts: any[] = [];
-      if (userText) userParts.push({ type: "text", text: userText });
-      for (const att of attachments) {
-        userParts.push({ type: "text", text: `📎 ${att.name || "file"}` });
-      }
-
-      if (attachments.length === 0) {
-        setMessages((prev) => [
-          ...prev,
-          { id: userMsgId, role: "user", parts: userParts } as MyUIMessage,
-          { id: assistantMsgId, role: "assistant", parts: [{ type: "text", text: "Please attach a file to convert. Use @convert followed by the target format, e.g. \"@convert to png\"." }] } as MyUIMessage,
-        ]);
-        setInputValue(""); setAttachments([]); setMentionedTools([]);
-        if (fileInputRef.current) fileInputRef.current.value = "";
-        return;
-      }
-
-      if (!targetFormat) {
-        setMessages((prev) => [
-          ...prev,
-          { id: userMsgId, role: "user", parts: userParts } as MyUIMessage,
-          { id: assistantMsgId, role: "assistant", parts: [{ type: "text", text: "Please specify a target format, e.g. \"@convert to png\" or \"@convert pdf\"." }] } as MyUIMessage,
-        ]);
-        setInputValue(""); setAttachments([]); setMentionedTools([]);
-        if (fileInputRef.current) fileInputRef.current.value = "";
-        return;
-      }
-
-      // Show loading message
-      setMessages((prev) => [
-        ...prev,
-        { id: userMsgId, role: "user", parts: userParts } as MyUIMessage,
-        {
-          id: assistantMsgId,
-          role: "assistant",
-          parts: [{ type: "text", text: `⏳ Converting ${attachments.length} file(s) to ${targetFormat.toUpperCase()}...` }],
-        } as MyUIMessage,
-      ]);
-      setInputValue(""); setAttachments([]); setMentionedTools([]);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-
-      // Convert each file
-      let convertResultData: ConvertResult;
-      try {
-        const allFiles: ConvertResult["files"] = [];
-        let lastFromFormat = "";
-
-        for (const att of attachments) {
-          const res = await fetch("/api/convert", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              file: att.url,
-              targetFormat,
-              fileName: att.name,
-            }),
-          });
-          const data = await res.json();
-          if (res.ok && data.files) {
-            lastFromFormat = data.fromFormat;
-            for (const f of data.files) {
-              allFiles.push(f);
-            }
-          } else {
-            // If any file fails, report the error
-            convertResultData = { error: true, message: data.error || "Conversion failed" };
-            setMessages((prev) =>
-              prev.map((msg) =>
-                msg.id === assistantMsgId
-                  ? ({ ...msg, parts: [{ type: "text", text: `❌ ${convertResultData!.message}` }], metadata: { convertResult: convertResultData } } as MyUIMessage)
-                  : msg
-              )
-            );
-            return;
-          }
-        }
-
-        convertResultData = {
-          fromFormat: lastFromFormat,
-          toFormat: targetFormat.toUpperCase(),
-          originalFileName: attachments.length === 1 ? (attachments[0].name || "file") : `${attachments.length} files`,
-          originalSize: "",
-          files: allFiles,
-          message: `Successfully converted ${attachments.length} file(s) to ${targetFormat.toUpperCase()}`,
-        };
-      } catch (err) {
-        convertResultData = { error: true, message: err instanceof Error ? err.message : "Conversion failed" };
-      }
-
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === assistantMsgId
-            ? ({
-                ...msg,
-                parts: [{ type: "text", text: convertResultData.error ? `❌ ${convertResultData.message}` : `✅ ${convertResultData.message}` }],
-                metadata: { convertResult: convertResultData },
-              } as MyUIMessage)
-            : msg
-        )
-      );
-      return;
-    }
-    // --- End Convert client-side handling ---
-
     // Build parts array for the message
     const parts: Array<{ type: "text"; text: string } | { type: "file"; url: string; mediaType: string }> = [];
     
@@ -604,22 +484,6 @@ export function ChatUI() {
   if (!isLoaded) return null;
 
   const genUIs = extractGenUIs(dedupedMessages, selectedModel.id);
-
-  // Extract the most recent successful convert result for the dedicated convert panel
-  const latestConvertResult = (() => {
-    for (let i = dedupedMessages.length - 1; i >= 0; i--) {
-      const m = dedupedMessages[i];
-      if (m.role === "assistant") {
-        const conv = (m.metadata as any)?.convertResult;
-        if (conv && !conv.error && Array.isArray(conv.files) && conv.files.length > 0) {
-          return conv as ConvertResult;
-        }
-      }
-    }
-    return null;
-  })();
-  const hasConvertPanel = !!latestConvertResult;
-  const bothPanels = genUIs.length > 0 && hasConvertPanel;
 
   return (
     <FileDropZone onFilesDropped={handleFilesDropped}>
@@ -770,7 +634,7 @@ export function ChatUI() {
             >
               {/* Chat Panel — wide rectangle */}
               <motion.div
-                animate={{ width: bothPanels ? "50vw" : (genUIs.length > 0 || hasConvertPanel) ? "60vw" : "85vw" }}
+                animate={{ width: genUIs.length > 0 ? "60vw" : "85vw" }}
                 transition={{ type: "spring", bounce: 0, duration: 0.6 }}
                 className="relative h-[75vh] overflow-hidden rounded-3xl no-horizontal-scroll shrink-0"
                 style={{
@@ -821,7 +685,6 @@ export function ChatUI() {
                         onRefHydrated={() => setIsModalRefHydrated(true)}
                         model={selectedModel.id}
                         hideGenUI={genUIs.length > 0}
-                        hideConvertResult={hasConvertPanel}
                       />
                     </div>
                   </motion.div>
@@ -858,7 +721,7 @@ export function ChatUI() {
                 {genUIs.length > 0 && (
                   <motion.div
                     initial={{ opacity: 0, width: 0, scale: 0.96 }}
-                    animate={{ opacity: 1, width: bothPanels ? "22vw" : "27vw", scale: 1 }}
+                    animate={{ opacity: 1, width: "27vw", scale: 1 }}
                     exit={{ opacity: 0, width: 0, scale: 0.96 }}
                     transition={{ type: "spring", bounce: 0, duration: 0.6 }}
                     className="h-[75vh] overflow-hidden rounded-3xl shrink-0"
@@ -870,37 +733,6 @@ export function ChatUI() {
                     }}
                   >
                     <GenUIStack items={genUIs} />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Convert Result Panel — second right panel */}
-              <AnimatePresence>
-                {hasConvertPanel && latestConvertResult && (
-                  <motion.div
-                    key="convert-panel"
-                    initial={{ opacity: 0, width: 0, scale: 0.96 }}
-                    animate={{ opacity: 1, width: bothPanels ? "22vw" : "27vw", scale: 1 }}
-                    exit={{ opacity: 0, width: 0, scale: 0.96 }}
-                    transition={{ type: "spring", bounce: 0, duration: 0.6 }}
-                    className="h-[75vh] overflow-hidden rounded-3xl shrink-0"
-                    style={{
-                      background: "linear-gradient(135deg, rgba(99,102,241,0.15) 0%, rgba(99,102,241,0.07) 100%)",
-                      backdropFilter: "blur(60px) saturate(180%)",
-                      border: "1px solid rgba(99,102,241,0.25)",
-                      boxShadow: "0 25px 80px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.35), inset 0 -1px 0 rgba(255,255,255,0.1)",
-                    }}
-                  >
-                    <div className="h-full overflow-y-auto p-5 flex flex-col custom-scrollbar">
-                      <ConvertResultDisplay
-                        fromFormat={latestConvertResult.fromFormat ?? ""}
-                        toFormat={latestConvertResult.toFormat ?? ""}
-                        originalFileName={latestConvertResult.originalFileName ?? ""}
-                        originalSize={latestConvertResult.originalSize ?? ""}
-                        files={latestConvertResult.files ?? []}
-                        message={latestConvertResult.message}
-                      />
-                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>

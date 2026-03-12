@@ -54,7 +54,6 @@ import { TaskDeleteConfirmation } from "@/components/ai-elements/task-delete-con
 import { TaskUpdateConfirmation } from "@/components/ai-elements/task-update-confirmation";
 import { TaskCompleteDisplay } from "@/components/ai-elements/task-complete-display";
 import { PdfResult } from "@/components/ai-elements/pdf-result";
-import { ConvertResult } from "@/components/ai-elements/convert-result";
 import { PresentationResult, PresentationLoading } from "@/components/ai-elements/presentation-result";
 import { SlidesHeadingConfirmation } from "@/components/ai-elements/slides-heading-confirmation";
 import {
@@ -76,7 +75,7 @@ import {
   getMessageSources,
   getToolTitle,
 } from "@/lib/chat-message-utils";
-import type { MyUIMessage, PdfOperationResult, ConvertResult as ConvertResultType } from "@/types/chat";
+import type { MyUIMessage, PdfOperationResult } from "@/types/chat";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { Weather, WeatherLoading } from "@/components/weather";
 import { ResearchReport, ResearchLoading } from "@/components/ai-elements/research-report";
@@ -179,10 +178,9 @@ export type MessageListProps = {
   onRefHydrated?: () => void;
   model?: string;
   hideGenUI?: boolean;
-  hideConvertResult?: boolean;
 };
 
-export function MessageList({ messages, isLoading, status, onRegenerate, error, containerRef, onRefHydrated, model, hideGenUI = false, hideConvertResult = false }: MessageListProps) {
+export function MessageList({ messages, isLoading, status, onRegenerate, error, containerRef, onRefHydrated, model, hideGenUI = false }: MessageListProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const internalScrollContainerRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = containerRef || internalScrollContainerRef;
@@ -973,26 +971,6 @@ const normalizedToolInvocations = toolInvocations.reduce((acc: any[], ti: any, t
                         );
                       }
                       
-                      return null;
-                    })()}
-
-                    {/* Convert Result from metadata (not tool parts) */}
-                    {!hideConvertResult && message.role === "assistant" && (message.metadata as any)?.convertResult && (() => {
-                      const conv = (message.metadata as any).convertResult as ConvertResultType;
-                      if (conv.error) return null;
-                      if (conv.files && conv.files.length > 0) {
-                        return (
-                          <ConvertResult
-                            key={`convert-${message.id}`}
-                            fromFormat={conv.fromFormat || ""}
-                            toFormat={conv.toFormat || ""}
-                            originalFileName={conv.originalFileName || ""}
-                            originalSize={conv.originalSize || ""}
-                            files={conv.files}
-                            message={conv.message}
-                          />
-                        );
-                      }
                       return null;
                     })()}
 

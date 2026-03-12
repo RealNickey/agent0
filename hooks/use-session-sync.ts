@@ -121,21 +121,10 @@ export function useSessionSync({
   const saveMessagesToDB = useCallback(async () => {
     if (!isSignedIn || !currentSessionId || messages.length === 0) return
     try {
-      // Strip large base64 file attachments before sending to avoid oversized POST bodies
-      const stripped = messages.map((msg) => ({
-        ...msg,
-        parts: (msg.parts ?? []).map((part: any) => {
-          if (part.type === 'file' && typeof part.url === 'string' &&
-              part.url.startsWith('data:') && part.url.length > 50_000) {
-            return { type: 'text', text: `[${part.mediaType ?? 'File'} – ${part.name ?? 'attachment'}]` }
-          }
-          return part
-        }),
-      }))
       const res = await fetch(`/api/sessions/${currentSessionId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: stripped }),
+        body: JSON.stringify({ messages }),
       })
       if (!res.ok) {
         console.error('Failed to save messages:', res.status, res.statusText)

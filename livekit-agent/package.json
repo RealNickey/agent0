@@ -1,0 +1,22 @@
+{
+  "name": "agent0-calling-agent",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "node --loader ts-node/esm src/agent.ts dev",
+    "start": "node dist/agent.js start",
+    "download-files": "npm run build && node dist/agent.js download-files"
+  },
+  "dependencies": {
+    "@livekit/agents": "^1.0.50",
+    "@livekit/agents-plugin-livekit": "^1.0.50",
+    "@livekit/agents-plugin-silero": "^1.0.50",
+    "livekit-server-sdk": "^2.9.0"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.0",
+    "@types/node": "^22.0.0"
+  }
+}

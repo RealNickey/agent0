@@ -63,6 +63,14 @@ const marketplaceTools = [
     icon: "search",
     enabled: true,
   },
+  {
+    id: "call",
+    name: "Call",
+    description: "Make outbound phone calls with an AI voice agent that can autonomously complete tasks like booking appointments, gathering information, or making reservations.",
+    category: "communication",
+    icon: "phone",
+    enabled: true,
+  },
   // Add more tools here as needed
 ];
 

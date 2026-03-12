@@ -1,0 +1,36 @@
+# Node modules
+node_modules/
+npm-debug.log
+pnpm-debug.log
+
+# Build outputs
+dist/
+build/
+coverage/
+
+# TypeScript source (only dist/ needed in container)
+# (src/ is needed for build stage, kept out of final image via multi-stage)
+
+# Logs and temp files
+*.log
+*.gz
+*.tgz
+.tmp
+.cache
+
+# Environment variables (secrets injected at runtime via LiveKit Cloud)
+.env
+.env.*
+.env.local
+
+# VCS, editor, OS
+.git
+.gitignore
+.gitattributes
+.github/
+.idea/
+.vscode/
+.DS_Store
+
+# Project docs
+README.md

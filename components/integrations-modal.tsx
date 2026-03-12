@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { CloudSun, Plus, Trash2, ExternalLink, Calendar, FileText, Mail, ListTodo, Network, FileStack, Github, ImageIcon, Film, Search } from "lucide-react";
+import { CloudSun, Plus, Trash2, ExternalLink, Calendar, FileText, Mail, ListTodo, Network, FileStack, Github, ImageIcon, Film, Search, Phone } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 import { GlowEffect } from "@/components/ui/glow-effect";
@@ -109,6 +109,14 @@ const INTEGRATIONS = [
     icon: Search,
     color: "text-emerald-500",
     bgColor: "bg-emerald-500/10",
+  },
+  {
+    id: "call",
+    name: "Phone Call",
+    description: "Make AI-powered outbound calls to book appointments, gather info, or complete tasks.",
+    icon: Phone,
+    color: "text-teal-400",
+    bgColor: "bg-teal-500/10",
   },
 ];
 

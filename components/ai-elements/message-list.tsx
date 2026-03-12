@@ -79,6 +79,7 @@ import type { MyUIMessage, PdfOperationResult } from "@/types/chat";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { Weather, WeatherLoading } from "@/components/weather";
 import { ResearchReport, ResearchLoading } from "@/components/ai-elements/research-report";
+import { CallStatus } from "@/components/ai-elements/call-status";
 import { useTTS } from "@/hooks/use-tts";
 
 function ReadAloudButton({ text }: { text: string }) {
@@ -840,6 +841,44 @@ const normalizedToolInvocations = toolInvocations.reduce((acc: any[], ti: any, t
                                   <ResearchLoading query={toolInvocation.args?.query} />
                                 )}
                               </motion.div>
+                            </div>
+                          );
+                        }
+
+                        // Special rendering for Phone Call tool
+                        if (toolInvocation.toolName === "makePhoneCall") {
+                          return (
+                            <div key={toolInvocation.toolCallId} className="flex flex-col gap-2 w-full">
+                              <Tool defaultOpen={false}>
+                                <ToolHeader
+                                  title="Phone Call"
+                                  type={"tool-makePhoneCall" as any}
+                                  state={
+                                    hasError
+                                      ? "output-error"
+                                      : isCompleted
+                                      ? "output-available"
+                                      : "input-available"
+                                  }
+                                />
+                                <ToolContent>
+                                  <ToolInput input={toolInvocation.args} />
+                                </ToolContent>
+                              </Tool>
+                              {isCompleted && toolInvocation.result?.roomName && (
+                                <motion.div
+                                  initial={{ opacity: 0, y: 10 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ delay: 0.2 }}
+                                >
+                                  <CallStatus
+                                    roomName={toolInvocation.result.roomName}
+                                    phoneNumber={toolInvocation.result.phoneNumber || toolInvocation.args?.phoneNumber}
+                                    task={toolInvocation.result.task || toolInvocation.args?.task}
+                                    initialStatus={toolInvocation.result.status}
+                                  />
+                                </motion.div>
+                              )}
                             </div>
                           );
                         }

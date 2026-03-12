@@ -80,6 +80,8 @@ export function PromptInputArea({
     tasks: "bg-indigo-500/20 text-indigo-600",
     image: "bg-violet-500/20 text-violet-600",
     movie: "bg-amber-500/20 text-amber-600",
+    call: "bg-teal-500/20 text-teal-600",
+    phone: "bg-teal-500/20 text-teal-600",
     default: "bg-neutral-500/20 text-neutral-800", // Default to black-ish/dark neutral as requested
   };
 

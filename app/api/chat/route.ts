@@ -14,6 +14,7 @@ import { slidesTools } from "@/ai/slides-tools";
 import { createImageTools } from "@/ai/image-tools";
 import { movieTools } from "@/ai/movie-tools";
 import { researchTools } from "@/ai/research-tools";
+import { callTools } from "@/ai/call-tools";
 // PDF tools removed — handled entirely client-side to avoid tool part serialization issues
 import { GMAIL_AGENT_PROMPT } from "@/ai/prompts/gmail";
 import { GITHUB_AGENT_PROMPT } from "@/ai/prompts/github";
@@ -572,6 +573,11 @@ Remember: Return ONLY the markdown code block with mermaid syntax. No additional
       if (lowerToolName === "research") {
         tools.conductResearch = researchTools.conductResearch;
       }
+      // Call tool (LiveKit SIP telephony)
+      if (lowerToolName === "call" || lowerToolName === "phone") {
+        tools.makePhoneCall = callTools.makePhoneCall;
+        tools.getCallStatus = callTools.getCallStatus;
+      }
       // PDF tools — handled entirely client-side (no LLM involvement)
       // The @pdf mention is intercepted in chat-ui.tsx before reaching this route
       // Add more tool mappings here as needed
@@ -653,6 +659,10 @@ Remember: Return ONLY the markdown code block with mermaid syntax. No additional
     ? ` ${SLIDES_PROMPT}\n\nSlides workflow is mandatory: first call schedulePresentationHeadings to produce a pending confirmation heading plan (no HTML output). Generate SPECIFIC, DESCRIPTIVE headings that reflect real content about the topic — not generic headings like "Current Landscape" or "Key Drivers". For example, for "Ferrari vs Benz" use headings like "Ferrari's Racing Heritage: 75+ Years of F1 Dominance", "Mercedes-Benz: Engineering Luxury Since 1886", etc. Wait for user confirmation in UI. The backend AI agent automatically generates real factual content, picks topic-matching colors, and fetches relevant Unsplash images — you do NOT need to call createPresentation. Never output raw HTML directly as assistant text. When the presentation card/tool UI is available, do not output slide outlines, summaries, or duplicate narrative text in chat. Only send assistant text if you must ask a direct clarification question due to missing required inputs.`
     : "";
 
+  const callGuidance = mentionedTools.some(t => t.toLowerCase() === "call" || t.toLowerCase() === "phone")
+    ? " Phone Call Agent Instructions: When the user wants to make a phone call, use makePhoneCall with the phone number in E.164 format (e.g. +14155550123) and a detailed task description. The AI voice agent will call the number autonomously and complete the task (book appointment, gather info, etc). After initiating a call, inform the user. If they ask about call status, use getCallStatus with the roomName returned from makePhoneCall. After calling makePhoneCall, DO NOT repeat all the details — the Call Status UI component handles display."
+    : "";
+
   // PDF guidance removed — PDF operations are handled client-side
 
   // Retry logic with automatic model fallback on rate limiting
@@ -726,7 +736,7 @@ Remember: Return ONLY the markdown code block with mermaid syntax. No additional
 
       const result = streamText({
         model: modelInstance,
-        system: `${systemPrompt}${calendarGuidance}${formsGuidance}${tasksGuidance}${gmailGuidance}${githubGuidance}${slidesGuidance}${movieGuidance}${researchGuidance}${memoryBlock}`,
+        system: `${systemPrompt}${calendarGuidance}${formsGuidance}${tasksGuidance}${gmailGuidance}${githubGuidance}${slidesGuidance}${movieGuidance}${researchGuidance}${callGuidance}${memoryBlock}`,
         messages: modelMessages,
         tools: hasCurrentTools ? currentTools : undefined,
         toolChoice: hasCurrentTools ? "auto" : "none",

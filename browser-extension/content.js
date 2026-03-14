@@ -451,8 +451,185 @@ function showToastNotification(message, type = 'info') {
 
 // --- Media Control Logic ---
 
+if (typeof window.__agent0MediaControlLoaded === 'undefined') {
+  window.__agent0MediaControlLoaded = true;
+
 let mediaMonitorInterval = null;
 let lastMediaState = null;
+
+const MEDIA_SITE_SELECTORS = {
+  youtube: {
+    playPause: [
+      '.ytp-play-button',
+      'button[aria-keyshortcuts="k"]'
+    ],
+    next: [
+      '.ytp-next-button',
+      'a.ytp-next-button',
+      'button[aria-keyshortcuts="SHIFT+n"]'
+    ],
+    prev: [
+      '.ytp-prev-button',
+      'a.ytp-prev-button',
+      'button[aria-keyshortcuts="SHIFT+p"]'
+    ],
+  },
+  ytmusic: {
+    playPause: [
+      'ytmusic-player-bar #play-pause-button',
+      'tp-yt-paper-icon-button#play-pause-button',
+      'button#play-pause-button',
+      '.play-pause-button'
+    ],
+    next: [
+      'ytmusic-player-bar .next-button',
+      'tp-yt-paper-icon-button.next-button',
+      'button.next-button',
+      '#right-controls .next-button'
+    ],
+    prev: [
+      'ytmusic-player-bar .previous-button',
+      'tp-yt-paper-icon-button.previous-button',
+      'button.previous-button',
+      '#left-controls .previous-button'
+    ],
+  },
+  spotify: {
+    playPause: [
+      '[data-testid="control-button-playpause"]',
+      'button[aria-label="Play"]',
+      'button[aria-label="Pause"]'
+    ],
+    next: [
+      '[data-testid="control-button-skip-forward"]',
+      'button[aria-label="Next"]'
+    ],
+    prev: [
+      '[data-testid="control-button-skip-back"]',
+      'button[aria-label="Previous"]'
+    ],
+  },
+  soundcloud: {
+    playPause: ['.playControl'],
+    next: ['.skipControl__next'],
+    prev: ['.skipControl__previous'],
+  },
+  generic: {
+    playPause: [
+      '[aria-label*="Play" i]',
+      '[aria-label*="Pause" i]',
+      '[title*="Play" i]',
+      '[title*="Pause" i]'
+    ],
+    next: [
+      '[aria-label*="Next" i]',
+      '[title*="Next" i]',
+      '.next-button',
+      '.skip-forward'
+    ],
+    prev: [
+      '[aria-label*="Previous" i]',
+      '[title*="Previous" i]',
+      '.prev-button',
+      '.skip-back'
+    ],
+  },
+};
+
+function isElementVisible(el) {
+  if (!(el instanceof Element)) return false;
+  const style = window.getComputedStyle(el);
+  const rect = el.getBoundingClientRect();
+  return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+}
+
+function getTextFromElement(el) {
+  if (!(el instanceof Element)) return '';
+  return [
+    el.getAttribute('aria-label'),
+    el.getAttribute('title'),
+    el.textContent
+  ].filter(Boolean).join(' ').trim().toLowerCase();
+}
+
+function safeClick(el) {
+  if (!(el instanceof Element)) return false;
+
+  try {
+    el.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, cancelable: true, view: window }));
+    el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
+    if (typeof el.click === 'function') {
+      el.click();
+    }
+    el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
+    el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function getCandidateMediaElements() {
+  return Array.from(document.querySelectorAll('video, audio'));
+}
+
+function getPreferredMediaTarget() {
+  const allMedia = getCandidateMediaElements();
+  if (allMedia.length === 0) return null;
+
+  const playingMedia = allMedia.find((media) => !media.paused && !media.ended);
+  if (playingMedia) return playingMedia;
+
+  const readyMedia = allMedia.find((media) => media.readyState >= 2 && !media.ended);
+  return readyMedia || allMedia[0] || null;
+}
+
+function getSelectorGroup(site, action) {
+  const siteSelectors = MEDIA_SITE_SELECTORS[site] || MEDIA_SITE_SELECTORS.generic;
+  if (action === 'play' || action === 'pause') {
+    return siteSelectors.playPause || [];
+  }
+  return siteSelectors[action] || [];
+}
+
+function findSiteButton(action, site) {
+  const selectors = getSelectorGroup(site, action);
+
+  for (const selector of selectors) {
+    const matches = Array.from(document.querySelectorAll(selector));
+    const visibleMatch = matches.find(isElementVisible);
+    if (visibleMatch) {
+      return visibleMatch;
+    }
+  }
+
+  return null;
+}
+
+function matchesRequestedTransportState(button, command, fallbackMedia) {
+  if (!(button instanceof Element)) return false;
+  if (command !== 'play' && command !== 'pause') return true;
+
+  const buttonText = getTextFromElement(button);
+  if (!buttonText) {
+    return fallbackMedia ? (command === 'play' ? fallbackMedia.paused : !fallbackMedia.paused) : true;
+  }
+
+  if (command === 'play') {
+    return buttonText.includes('play') || buttonText.includes('resume');
+  }
+
+  return buttonText.includes('pause');
+}
+
+function forceStateRefresh() {
+  lastMediaState = null;
+  const state = scanForMedia();
+  chrome.runtime.sendMessage({
+    action: 'MEDIA_STATUS_UPDATE',
+    data: state
+  }).catch(() => {});
+}
 
 /**
  * Detect the site type for smarter control.
@@ -476,15 +653,29 @@ function getMediaTitle() {
   const site = detectSiteType();
 
   if (site === 'youtube') {
-    // YouTube: video title is in <h1> or <title>
-    const h1 = document.querySelector('h1.ytd-watch-metadata yt-formatted-string, h1.title');
-    if (h1?.textContent?.trim()) return h1.textContent.trim();
+    const selectors = [
+      'ytd-watch-metadata h1 yt-formatted-string',
+      'h1.ytd-watch-metadata yt-formatted-string',
+      'h1.title yt-formatted-string',
+      'h1.title'
+    ];
+    for (const selector of selectors) {
+      const title = document.querySelector(selector);
+      if (title?.textContent?.trim()) return title.textContent.trim();
+    }
   }
 
   if (site === 'ytmusic') {
-    // YT Music: track name is in a specific class
-    const title = document.querySelector('.title.ytmusic-player-bar, .content-info-wrapper .title');
-    if (title?.textContent?.trim()) return title.textContent.trim();
+    const selectors = [
+      'ytmusic-player-bar .title',
+      '.content-info-wrapper .title',
+      '.middle-controls .title',
+      'ytmusic-player-bar [slot="title"]'
+    ];
+    for (const selector of selectors) {
+      const title = document.querySelector(selector);
+      if (title?.textContent?.trim()) return title.textContent.trim();
+    }
   }
 
   if (site === 'spotify') {
@@ -507,13 +698,7 @@ function getMediaTitle() {
 }
 
 function scanForMedia() {
-  const videos = Array.from(document.querySelectorAll('video'));
-  const audios = Array.from(document.querySelectorAll('audio'));
-  const allMedia = [...videos, ...audios];
-
-  // Find the most 'active' media (playing one preferred)
-  const playingMedia = allMedia.find(m => !m.paused && !m.ended);
-  const mediaToReport = playingMedia || allMedia[0];
+  const mediaToReport = getPreferredMediaTarget();
 
   if (!mediaToReport) return null;
 
@@ -554,6 +739,10 @@ function startMediaMonitoring() {
   // Reset cached state on play/pause so next poll detects the change
   document.addEventListener('play', () => { lastMediaState = null; }, true);
   document.addEventListener('pause', () => { lastMediaState = null; }, true);
+  document.addEventListener('ended', () => { forceStateRefresh(); }, true);
+  window.addEventListener('yt-navigate-finish', forceStateRefresh);
+  window.addEventListener('popstate', forceStateRefresh);
+  window.addEventListener('hashchange', forceStateRefresh);
 }
 
 /**
@@ -563,102 +752,48 @@ function startMediaMonitoring() {
  */
 function handleMediaControl(command) {
   const site = detectSiteType();
-  const videos = Array.from(document.querySelectorAll('video'));
-  const audios = Array.from(document.querySelectorAll('audio'));
-  const allMedia = [...videos, ...audios];
-  
-  // Prioritize playing media for 'pause', or any media for 'play'
-  let target = allMedia.find(m => !m.paused) || allMedia[0];
-  if (!target && allMedia.length > 0) target = allMedia[0];
+  const target = getPreferredMediaTarget();
+
+  const controlButton = findSiteButton(command, site);
+  if (controlButton && matchesRequestedTransportState(controlButton, command, target)) {
+    if (safeClick(controlButton)) {
+      setTimeout(forceStateRefresh, 150);
+      return;
+    }
+  }
 
   if (command === 'play') {
     if (target) {
       target.play().catch(() => {});
-    } else {
-      // No HTML5 media found — try clicking native play buttons
-      const playBtn = findSiteButton('play', site);
-      if (playBtn) playBtn.click();
     }
+    setTimeout(forceStateRefresh, 150);
     return;
   }
 
   if (command === 'pause') {
     if (target && !target.paused) {
       target.pause();
-    } else {
-      const pauseBtn = findSiteButton('pause', site);
-      if (pauseBtn) pauseBtn.click();
     }
+    setTimeout(forceStateRefresh, 150);
     return;
   }
 
   if (command === 'next') {
-    // Try site-specific next buttons first
-    const nextBtn = findSiteButton('next', site);
-    if (nextBtn) {
-      nextBtn.click();
-    } else if (target) {
+    if (target) {
       // Generic fallback: seek forward 10s
       target.currentTime = Math.min(target.currentTime + 10, target.duration || Infinity);
     }
+    setTimeout(forceStateRefresh, 150);
     return;
   }
 
   if (command === 'prev') {
-    const prevBtn = findSiteButton('prev', site);
-    if (prevBtn) {
-      prevBtn.click();
-    } else if (target) {
+    if (target) {
       target.currentTime = Math.max(target.currentTime - 10, 0);
     }
+    setTimeout(forceStateRefresh, 150);
     return;
   }
-}
-
-/**
- * Find the right button for a given action on a specific site.
- * Returns the DOM element or null.
- */
-function findSiteButton(action, site) {
-  const selectors = {
-    youtube: {
-      play: '.ytp-play-button',
-      pause: '.ytp-play-button',
-      next: '.ytp-next-button',
-      prev: '.ytp-prev-button, a.ytp-prev-button',
-    },
-    ytmusic: {
-      play: '#play-pause-button, tp-yt-paper-icon-button.play-pause-button',
-      pause: '#play-pause-button, tp-yt-paper-icon-button.play-pause-button',
-      next: '.next-button, tp-yt-paper-icon-button.next-button',
-      prev: '.previous-button, tp-yt-paper-icon-button.previous-button',
-    },
-    spotify: {
-      play: '[data-testid="control-button-playpause"], button[aria-label="Play"]',
-      pause: '[data-testid="control-button-playpause"], button[aria-label="Pause"]',
-      next: '[data-testid="control-button-skip-forward"], button[aria-label="Next"]',
-      prev: '[data-testid="control-button-skip-back"], button[aria-label="Previous"]',
-    },
-    soundcloud: {
-      play: '.playControl',
-      pause: '.playControl',
-      next: '.skipControl__next',
-      prev: '.skipControl__previous',
-    },
-    generic: {
-      play: null,
-      pause: null,
-      next: '[aria-label*="Next" i], [title*="Next" i], .next-button, .skip-forward',
-      prev: '[aria-label*="Previous" i], [title*="Previous" i], .prev-button, .skip-back',
-    },
-  };
-
-  const siteSelectors = selectors[site] || selectors.generic;
-  const selector = siteSelectors[action];
-  if (!selector) return null;
-
-  const btn = document.querySelector(selector);
-  return btn;
 }
 
 // Start monitoring as soon as content script loads
@@ -690,4 +825,6 @@ if (window.location.origin.includes('localhost')) {
     }
   });
 }
+
+} // End media control initialization guard
 

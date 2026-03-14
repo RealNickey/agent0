@@ -325,14 +325,34 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.action === 'MEDIA_STATUS_UPDATE') {
     // A tab is reporting it has media — remember it
     if (sender.tab?.id) {
+      const reportedState = request.data || null;
+
+      if (!reportedState?.hasMedia && sender.tab.id === lastMediaTabId) {
+        lastMediaState = null;
+        lastMediaTabId = null;
+        persistMediaState();
+
+        chrome.tabs.query({ url: `${agent0Url}/*` }, (tabs) => {
+          tabs.forEach((t) => {
+            chrome.tabs.sendMessage(t.id, {
+              action: 'AGENT0_MEDIA_UPDATE',
+              data: null
+            }).catch(() => {});
+          });
+        });
+
+        sendResponse({ success: true });
+        return false;
+      }
+
       // Only update lastMediaTabId if media is actually playing,
       // or if we don't have a media tab yet
-      if (!lastMediaTabId || (request.data && request.data.isPlaying)) {
+      if (!lastMediaTabId || (reportedState && reportedState.isPlaying)) {
         lastMediaTabId = sender.tab.id;
       }
       // Always update state if it's from the active media tab
       if (sender.tab.id === lastMediaTabId) {
-        lastMediaState = request.data;
+        lastMediaState = reportedState;
         persistMediaState(); // keep session storage in sync
       }
 
@@ -341,7 +361,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         tabs.forEach((t) => {
           chrome.tabs.sendMessage(t.id, {
             action: 'AGENT0_MEDIA_UPDATE',
-            data: request.data
+            data: reportedState
           }).catch(() => {});
         });
       });
@@ -386,6 +406,7 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   if (tabId === lastMediaTabId) {
     lastMediaTabId = null;
     lastMediaState = null;
+    persistMediaState();
     // Notify Agent0 that media is gone
     chrome.tabs.query({ url: `${agent0Url}/*` }, (tabs) => {
       tabs.forEach((t) => {

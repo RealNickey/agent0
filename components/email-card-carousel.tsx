@@ -807,17 +807,19 @@ function ExpandedEmailCard({
     setReplyVisible(true);
     setGenerating(true);
     try {
-      const res = await fetch("/api/gmail/summarize", {
+      const res = await fetch("/api/gmail/reply", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: [{ subject: email.subject, snippet: email.snippet, from: email.fromName || email.fromEmail, to: email.to }],
-          model: selectedModel,
+          subject: email.subject,
+          snippet: email.snippet,
+          from: email.fromName || email.fromEmail,
+          to: email.to
         }),
       });
       const data = await res.json();
-      if (!data.error && data.emails?.[0]?.suggestedReply) {
-        revealReply(data.emails[0].suggestedReply);
+      if (!data.error && data.reply) {
+        revealReply(data.reply);
       }
     } finally {
       setGenerating(false);

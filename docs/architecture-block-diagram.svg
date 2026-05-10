@@ -1,0 +1,256 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" font-family="'Segoe UI', system-ui, -apple-system, sans-serif">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f172a"/>
+      <stop offset="100%" style="stop-color:#1e293b"/>
+    </linearGradient>
+    <linearGradient id="userGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1"/>
+      <stop offset="100%" style="stop-color:#4f46e5"/>
+    </linearGradient>
+    <linearGradient id="aiGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#8b5cf6"/>
+      <stop offset="100%" style="stop-color:#7c3aed"/>
+    </linearGradient>
+    <linearGradient id="toolGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#06b6d4"/>
+      <stop offset="100%" style="stop-color:#0891b2"/>
+    </linearGradient>
+    <linearGradient id="infraGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#10b981"/>
+      <stop offset="100%" style="stop-color:#059669"/>
+    </linearGradient>
+    <linearGradient id="arrowGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#94a3b8"/>
+      <stop offset="100%" style="stop-color:#64748b"/>
+    </linearGradient>
+
+    <!-- Drop Shadow -->
+    <filter id="shadow" x="-4%" y="-4%" width="108%" height="112%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+    <filter id="glowShadow" x="-6%" y="-6%" width="112%" height="116%">
+      <feDropShadow dx="0" dy="2" stdDeviation="8" flood-color="#6366f1" flood-opacity="0.2"/>
+    </filter>
+
+    <!-- Arrow Marker -->
+    <marker id="arrowHead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto" fill="#94a3b8">
+      <polygon points="0 0, 10 3.5, 0 7"/>
+    </marker>
+    <marker id="arrowHeadDown" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto" fill="#94a3b8">
+      <polygon points="0 0, 10 3.5, 0 7"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="900" fill="url(#bgGrad)" rx="0"/>
+
+  <!-- Title -->
+  <text x="600" y="48" text-anchor="middle" fill="#f8fafc" font-size="28" font-weight="700" letter-spacing="1">Agent0 — System Architecture</text>
+  <text x="600" y="72" text-anchor="middle" fill="#94a3b8" font-size="14" font-weight="400">AI-Powered Personal Assistant Platform</text>
+
+  <!-- ════════════════════════════════════════════════ -->
+  <!-- LAYER 1 — User Interface Layer                  -->
+  <!-- ════════════════════════════════════════════════ -->
+
+  <!-- Layer Label -->
+  <text x="32" y="118" fill="#6366f1" font-size="11" font-weight="600" letter-spacing="2" text-transform="uppercase">USER INTERFACE</text>
+  <line x1="32" y1="124" x2="175" y2="124" stroke="#6366f1" stroke-width="2" opacity="0.5"/>
+
+  <!-- Chat Interface -->
+  <rect x="72" y="138" width="220" height="80" rx="12" fill="url(#userGrad)" filter="url(#shadow)" opacity="0.95"/>
+  <text x="182" y="170" text-anchor="middle" fill="#fff" font-size="16" font-weight="600">Chat Interface</text>
+  <text x="182" y="190" text-anchor="middle" fill="#c7d2fe" font-size="11">Natural language input</text>
+  <text x="182" y="204" text-anchor="middle" fill="#c7d2fe" font-size="11">@ Tool mentions</text>
+
+  <!-- Dashboard -->
+  <rect x="322" y="138" width="220" height="80" rx="12" fill="url(#userGrad)" filter="url(#shadow)" opacity="0.95"/>
+  <text x="432" y="170" text-anchor="middle" fill="#fff" font-size="16" font-weight="600">Dashboard</text>
+  <text x="432" y="190" text-anchor="middle" fill="#c7d2fe" font-size="11">Daily overview &amp; widgets</text>
+  <text x="432" y="204" text-anchor="middle" fill="#c7d2fe" font-size="11">Calendar · Tasks · Weather</text>
+
+  <!-- Voice Interface -->
+  <rect x="572" y="138" width="220" height="80" rx="12" fill="url(#userGrad)" filter="url(#shadow)" opacity="0.95"/>
+  <text x="682" y="170" text-anchor="middle" fill="#fff" font-size="16" font-weight="600">Voice Interface</text>
+  <text x="682" y="190" text-anchor="middle" fill="#c7d2fe" font-size="11">Speech-to-text input</text>
+  <text x="682" y="204" text-anchor="middle" fill="#c7d2fe" font-size="11">Audio waveform feedback</text>
+
+  <!-- Browser Extension -->
+  <rect x="822" y="138" width="220" height="80" rx="12" fill="url(#userGrad)" filter="url(#shadow)" opacity="0.95"/>
+  <text x="932" y="170" text-anchor="middle" fill="#fff" font-size="16" font-weight="600">Browser Extension</text>
+  <text x="932" y="190" text-anchor="middle" fill="#c7d2fe" font-size="11">Web context capture</text>
+  <text x="932" y="204" text-anchor="middle" fill="#c7d2fe" font-size="11">Cross-tab awareness</text>
+
+  <!-- Layer 1 → Layer 2 Arrows -->
+  <line x1="182" y1="218" x2="182" y2="260" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrowHead)" opacity="0.6"/>
+  <line x1="432" y1="218" x2="432" y2="260" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrowHead)" opacity="0.6"/>
+  <line x1="682" y1="218" x2="600" y2="260" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrowHead)" opacity="0.6"/>
+  <line x1="932" y1="218" x2="800" y2="260" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrowHead)" opacity="0.6"/>
+
+  <!-- Connecting bracket line -->
+  <line x1="182" y1="248" x2="800" y2="248" stroke="#94a3b8" stroke-width="1.5" opacity="0.3" stroke-dasharray="6,4"/>
+
+  <!-- ════════════════════════════════════════════════ -->
+  <!-- LAYER 2 — AI Processing Core                   -->
+  <!-- ════════════════════════════════════════════════ -->
+
+  <!-- Layer Label -->
+  <text x="32" y="288" fill="#8b5cf6" font-size="11" font-weight="600" letter-spacing="2">AI PROCESSING CORE</text>
+  <line x1="32" y1="294" x2="195" y2="294" stroke="#8b5cf6" stroke-width="2" opacity="0.5"/>
+
+  <!-- Outer container -->
+  <rect x="72" y="300" width="1060" height="120" rx="16" fill="#1e1b4b" opacity="0.4" stroke="#7c3aed" stroke-width="1" stroke-dasharray="6,3"/>
+
+  <!-- Gemini AI Engine -->
+  <rect x="102" y="316" width="260" height="88" rx="12" fill="url(#aiGrad)" filter="url(#glowShadow)" opacity="0.95"/>
+  <text x="232" y="348" text-anchor="middle" fill="#fff" font-size="16" font-weight="700">Gemini AI Engine</text>
+  <text x="232" y="368" text-anchor="middle" fill="#ddd6fe" font-size="11">Multi-model LLM processing</text>
+  <text x="232" y="382" text-anchor="middle" fill="#ddd6fe" font-size="11">Streaming · Tool calling · Reasoning</text>
+
+  <!-- Tool Router -->
+  <rect x="392" y="316" width="260" height="88" rx="12" fill="url(#aiGrad)" filter="url(#glowShadow)" opacity="0.95"/>
+  <text x="522" y="348" text-anchor="middle" fill="#fff" font-size="16" font-weight="700">Tool Router</text>
+  <text x="522" y="368" text-anchor="middle" fill="#ddd6fe" font-size="11">18+ tool orchestration</text>
+  <text x="522" y="382" text-anchor="middle" fill="#ddd6fe" font-size="11">Sequential · Parallel · Conditional</text>
+
+  <!-- Human-in-the-Loop -->
+  <rect x="682" y="316" width="260" height="88" rx="12" fill="url(#aiGrad)" filter="url(#glowShadow)" opacity="0.95"/>
+  <text x="812" y="348" text-anchor="middle" fill="#fff" font-size="16" font-weight="700">Human-in-the-Loop</text>
+  <text x="812" y="368" text-anchor="middle" fill="#ddd6fe" font-size="11">User approval for actions</text>
+  <text x="812" y="382" text-anchor="middle" fill="#ddd6fe" font-size="11">Confirmation · Preview · Trust</text>
+
+  <!-- Generative UI -->
+  <rect x="972" y="316" width="140" height="88" rx="12" fill="url(#aiGrad)" filter="url(#glowShadow)" opacity="0.95"/>
+  <text x="1042" y="352" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">Generative</text>
+  <text x="1042" y="370" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">UI</text>
+  <text x="1042" y="390" text-anchor="middle" fill="#ddd6fe" font-size="10">Dynamic components</text>
+
+  <!-- Internal arrows in AI Core -->
+  <line x1="362" y1="360" x2="392" y2="360" stroke="#c4b5fd" stroke-width="2" marker-end="url(#arrowHead)" opacity="0.7"/>
+  <line x1="652" y1="360" x2="682" y2="360" stroke="#c4b5fd" stroke-width="2" marker-end="url(#arrowHead)" opacity="0.7"/>
+  <line x1="942" y1="360" x2="972" y2="360" stroke="#c4b5fd" stroke-width="2" marker-end="url(#arrowHead)" opacity="0.7"/>
+
+  <!-- Layer 2 → Layer 3 Arrows -->
+  <line x1="280" y1="420" x2="280" y2="470" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrowHead)" opacity="0.6"/>
+  <line x1="522" y1="420" x2="522" y2="470" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrowHead)" opacity="0.6"/>
+  <line x1="770" y1="420" x2="770" y2="470" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrowHead)" opacity="0.6"/>
+  <line x1="990" y1="420" x2="990" y2="470" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrowHead)" opacity="0.6"/>
+
+  <!-- ════════════════════════════════════════════════ -->
+  <!-- LAYER 3 — Tool Ecosystem                       -->
+  <!-- ════════════════════════════════════════════════ -->
+
+  <!-- Layer Label -->
+  <text x="32" y="498" fill="#06b6d4" font-size="11" font-weight="600" letter-spacing="2">TOOL ECOSYSTEM</text>
+  <line x1="32" y1="504" x2="155" y2="504" stroke="#06b6d4" stroke-width="2" opacity="0.5"/>
+
+  <!-- Productivity Tools Group -->
+  <rect x="72" y="510" width="280" height="170" rx="14" fill="#164e63" opacity="0.35" stroke="#06b6d4" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="212" y="534" text-anchor="middle" fill="#67e8f9" font-size="12" font-weight="600" letter-spacing="1">PRODUCTIVITY</text>
+
+  <rect x="92" y="546" width="120" height="52" rx="8" fill="url(#toolGrad)" filter="url(#shadow)" opacity="0.9"/>
+  <text x="152" y="570" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">Gmail</text>
+  <text x="152" y="586" text-anchor="middle" fill="#cffafe" font-size="9">Read · Draft · Send</text>
+
+  <rect x="222" y="546" width="120" height="52" rx="8" fill="url(#toolGrad)" filter="url(#shadow)" opacity="0.9"/>
+  <text x="282" y="570" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">Calendar</text>
+  <text x="282" y="586" text-anchor="middle" fill="#cffafe" font-size="9">Events · Scheduling</text>
+
+  <rect x="92" y="608" width="120" height="52" rx="8" fill="url(#toolGrad)" filter="url(#shadow)" opacity="0.9"/>
+  <text x="152" y="632" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">Tasks</text>
+  <text x="152" y="648" text-anchor="middle" fill="#cffafe" font-size="9">Google Tasks sync</text>
+
+  <rect x="222" y="608" width="120" height="52" rx="8" fill="url(#toolGrad)" filter="url(#shadow)" opacity="0.9"/>
+  <text x="282" y="632" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">GitHub</text>
+  <text x="282" y="648" text-anchor="middle" fill="#cffafe" font-size="9">Repos · Issues · PRs</text>
+
+  <!-- Media & Creation Group -->
+  <rect x="382" y="510" width="280" height="170" rx="14" fill="#164e63" opacity="0.35" stroke="#06b6d4" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="522" y="534" text-anchor="middle" fill="#67e8f9" font-size="12" font-weight="600" letter-spacing="1">MEDIA &amp; CREATION</text>
+
+  <rect x="402" y="546" width="120" height="52" rx="8" fill="url(#toolGrad)" filter="url(#shadow)" opacity="0.9"/>
+  <text x="462" y="570" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">Image Gen</text>
+  <text x="462" y="586" text-anchor="middle" fill="#cffafe" font-size="9">DALL-E 3</text>
+
+  <rect x="532" y="546" width="120" height="52" rx="8" fill="url(#toolGrad)" filter="url(#shadow)" opacity="0.9"/>
+  <text x="592" y="570" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">PDF Tools</text>
+  <text x="592" y="586" text-anchor="middle" fill="#cffafe" font-size="9">Merge · Compress</text>
+
+  <rect x="402" y="608" width="120" height="52" rx="8" fill="url(#toolGrad)" filter="url(#shadow)" opacity="0.9"/>
+  <text x="462" y="632" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">File Convert</text>
+  <text x="462" y="648" text-anchor="middle" fill="#cffafe" font-size="9">Docs · Images · AV</text>
+
+  <rect x="532" y="608" width="120" height="52" rx="8" fill="url(#toolGrad)" filter="url(#shadow)" opacity="0.9"/>
+  <text x="592" y="632" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">Forms</text>
+  <text x="592" y="648" text-anchor="middle" fill="#cffafe" font-size="9">Google Forms</text>
+
+  <!-- Info & Entertainment Group -->
+  <rect x="692" y="510" width="280" height="170" rx="14" fill="#164e63" opacity="0.35" stroke="#06b6d4" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="832" y="534" text-anchor="middle" fill="#67e8f9" font-size="12" font-weight="600" letter-spacing="1">INFO &amp; ENTERTAINMENT</text>
+
+  <rect x="712" y="546" width="120" height="52" rx="8" fill="url(#toolGrad)" filter="url(#shadow)" opacity="0.9"/>
+  <text x="772" y="570" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">Weather</text>
+  <text x="772" y="586" text-anchor="middle" fill="#cffafe" font-size="9">Forecast · Location</text>
+
+  <rect x="842" y="546" width="120" height="52" rx="8" fill="url(#toolGrad)" filter="url(#shadow)" opacity="0.9"/>
+  <text x="902" y="570" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">Movies</text>
+  <text x="902" y="586" text-anchor="middle" fill="#cffafe" font-size="9">TMDB · Ratings</text>
+
+  <rect x="712" y="608" width="120" height="52" rx="8" fill="url(#toolGrad)" filter="url(#shadow)" opacity="0.9"/>
+  <text x="772" y="632" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">Web Search</text>
+  <text x="772" y="648" text-anchor="middle" fill="#cffafe" font-size="9">Grounded answers</text>
+
+  <rect x="842" y="608" width="120" height="52" rx="8" fill="url(#toolGrad)" filter="url(#shadow)" opacity="0.9"/>
+  <text x="902" y="632" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">Music</text>
+  <text x="902" y="648" text-anchor="middle" fill="#cffafe" font-size="9">Playback control</text>
+
+  <!-- Memory & Research Group -->
+  <rect x="1002" y="510" width="130" height="170" rx="14" fill="#164e63" opacity="0.35" stroke="#06b6d4" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="1067" y="534" text-anchor="middle" fill="#67e8f9" font-size="12" font-weight="600" letter-spacing="1">MEMORY</text>
+
+  <rect x="1012" y="546" width="110" height="52" rx="8" fill="url(#toolGrad)" filter="url(#shadow)" opacity="0.9"/>
+  <text x="1067" y="572" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">User Memory</text>
+  <text x="1067" y="586" text-anchor="middle" fill="#cffafe" font-size="9">Facts · Prefs</text>
+
+  <rect x="1012" y="608" width="110" height="52" rx="8" fill="url(#toolGrad)" filter="url(#shadow)" opacity="0.9"/>
+  <text x="1067" y="632" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">Research</text>
+  <text x="1067" y="648" text-anchor="middle" fill="#cffafe" font-size="9">Deep analysis</text>
+
+  <!-- Layer 3 → Layer 4 Arrows -->
+  <line x1="212" y1="680" x2="300" y2="740" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrowHead)" opacity="0.6"/>
+  <line x1="522" y1="680" x2="522" y2="740" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrowHead)" opacity="0.6"/>
+  <line x1="832" y1="680" x2="740" y2="740" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrowHead)" opacity="0.6"/>
+
+  <!-- ════════════════════════════════════════════════ -->
+  <!-- LAYER 4 — Backend Infrastructure               -->
+  <!-- ════════════════════════════════════════════════ -->
+
+  <!-- Layer Label -->
+  <text x="32" y="770" fill="#10b981" font-size="11" font-weight="600" letter-spacing="2">BACKEND INFRASTRUCTURE</text>
+  <line x1="32" y1="776" x2="208" y2="776" stroke="#10b981" stroke-width="2" opacity="0.5"/>
+
+  <!-- Next.js API -->
+  <rect x="120" y="786" width="210" height="76" rx="12" fill="url(#infraGrad)" filter="url(#shadow)" opacity="0.9"/>
+  <text x="225" y="816" text-anchor="middle" fill="#fff" font-size="15" font-weight="600">Next.js API Routes</text>
+  <text x="225" y="836" text-anchor="middle" fill="#a7f3d0" font-size="11">Server Actions · Streaming</text>
+
+  <!-- Auth -->
+  <rect x="360" y="786" width="170" height="76" rx="12" fill="url(#infraGrad)" filter="url(#shadow)" opacity="0.9"/>
+  <text x="445" y="816" text-anchor="middle" fill="#fff" font-size="15" font-weight="600">Auth (Clerk)</text>
+  <text x="445" y="836" text-anchor="middle" fill="#a7f3d0" font-size="11">OAuth · Sessions</text>
+
+  <!-- Database -->
+  <rect x="560" y="786" width="210" height="76" rx="12" fill="url(#infraGrad)" filter="url(#shadow)" opacity="0.9"/>
+  <text x="665" y="816" text-anchor="middle" fill="#fff" font-size="15" font-weight="600">Supabase</text>
+  <text x="665" y="836" text-anchor="middle" fill="#a7f3d0" font-size="11">PostgreSQL · pgvector · Storage</text>
+
+  <!-- File Storage -->
+  <rect x="800" y="786" width="210" height="76" rx="12" fill="url(#infraGrad)" filter="url(#shadow)" opacity="0.9"/>
+  <text x="905" y="816" text-anchor="middle" fill="#fff" font-size="15" font-weight="600">File Storage</text>
+  <text x="905" y="836" text-anchor="middle" fill="#a7f3d0" font-size="11">Vercel Blob · Uploads</text>
+
+  <!-- Footer -->
+  <text x="600" y="888" text-anchor="middle" fill="#475569" font-size="11" font-weight="400">Next.js 15 · React 19 · TypeScript · Vercel AI SDK · Google Gemini · Tailwind CSS · Framer Motion</text>
+
+</svg>

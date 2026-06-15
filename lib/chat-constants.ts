@@ -16,6 +16,9 @@ export const MODELS: Model[] = [
   { id: "groq:openai/gpt-oss-20b", name: "GPT-OSS 20B", provider: "groq", series: "oss", supportsThinking: false },
   { id: "groq:openai/gpt-oss-120b", name: "GPT-OSS 120B", provider: "groq", series: "oss", supportsThinking: false },
 
+  // OpenRouter
+  { id: "openrouter:nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", name: "Nemotron 3 Nano Omni 30B", provider: "openrouter", series: "nemotron", supportsThinking: true },
+
   // Cohere
   { id: "cohere:command-a-03-2025", name: "Command A", provider: "cohere", series: "a", supportsThinking: false },
   { id: "cohere:command-r7b-12-2024", name: "Command R7B", provider: "cohere", series: "r7b", supportsThinking: false },
